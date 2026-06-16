@@ -13,7 +13,7 @@ export default function StepValueSelector({ values, unit, current, onChange }: S
         <button
           key={v}
           onClick={() => onChange(v)}
-          className={`px-2 py-0.5 text-xs font-medium border rounded-sm transition-colors ${
+          className={`px-2 py-0.5 text-xs font-medium border rounded-sm transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none ${
             current === v
               ? 'bg-[#2563EB] text-white border-[#2563EB]'
               : 'bg-white text-[#1E293B] border-[#D1D5DB] hover:bg-[#F9FAFB]'

@@ -8,6 +8,7 @@ interface LongPressButtonProps {
   className?: string;
   delay?: number;
   interval?: number;
+  'aria-label'?: string;
 }
 
 export default function LongPressButton({
@@ -17,6 +18,7 @@ export default function LongPressButton({
   className = '',
   delay = 150,
   interval = 60,
+  'aria-label': ariaLabel,
 }: LongPressButtonProps) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -97,6 +99,7 @@ export default function LongPressButton({
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchCancel}
       disabled={disabled}
+      aria-label={ariaLabel}
       className={`select-none ${className}`}
     >
       {children}

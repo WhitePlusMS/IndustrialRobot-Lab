@@ -15,11 +15,11 @@ const statusConfig: Record<
   ready: { color: '#10B981', text: '就绪', bgColor: 'bg-[#ECFDF5]' },
   moving: { color: '#F59E0B', text: '运动中…', bgColor: 'bg-[#FFFBEB]' },
   complete: { color: '#10B981', text: '运动完成', bgColor: 'bg-[#ECFDF5]' },
-  nearSingularity: { color: '#F59E0B', text: '接近奇异，精度下降', bgColor: 'bg-[#FFFBEB]' },
+  nearSingularity: { color: '#F59E0B', text: '接近奇异点，精度可能下降。尝试微调关节角度', bgColor: 'bg-[#FFFBEB]' },
   jointLimited: { color: '#F59E0B', text: '已限制到关节边界', bgColor: 'bg-[#FFFBEB]' },
-  unreachable: { color: '#EF4444', text: '目标不可达', bgColor: 'bg-[#FEF2F2]' },
-  jointOutOfRange: { color: '#EF4444', text: '目标超出关节范围', bgColor: 'bg-[#FEF2F2]' },
-  jointLimitExceeded: { color: '#EF4444', text: '关节超限', bgColor: 'bg-[#FEF2F2]' },
+  unreachable: { color: '#EF4444', text: '目标不可达 — 请检查目标位置是否在工作空间内', bgColor: 'bg-[#FEF2F2]' },
+  jointOutOfRange: { color: '#EF4444', text: '目标超出关节范围 — 请调整目标位置', bgColor: 'bg-[#FEF2F2]' },
+  jointLimitExceeded: { color: '#EF4444', text: '关节超限 — 请重置关节角度', bgColor: 'bg-[#FEF2F2]' },
 };
 
 export default function StatusBar({ status, coordinateSystem, position, euler }: StatusBarProps) {

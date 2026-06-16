@@ -1,5 +1,5 @@
 // src/components/ControlPanel.tsx
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import JointAngleCard from './JointAngleCard';
 import PoseControlCard from './PoseControlCard';
 import WaypointPanel from './WaypointPanel';
@@ -79,15 +79,31 @@ interface ControlPanelProps {
 }
 
 export default function ControlPanel(props: ControlPanelProps) {
-  const [activeTab, setActiveTab] = useState<TabMode>('robot');
+  // Tab 状态持久化到 URL query string
+  const [activeTab, setActiveTabState] = useState<TabMode>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    if (tab === 'camera' || tab === 'sequence') return tab;
+    return 'robot';
+  });
+
+  const setActiveTab = useCallback((tab: TabMode) => {
+    setActiveTabState(tab);
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', tab);
+    window.history.replaceState({}, '', url.toString());
+  }, []);
 
   return (
-    <div className="w-[360px] min-w-[320px] bg-[#FAFAFA] border-r border-[#D1D5DB] flex flex-col overflow-y-auto shrink-0">
+    <div className="w-full md:w-[360px] md:min-w-[320px] bg-[#FAFAFA] border-r border-[#D1D5DB] flex flex-col overflow-y-auto shrink-0">
       {/* Tab 切换条 */}
-      <div className="flex border-b border-[#E5E7EB]">
+      <div className="flex border-b border-[#E5E7EB]" role="tablist">
         <button
           onClick={() => setActiveTab('robot')}
-          className={`flex-1 py-2.5 text-xs font-semibold tracking-wide transition-colors ${
+          role="tab"
+          aria-selected={activeTab === 'robot'}
+          aria-controls="panel-robot"
+          className={`flex-1 py-2.5 text-xs font-semibold tracking-wide transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none ${
             activeTab === 'robot'
               ? 'text-[#2563EB] border-b-2 border-[#2563EB] bg-[#EFF6FF]'
               : 'text-[#64748B] hover:text-[#1E293B] hover:bg-[#F8FAFC]'
@@ -97,7 +113,10 @@ export default function ControlPanel(props: ControlPanelProps) {
         </button>
         <button
           onClick={() => setActiveTab('camera')}
-          className={`flex-1 py-2.5 text-xs font-semibold tracking-wide transition-colors ${
+          role="tab"
+          aria-selected={activeTab === 'camera'}
+          aria-controls="panel-camera"
+          className={`flex-1 py-2.5 text-xs font-semibold tracking-wide transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none ${
             activeTab === 'camera'
               ? 'text-[#2563EB] border-b-2 border-[#2563EB] bg-[#EFF6FF]'
               : 'text-[#64748B] hover:text-[#1E293B] hover:bg-[#F8FAFC]'
@@ -107,7 +126,10 @@ export default function ControlPanel(props: ControlPanelProps) {
         </button>
         <button
           onClick={() => setActiveTab('sequence')}
-          className={`flex-1 py-2.5 text-xs font-semibold tracking-wide transition-colors ${
+          role="tab"
+          aria-selected={activeTab === 'sequence'}
+          aria-controls="panel-sequence"
+          className={`flex-1 py-2.5 text-xs font-semibold tracking-wide transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none ${
             activeTab === 'sequence'
               ? 'text-[#2563EB] border-b-2 border-[#2563EB] bg-[#EFF6FF]'
               : 'text-[#64748B] hover:text-[#1E293B] hover:bg-[#F8FAFC]'

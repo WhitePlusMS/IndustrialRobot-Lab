@@ -95,11 +95,11 @@ export default function DirectionButton({
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       disabled={disabled}
-      className={`w-12 h-12 flex items-center justify-center text-xs font-bold border rounded-sm transition-all select-none ${
+      className={`w-12 h-12 flex items-center justify-center text-xs font-bold border rounded-sm transition-colors select-none ${
         variant === 'primary'
           ? 'bg-[#F3F4F6] text-[#1E293B] border-[#94A3B8] hover:bg-[#E5E7EB] active:bg-[#2563EB] active:text-white active:border-[#2563EB]'
           : 'bg-[#F3F4F6] text-[#1E293B] border-[#94A3B8] hover:bg-[#E5E7EB] active:bg-[#2563EB] active:text-white active:border-[#2563EB]'
-      } disabled:opacity-40 disabled:cursor-not-allowed`}
+      } disabled:opacity-40 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none`}
     >
       {label}
     </button>
