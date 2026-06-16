@@ -18,7 +18,8 @@ export default function DataOverlay({ coordinateSystem, position, euler, joints 
     <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm border border-[#D1D5DB] rounded-sm p-2.5 shadow-sm z-10 min-w-[180px]">
       <button
         onClick={() => setShowPose(!showPose)}
-        className="w-full flex items-center justify-between text-xs font-semibold text-[#1E293B] mb-1.5 border-b border-[#E5E7EB] pb-1 hover:text-[#2563EB] transition-colors"
+        className="w-full flex items-center justify-between text-xs font-semibold text-[#1E293B] mb-1.5 border-b border-[#E5E7EB] pb-1 hover:text-[#2563EB] transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
+        aria-expanded={showPose}
       >
         <span>当前位姿</span>
         {showPose ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
@@ -57,7 +58,8 @@ export default function DataOverlay({ coordinateSystem, position, euler, joints 
 
       <button
         onClick={() => setShowJoints(!showJoints)}
-        className="w-full flex items-center justify-between text-xs font-semibold text-[#1E293B] mt-2.5 mb-1.5 border-b border-[#E5E7EB] pb-1 hover:text-[#2563EB] transition-colors"
+        className="w-full flex items-center justify-between text-xs font-semibold text-[#1E293B] mt-2.5 mb-1.5 border-b border-[#E5E7EB] pb-1 hover:text-[#2563EB] transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
+        aria-expanded={showJoints}
       >
         <span>关节角度</span>
         {showJoints ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}

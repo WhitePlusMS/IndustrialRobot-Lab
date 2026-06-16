@@ -15,7 +15,8 @@ export default function DHParamOverlay({ config, visible }: DHParamOverlayProps)
   return (
     <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur-sm border border-[#D1D5DB] rounded-sm p-3 shadow-lg z-10">
       <div className="text-xs font-semibold text-[#1E293B] mb-2 text-center">DH 参数表 (改进DH法)</div>
-      <table className="text-xs font-mono">
+      <table className="text-xs font-mono" aria-label="DH参数表">
+        <caption className="sr-only">DH 参数表 (改进DH法)</caption>
         <thead>
           <tr className="border-b border-[#E5E7EB]">
             <th className="px-2 py-1 text-[#64748B] text-left">关节</th>

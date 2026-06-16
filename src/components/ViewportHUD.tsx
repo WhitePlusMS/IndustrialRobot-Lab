@@ -57,7 +57,7 @@ export default function ViewportHUD({
       <div className="flex gap-1 bg-white/90 backdrop-blur-sm border border-[#D1D5DB] rounded-sm p-1 shadow-sm">
         <button
           onClick={onSaveOrigin}
-          className="flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium text-[#1E293B] hover:bg-[#F3F4F6] rounded-sm transition-colors"
+          className="flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium text-[#1E293B] hover:bg-[#F3F4F6] rounded-sm transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
         >
           <Pin className="w-3 h-3" />
           设置原点
@@ -66,14 +66,14 @@ export default function ViewportHUD({
           onClick={onGoToOrigin}
           disabled={!hasOrigin}
           title={!hasOrigin ? '请先设置原点' : ''}
-          className="flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium text-[#1E293B] hover:bg-[#F3F4F6] rounded-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium text-[#1E293B] hover:bg-[#F3F4F6] rounded-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
         >
           <RotateCcw className="w-3 h-3" />
           回原点
         </button>
         <button
           onClick={onGoToZero}
-          className="flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium text-[#1E293B] hover:bg-[#F3F4F6] rounded-sm transition-colors"
+          className="flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium text-[#1E293B] hover:bg-[#F3F4F6] rounded-sm transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
         >
           <Home className="w-3 h-3" />
           回零位
@@ -82,12 +82,12 @@ export default function ViewportHUD({
 
       {/* 视角预设 */}
       <div className="flex gap-1 bg-white/90 backdrop-blur-sm border border-[#D1D5DB] rounded-sm p-1 shadow-sm">
-        <Camera className="w-3.5 h-3.5 text-[#64748B] mx-1 my-auto" />
+        <Camera className="w-3.5 h-3.5 text-[#64748B] mx-1 my-auto" aria-hidden="true" />
         {viewButtons.map((btn) => (
           <button
             key={btn.view}
             onClick={() => onCameraView(btn.view)}
-            className="px-2 py-0.5 text-xs font-medium text-[#1E293B] hover:bg-[#F3F4F6] rounded-sm transition-colors"
+            className="px-2 py-0.5 text-xs font-medium text-[#1E293B] hover:bg-[#F3F4F6] rounded-sm transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
           >
             {btn.label}
           </button>
@@ -95,7 +95,7 @@ export default function ViewportHUD({
       </div>
 
       {/* 显示开关 */}
-      <div className="flex gap-1 bg-white/90 backdrop-blur-sm border border-[#D1D5DB] rounded-sm p-1 shadow-sm">
+      <div className="flex gap-1 bg-white/90 backdrop-blur-sm border border-[#D1D5DB] rounded-sm p-1 shadow-sm" role="group" aria-label="显示开关">
         {toggleButtons.map((btn) => {
           const Icon = btn.icon;
           return (
@@ -103,7 +103,8 @@ export default function ViewportHUD({
               key={btn.label}
               onClick={btn.onClick}
               title={btn.label}
-              className={`flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-sm transition-colors ${
+              aria-pressed={btn.active}
+              className={`flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-sm transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none ${
                 btn.active
                   ? 'bg-[#2563EB] text-white'
                   : 'text-[#1E293B] hover:bg-[#F3F4F6]'

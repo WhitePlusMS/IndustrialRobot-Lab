@@ -31,7 +31,8 @@ export default function JointAngleCard({
     <div className="bg-white border border-[#D1D5DB] rounded-sm">
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="w-full flex items-center justify-between px-3 py-2 bg-[#F9FAFB] border-b border-[#E5E7EB] hover:bg-[#F3F4F6] transition-colors"
+        className="w-full flex items-center justify-between px-3 py-2 bg-[#F9FAFB] border-b border-[#E5E7EB] hover:bg-[#F3F4F6] transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
+        aria-expanded={!collapsed}
       >
         <span className="text-sm font-semibold text-[#1E293B]">关节角度</span>
         {collapsed ? <ChevronDown className="w-4 h-4 text-[#64748B]" /> : <ChevronUp className="w-4 h-4 text-[#64748B]" />}
