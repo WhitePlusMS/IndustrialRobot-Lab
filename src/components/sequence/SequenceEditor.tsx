@@ -61,6 +61,7 @@ export default function SequenceEditor({
   };
 
   const clearSequence = () => {
+    if (!confirm('确定清空所有序列步骤？')) return;
     setStepsList([]);
     setSelectedIndex(-1);
   };

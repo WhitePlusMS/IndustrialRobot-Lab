@@ -1,5 +1,5 @@
 // src/components/camera/CapturePanel.tsx
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useRef } from 'react';
 import * as THREE from 'three';
 import type { CameraState, CaptureResult } from '@/types/camera';
 import { captureColorPhoto, captureSegmentationPhoto, captureDepthPhoto, generateFileName, downloadImage } from '@/lib/capture-engine';
@@ -10,6 +10,8 @@ interface CapturePanelProps {
   onCapture: (result: CaptureResult) => void;
   onResolutionChange: (w: number, h: number) => void;
 }
+
+const MIN_LOADING_MS = 300;
 
 export default function CapturePanel({ cameraState, captureResult, onCapture, onResolutionChange }: CapturePanelProps) {
   const [isCapturing, setIsCapturing] = useState(false);
@@ -49,14 +51,29 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
     return photoScene;
   }, []);
 
-  const handleCaptureColor = useCallback(() => {
+  const captureWithProgress = useCallback(async (fn: () => void) => {
     setIsCapturing(true);
-    setTimeout(() => {
+    const start = Date.now();
+    // 延迟一小段时间让 UI 有机会渲染 loading 状态
+    await new Promise((r) => setTimeout(r, 0));
+    try {
+      fn();
+    } finally {
+      const elapsed = Date.now() - start;
+      const remaining = MIN_LOADING_MS - elapsed;
+      if (remaining > 0) {
+        await new Promise((r) => setTimeout(r, remaining));
+      }
+      setIsCapturing(false);
+    }
+  }, []);
+
+  const handleCaptureColor = useCallback(() => {
+    captureWithProgress(() => {
       try {
         const captureInfo = (window as any).__R3F_CAPTURE;
         if (!captureInfo) {
           console.error('无法获取 R3F 渲染器');
-          setIsCapturing(false);
           return;
         }
         const { renderer, scene } = captureInfo;
@@ -72,20 +89,16 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
         onCapture(result);
       } catch (e) {
         console.error('彩色拍照失败:', e);
-      } finally {
-        setIsCapturing(false);
       }
-    }, 50);
-  }, [cameraState, captureResult, onCapture, buildCaptureCamera, clonePhotoScene]);
+    });
+  }, [cameraState, captureResult, onCapture, buildCaptureCamera, clonePhotoScene, captureWithProgress]);
 
   const handleCaptureSegmentation = useCallback(() => {
-    setIsCapturing(true);
-    setTimeout(() => {
+    captureWithProgress(() => {
       try {
         const captureInfo = (window as any).__R3F_CAPTURE;
         if (!captureInfo) {
           console.error('无法获取 R3F 渲染器');
-          setIsCapturing(false);
           return;
         }
         const { renderer, scene } = captureInfo;
@@ -101,20 +114,16 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
         onCapture(result);
       } catch (e) {
         console.error('分割拍照失败:', e);
-      } finally {
-        setIsCapturing(false);
       }
-    }, 50);
-  }, [cameraState, captureResult, onCapture, buildCaptureCamera, clonePhotoScene]);
+    });
+  }, [cameraState, captureResult, onCapture, buildCaptureCamera, clonePhotoScene, captureWithProgress]);
 
   const handleCaptureDepth = useCallback(() => {
-    setIsCapturing(true);
-    setTimeout(() => {
+    captureWithProgress(() => {
       try {
         const captureInfo = (window as any).__R3F_CAPTURE;
         if (!captureInfo) {
           console.error('无法获取 R3F 渲染器');
-          setIsCapturing(false);
           return;
         }
         const { renderer, scene } = captureInfo;
@@ -137,11 +146,9 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
         onCapture(result);
       } catch (e) {
         console.error('深度图拍摄失败:', e);
-      } finally {
-        setIsCapturing(false);
       }
-    }, 50);
-  }, [cameraState, captureResult, onCapture, buildCaptureCamera, clonePhotoScene]);
+    });
+  }, [cameraState, captureResult, onCapture, buildCaptureCamera, clonePhotoScene, captureWithProgress]);
 
   const handleDownloadColor = useCallback(() => {
     if (captureResult?.color) {
@@ -160,6 +167,16 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
       downloadImage(captureResult.depth, generateFileName('depth'));
     }
   }, [captureResult]);
+
+  const openViewer = useCallback((img: string, label: string) => {
+    setViewerImage(img);
+    setViewerLabel(label);
+  }, []);
+
+  const closeViewer = useCallback(() => {
+    setViewerImage(null);
+    setViewerLabel('');
+  }, []);
 
   return (
     <>
@@ -180,7 +197,7 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
               <button
                 key={`${w}x${h}`}
                 onClick={() => onResolutionChange(w, h)}
-                className={`px-1.5 py-0.5 text-[10px] rounded-sm border ${
+                className={`px-1.5 py-0.5 text-[10px] rounded-sm border focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none ${
                   cameraState.resolution[0] === w && cameraState.resolution[1] === h
                     ? 'bg-[#2563EB] text-white border-[#2563EB]'
                     : 'bg-white text-[#1E293B] border-[#D1D5DB] hover:bg-[#F3F4F6]'
@@ -196,44 +213,65 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
           <button
             onClick={handleCaptureColor}
             disabled={isCapturing}
-            className="h-8 bg-[#2563EB] text-white text-[10px] font-medium rounded-sm hover:bg-[#1D4ED8] active:bg-[#1E40AF] disabled:opacity-50 transition-colors flex items-center justify-center gap-1"
+            className="h-8 bg-[#2563EB] text-white text-[10px] font-medium rounded-sm hover:bg-[#1D4ED8] active:bg-[#1E40AF] disabled:opacity-50 transition-colors flex items-center justify-center gap-1 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
           >
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
+            {isCapturing ? (
+              <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : (
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            )}
             彩色
           </button>
           <button
             onClick={handleCaptureSegmentation}
             disabled={isCapturing}
-            className="h-8 bg-[#F97316] text-white text-[10px] font-medium rounded-sm hover:bg-[#EA580C] active:bg-[#C2410C] disabled:opacity-50 transition-colors flex items-center justify-center gap-1"
+            className="h-8 bg-[#F97316] text-white text-[10px] font-medium rounded-sm hover:bg-[#EA580C] active:bg-[#C2410C] disabled:opacity-50 transition-colors flex items-center justify-center gap-1 focus-visible:ring-2 focus-visible:ring-[#F97316] focus-visible:outline-none"
           >
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-            </svg>
+            {isCapturing ? (
+              <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : (
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+              </svg>
+            )}
             分割
           </button>
           <button
             onClick={handleCaptureDepth}
             disabled={isCapturing}
-            className="h-8 bg-[#7C3AED] text-white text-[10px] font-medium rounded-sm hover:bg-[#6D28D9] active:bg-[#5B21B6] disabled:opacity-50 transition-colors flex items-center justify-center gap-1"
+            className="h-8 bg-[#7C3AED] text-white text-[10px] font-medium rounded-sm hover:bg-[#6D28D9] active:bg-[#5B21B6] disabled:opacity-50 transition-colors flex items-center justify-center gap-1 focus-visible:ring-2 focus-visible:ring-[#7C3AED] focus-visible:outline-none"
           >
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-            </svg>
+            {isCapturing ? (
+              <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : (
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+            )}
             深度
           </button>
         </div>
 
         {isCapturing && (
-          <div className="text-center text-[11px] text-[#64748B]">正在渲染...</div>
+          <div className="text-center text-[11px] text-[#64748B]" role="status" aria-live="polite">正在渲染…</div>
         )}
 
         {/* 预览区域 */}
         {captureResult && (
           <div className="space-y-2">
-            <div className="text-[11px] font-semibold text-[#64748B]">最近拍摄（双击查看大图）</div>
+            <div className="text-[11px] font-semibold text-[#64748B]">最近拍摄（双击或按 Enter 查看大图）</div>
 
             <div className="grid grid-cols-3 gap-2">
               {captureResult.color && (
@@ -241,7 +279,11 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
                   <div className="text-[10px] text-[#64748B] text-center">彩色</div>
                   <div
                     className="border border-[#E5E7EB] rounded-sm overflow-hidden bg-[#F8FAFC] aspect-[4/3] cursor-zoom-in"
-                    onDoubleClick={() => { setViewerImage(captureResult.color); setViewerLabel('彩色照片'); }}
+                    onDoubleClick={() => openViewer(captureResult.color!, '彩色照片')}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openViewer(captureResult.color!, '彩色照片'); }}
+                    tabIndex={0}
+                    role="button"
+                    aria-label="查看彩色照片大图"
                   >
                     <img
                       src={captureResult.color}
@@ -256,7 +298,11 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
                   <div className="text-[10px] text-[#64748B] text-center">分割</div>
                   <div
                     className="border border-[#E5E7EB] rounded-sm overflow-hidden bg-[#F8FAFC] aspect-[4/3] cursor-zoom-in"
-                    onDoubleClick={() => { setViewerImage(captureResult.segmentation); setViewerLabel('分割照片'); }}
+                    onDoubleClick={() => openViewer(captureResult.segmentation!, '分割照片')}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openViewer(captureResult.segmentation!, '分割照片'); }}
+                    tabIndex={0}
+                    role="button"
+                    aria-label="查看分割照片大图"
                   >
                     <img
                       src={captureResult.segmentation}
@@ -271,7 +317,11 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
                   <div className="text-[10px] text-[#64748B] text-center">深度</div>
                   <div
                     className="border border-[#E5E7EB] rounded-sm overflow-hidden bg-[#F8FAFC] aspect-[4/3] cursor-zoom-in"
-                    onDoubleClick={() => { setViewerImage(captureResult.depth); setViewerLabel('深度图'); }}
+                    onDoubleClick={() => openViewer(captureResult.depth!, '深度图')}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openViewer(captureResult.depth!, '深度图'); }}
+                    tabIndex={0}
+                    role="button"
+                    aria-label="查看深度图大图"
                   >
                     <img
                       src={captureResult.depth}
@@ -306,7 +356,7 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
               {captureResult.color && (
                 <button
                   onClick={handleDownloadColor}
-                  className="h-7 bg-[#F1F5F9] text-[#1E293B] text-[10px] rounded-sm border border-[#CBD5E1] hover:bg-[#E2E8F0] active:bg-[#CBD5E1] transition-colors flex items-center justify-center gap-1"
+                  className="h-7 bg-[#F1F5F9] text-[#1E293B] text-[10px] rounded-sm border border-[#CBD5E1] hover:bg-[#E2E8F0] active:bg-[#CBD5E1] transition-colors flex items-center justify-center gap-1 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
                 >
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -317,7 +367,7 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
               {captureResult.segmentation && (
                 <button
                   onClick={handleDownloadSegmentation}
-                  className="h-7 bg-[#F1F5F9] text-[#1E293B] text-[10px] rounded-sm border border-[#CBD5E1] hover:bg-[#E2E8F0] active:bg-[#CBD5E1] transition-colors flex items-center justify-center gap-1"
+                  className="h-7 bg-[#F1F5F9] text-[#1E293B] text-[10px] rounded-sm border border-[#CBD5E1] hover:bg-[#E2E8F0] active:bg-[#CBD5E1] transition-colors flex items-center justify-center gap-1 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
                 >
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -328,7 +378,7 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
               {captureResult.depth && (
                 <button
                   onClick={handleDownloadDepth}
-                  className="h-7 bg-[#F1F5F9] text-[#1E293B] text-[10px] rounded-sm border border-[#CBD5E1] hover:bg-[#E2E8F0] active:bg-[#CBD5E1] transition-colors flex items-center justify-center gap-1"
+                  className="h-7 bg-[#F1F5F9] text-[#1E293B] text-[10px] rounded-sm border border-[#CBD5E1] hover:bg-[#E2E8F0] active:bg-[#CBD5E1] transition-colors flex items-center justify-center gap-1 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
                 >
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -346,7 +396,7 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
       {viewerImage && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
-          onClick={() => { setViewerImage(null); setViewerLabel(''); }}
+          onClick={closeViewer}
         >
           <div
             className="relative max-w-[90vw] max-h-[90vh] bg-white rounded-lg shadow-2xl overflow-hidden"
@@ -356,8 +406,9 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
             <div className="flex items-center justify-between px-4 py-2 bg-[#F8FAFC] border-b border-[#E5E7EB]">
               <span className="text-sm font-semibold text-[#1E293B]">{viewerLabel}</span>
               <button
-                onClick={() => { setViewerImage(null); setViewerLabel(''); }}
-                className="w-7 h-7 flex items-center justify-center rounded-sm text-[#64748B] hover:bg-[#E2E8F0] hover:text-[#1E293B] transition-colors"
+                onClick={closeViewer}
+                className="w-7 h-7 flex items-center justify-center rounded-sm text-[#64748B] hover:bg-[#E2E8F0] hover:text-[#1E293B] transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
+                aria-label="关闭"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
