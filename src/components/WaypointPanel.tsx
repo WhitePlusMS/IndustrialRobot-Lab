@@ -51,6 +51,11 @@ export default function WaypointPanel({ currentJoints, onGotoWaypoint }: Waypoin
     });
   };
 
+  const handleDelete = (wpId: number, wpName: string) => {
+    if (!confirm(`确定删除记忆点"${wpName}"？`)) return;
+    deleteMutation.mutate({ id: wpId });
+  };
+
   return (
     <div className="bg-white border border-[#D1D5DB] rounded-sm p-3 space-y-3">
       <div className="text-sm font-semibold text-[#1E293B] border-b border-[#E5E7EB] pb-1">
@@ -59,16 +64,18 @@ export default function WaypointPanel({ currentJoints, onGotoWaypoint }: Waypoin
 
       <div className="flex gap-2">
         <input
+          id="waypoint-name"
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="记忆点名称"
-          className="flex-1 px-2 py-1 text-xs border border-[#D1D5DB] rounded-sm bg-[#FAFAFA] focus:outline-none focus:border-[#2563EB]"
+          aria-label="记忆点名称"
+          className="flex-1 px-2 py-1 text-xs border border-[#D1D5DB] rounded-sm bg-[#FAFAFA] focus:outline-none focus:border-[#2563EB] focus-visible:ring-2 focus-visible:ring-[#2563EB]"
         />
         <button
           onClick={handleSave}
           disabled={!name.trim() || saveMutation.isPending}
-          className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-white bg-[#2563EB] rounded-sm hover:bg-[#1D4ED8] disabled:opacity-40 transition-colors"
+          className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-white bg-[#2563EB] rounded-sm hover:bg-[#1D4ED8] disabled:opacity-40 transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
         >
           <Save className="w-3 h-3" />
           保存
@@ -86,7 +93,7 @@ export default function WaypointPanel({ currentJoints, onGotoWaypoint }: Waypoin
                 onClick={() =>
                   onGotoWaypoint([wp.j1, wp.j2, wp.j3, wp.j4, wp.j5, wp.j6])
                 }
-                className="flex-1 text-left text-xs text-[#1E293B] hover:text-[#2563EB] transition-colors min-w-0"
+                className="flex-1 text-left text-xs text-[#1E293B] hover:text-[#2563EB] transition-colors min-w-0 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none rounded-sm"
               >
                 <span className="font-medium">{wp.name}</span>
                 {wp.isOrigin === '1' && (
@@ -103,15 +110,18 @@ export default function WaypointPanel({ currentJoints, onGotoWaypoint }: Waypoin
                 <button
                   onClick={() => handleSetOrigin(wp.id)}
                   title="设置为原点"
+                  aria-label={`将"${wp.name}"设置为原点`}
                   disabled={updateMutation.isPending}
-                  className="ml-1 p-1 text-[#64748B] hover:text-[#2563EB] hover:bg-[#EFF6FF] rounded-sm transition-colors disabled:opacity-40"
+                  className="ml-1 p-1 text-[#64748B] hover:text-[#2563EB] hover:bg-[#EFF6FF] rounded-sm transition-colors disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
                 >
                   <Pin className="w-3 h-3" />
                 </button>
               )}
               <button
-                onClick={() => deleteMutation.mutate({ id: wp.id })}
-                className="ml-1 p-1 text-[#EF4444] hover:bg-[#FEF2F2] rounded-sm transition-colors"
+                onClick={() => handleDelete(wp.id, wp.name)}
+                title={`删除${wp.name}`}
+                aria-label={`删除记忆点"${wp.name}"`}
+                className="ml-1 p-1 text-[#EF4444] hover:bg-[#FEF2F2] rounded-sm transition-colors focus-visible:ring-2 focus-visible:ring-[#EF4444] focus-visible:outline-none"
               >
                 <Trash2 className="w-3 h-3" />
               </button>

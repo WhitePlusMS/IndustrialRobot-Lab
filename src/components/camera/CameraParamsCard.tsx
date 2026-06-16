@@ -72,7 +72,7 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
         <h3 className="text-xs font-semibold text-[#1E293B] tracking-wide uppercase">相机参数</h3>
         <button
           onClick={props.resetCamera}
-          className="text-[10px] px-2 py-0.5 bg-[#F1F5F9] text-[#64748B] rounded border border-[#CBD5E1] hover:bg-[#E2E8F0]"
+          className="text-[10px] px-2 py-0.5 bg-[#F1F5F9] text-[#64748B] rounded border border-[#CBD5E1] hover:bg-[#E2E8F0] focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
         >
           重置
         </button>
@@ -98,6 +98,7 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
                   onChange={(e) => handlePosChange(i as 0 | 1 | 2, e.target.value)}
                   className="flex-1 min-w-0 h-6 px-1.5 text-xs font-mono border border-[#D1D5DB] rounded-sm bg-white text-[#0F172A] focus:outline-none focus:ring-1 focus:ring-[#2563EB] focus:border-[#2563EB]"
                   step={posStep}
+                  aria-label={`相机位置 ${label}`}
                 />
                 <span className="text-[10px] text-[#94A3B8] w-4 shrink-0">m</span>
                 <LongPressButton
@@ -117,7 +118,7 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
               <button
                 key={v}
                 onClick={() => props.onPosStepChange(v)}
-                className={`px-1.5 py-0.5 text-[10px] rounded-sm border ${
+                className={`px-1.5 py-0.5 text-[10px] rounded-sm border focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none ${
                   posStep === v
                     ? 'bg-[#2563EB] text-white border-[#2563EB]'
                     : 'bg-white text-[#1E293B] border-[#D1D5DB] hover:bg-[#F3F4F6]'
@@ -149,6 +150,7 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
                   onChange={(e) => handleRotChange(i as 0 | 1 | 2, e.target.value)}
                   className="flex-1 min-w-0 h-6 px-1.5 text-xs font-mono border border-[#D1D5DB] rounded-sm bg-white text-[#0F172A] focus:outline-none focus:ring-1 focus:ring-[#2563EB] focus:border-[#2563EB]"
                   step={rotStep}
+                  aria-label={`相机朝向 ${label}`}
                 />
                 <span className="text-[10px] text-[#94A3B8] w-4 shrink-0">°</span>
                 <LongPressButton
@@ -167,7 +169,7 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
               <button
                 key={v}
                 onClick={() => props.onRotStepChange(v)}
-                className={`px-1.5 py-0.5 text-[10px] rounded-sm border ${
+                className={`px-1.5 py-0.5 text-[10px] rounded-sm border focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none ${
                   rotStep === v
                     ? 'bg-[#2563EB] text-white border-[#2563EB]'
                     : 'bg-white text-[#1E293B] border-[#D1D5DB] hover:bg-[#F3F4F6]'
@@ -198,6 +200,7 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
                 onChange={(e) => props.setFov(parseFloat(e.target.value) || 60)}
                 className="flex-1 min-w-0 h-6 px-1.5 text-xs font-mono border border-[#D1D5DB] rounded-sm bg-white text-[#0F172A]"
                 step={fovStep}
+                aria-label="FOV 视场角"
               />
               <span className="text-[10px] text-[#94A3B8] w-4">°</span>
               <LongPressButton
@@ -209,7 +212,7 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
             </div>
 
             <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-mono text-[#1E293B] w-8">近</span>
+              <span className="text-[11px] font-mono text-[#1E293B] w-8" title="近裁剪面">近</span>
               <input
                 type="number"
                 value={cameraState.near.toFixed(2)}
@@ -218,12 +221,13 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
                 step={0.01}
                 min={0.01}
                 max={1}
+                aria-label="近裁剪面"
               />
               <span className="text-[10px] text-[#94A3B8] w-4 shrink-0">m</span>
             </div>
 
             <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-mono text-[#1E293B] w-8">远</span>
+              <span className="text-[11px] font-mono text-[#1E293B] w-8" title="远裁剪面">远</span>
               <input
                 type="number"
                 value={cameraState.far.toFixed(1)}
@@ -232,6 +236,7 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
                 step={1}
                 min={1}
                 max={100}
+                aria-label="远裁剪面"
               />
               <span className="text-[10px] text-[#94A3B8] w-4 shrink-0">m</span>
             </div>
@@ -243,7 +248,7 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
               <button
                 key={v}
                 onClick={() => props.onFovStepChange(v)}
-                className={`px-1.5 py-0.5 text-[10px] rounded-sm border ${
+                className={`px-1.5 py-0.5 text-[10px] rounded-sm border focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none ${
                   fovStep === v
                     ? 'bg-[#2563EB] text-white border-[#2563EB]'
                     : 'bg-white text-[#1E293B] border-[#D1D5DB] hover:bg-[#F3F4F6]'

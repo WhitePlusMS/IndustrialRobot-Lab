@@ -1,6 +1,6 @@
 // src/components/PositionTargetCard.tsx
 // 笛卡尔空间绝对定位：输入目标坐标，IK解算后驱动机械臂末端到达指定位置
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Crosshair } from 'lucide-react';
 
 interface PositionTargetCardProps {
@@ -24,6 +24,7 @@ export default function PositionTargetCard({
   const [inputY, setInputY] = useState('');
   const [inputZ, setInputZ] = useState('');
   const [feedback, setFeedback] = useState<'idle' | 'success' | 'failed'>('idle');
+  const feedbackTimeout = useRef<ReturnType<typeof setTimeout>>();
 
   // 点击当前位姿的"填入"按钮时，将当前GLB坐标填入输入框
   const fillCurrent = useCallback(() => {
@@ -42,8 +43,13 @@ export default function PositionTargetCard({
 
     const ok = onGoToPosition(x, y, z);
     setFeedback(ok ? 'success' : 'failed');
-    setTimeout(() => setFeedback('idle'), 1500);
+    clearTimeout(feedbackTimeout.current);
+    feedbackTimeout.current = setTimeout(() => setFeedback('idle'), 1500);
   }, [inputX, inputY, inputZ, onGoToPosition]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') handleGo();
+  }, [handleGo]);
 
   return (
     <div className="bg-white border border-[#D1D5DB] rounded-sm">
@@ -58,7 +64,7 @@ export default function PositionTargetCard({
             <button
               onClick={fillCurrent}
               disabled={disabled || !currentGLBPosition}
-              className="text-[10px] px-1.5 py-0.5 border border-[#D1D5DB] rounded-sm hover:bg-[#F3F4F6] disabled:opacity-40"
+              className="text-[10px] px-1.5 py-0.5 border border-[#D1D5DB] rounded-sm hover:bg-[#F3F4F6] disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
             >
               填入
             </button>
@@ -75,41 +81,50 @@ export default function PositionTargetCard({
         {/* 目标坐标输入 */}
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-[#64748B] w-4">X</span>
+            <label className="text-xs font-medium text-[#64748B] w-4" htmlFor="target-x">X</label>
             <input
+              id="target-x"
               type="number"
               step="0.001"
               value={inputX}
               onChange={(e) => setInputX(e.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="-1.1348"
-              className="flex-1 px-2 py-1 text-xs font-mono border border-[#D1D5DB] rounded-sm focus:outline-none focus:border-[#2563EB]"
+              className="flex-1 px-2 py-1 text-xs font-mono border border-[#D1D5DB] rounded-sm focus:outline-none focus:border-[#2563EB] focus-visible:ring-2 focus-visible:ring-[#2563EB]"
               disabled={disabled}
+              aria-label="目标 X 坐标"
             />
             <span className="text-[10px] text-[#94A3B8]">m</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-[#64748B] w-4">Y</span>
+            <label className="text-xs font-medium text-[#64748B] w-4" htmlFor="target-y">Y</label>
             <input
+              id="target-y"
               type="number"
               step="0.001"
               value={inputY}
               onChange={(e) => setInputY(e.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="1.3166"
-              className="flex-1 px-2 py-1 text-xs font-mono border border-[#D1D5DB] rounded-sm focus:outline-none focus:border-[#2563EB]"
+              className="flex-1 px-2 py-1 text-xs font-mono border border-[#D1D5DB] rounded-sm focus:outline-none focus:border-[#2563EB] focus-visible:ring-2 focus-visible:ring-[#2563EB]"
               disabled={disabled}
+              aria-label="目标 Y 坐标"
             />
             <span className="text-[10px] text-[#94A3B8]">m</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-[#64748B] w-4">Z</span>
+            <label className="text-xs font-medium text-[#64748B] w-4" htmlFor="target-z">Z</label>
             <input
+              id="target-z"
               type="number"
               step="0.001"
               value={inputZ}
               onChange={(e) => setInputZ(e.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="0.0559"
-              className="flex-1 px-2 py-1 text-xs font-mono border border-[#D1D5DB] rounded-sm focus:outline-none focus:border-[#2563EB]"
+              className="flex-1 px-2 py-1 text-xs font-mono border border-[#D1D5DB] rounded-sm focus:outline-none focus:border-[#2563EB] focus-visible:ring-2 focus-visible:ring-[#2563EB]"
               disabled={disabled}
+              aria-label="目标 Z 坐标"
             />
             <span className="text-[10px] text-[#94A3B8]">m</span>
           </div>
@@ -119,13 +134,15 @@ export default function PositionTargetCard({
         <button
           onClick={handleGo}
           disabled={disabled || !inputX || !inputY || !inputZ}
-          className={`w-full flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded-sm transition-colors ${
+          className={`w-full flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded-sm transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none ${
             feedback === 'success'
               ? 'bg-[#16A34A] text-white'
               : feedback === 'failed'
                 ? 'bg-[#DC2626] text-white'
                 : 'bg-[#2563EB] text-white hover:bg-[#1D4ED8]'
           } disabled:opacity-40 disabled:cursor-not-allowed`}
+          aria-live="polite"
+          aria-label={feedback === 'success' ? '运动成功' : feedback === 'failed' ? '目标不可达' : '运动到此点'}
         >
           <Crosshair className="w-3.5 h-3.5" />
           运动到此点
