@@ -4,6 +4,8 @@ export interface DHParams {
   a: number;
   alpha: number;
   d: number;
+  thetaOffset?: number;
+  thetaSign?: 1 | -1;
   thetaRange: [number, number];
 }
 
@@ -50,7 +52,15 @@ export interface MotionConfig {
 
 export interface IKSolverConfig {
   maxIterations: number;
-  tolerance: number;
-  damping: number;
+  tolerance: number; // backward compatibility
+  posTolerance: number; // mm
+  oriTolerance: number; // rad
+  damping: number; // initial lambda
   lambdaDecay: number;
+  lambdaGrow: number;
+  maxLambda: number;
+  maxStepRad: number;
+  errorClampPos: number; // mm
+  errorClampOri: number; // rad
+  orientationScale: number; // mm/rad
 }

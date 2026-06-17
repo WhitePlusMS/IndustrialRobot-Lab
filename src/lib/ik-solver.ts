@@ -1,92 +1,100 @@
 // src/lib/ik-solver.ts
+// Levenberg-Marquardt (Damped Least Squares) IK with SVD-backed linear solves.
+// Replaces the previous Gauss-Jordan + un-clamped DLS implementation.
+
+import { Matrix, solve } from 'ml-matrix';
 import { Matrix4x4, eulerZYXToMatrix } from './matrix4x4';
 import { forwardKinematics, dhTransform } from './kinematics';
-import type { RobotConfig, JointAngles, IKSolverConfig  } from '@/types/robot';
+import type { RobotConfig, JointAngles, IKSolverConfig } from '@/types/robot';
 
 export const DEFAULT_IK_CONFIG: IKSolverConfig = {
-  maxIterations: 200,
-  tolerance: 1e-3,
+  maxIterations: 100,
+  tolerance: 1e-3, // kept for backward compatibility; not used directly
+  posTolerance: 1.0, // mm
+  oriTolerance: 0.01, // rad (~0.57°)
   damping: 0.1,
-  lambdaDecay: 0.98,
+  lambdaDecay: 0.7,
+  lambdaGrow: 2.0,
+  maxLambda: 1000,
+  maxStepRad: 0.1, // ~5.7° per iteration
+  errorClampPos: 500, // mm
+  errorClampOri: 0.5, // rad
+  orientationScale: 100, // mm/rad — makes position & orientation errors comparable
 };
 
-/** 核心IK求解: Jacobian DLS */
-export function solveIK(
-  targetPos: [number, number, number], // mm
-  targetEulerZYX: [number, number, number], // rad
-  initialJoints: JointAngles, // rad
-  config: RobotConfig,
-  solverConfig: Partial<IKSolverConfig> = {}
-): JointAngles | null {
-  const cfg = { ...DEFAULT_IK_CONFIG, ...solverConfig };
-  let theta = [...initialJoints] as number[];
-  let lambda = cfg.damping;
-
-  const Rd = eulerZYXToMatrix(targetEulerZYX);
-
-  for (let iter = 0; iter < cfg.maxIterations; iter++) {
-    const T = forwardKinematics(theta as JointAngles, config);
-    const pc = T.getPosition();
-    const Rc = T.getRotation();
-
-    const ePos = [targetPos[0] - pc[0], targetPos[1] - pc[1], targetPos[2] - pc[2]];
-
-    // 姿态误差: skew⁻¹(Rd·Rcᵀ - Rc·Rdᵀ)/2
-    const Re = Matrix4x4.mat3Mul(Rd, Matrix4x4.mat3Transpose(Rc));
-    const eOri = [(Re[2][1] - Re[1][2]) / 2, (Re[0][2] - Re[2][0]) / 2, (Re[1][0] - Re[0][1]) / 2];
-
-    const error = [...ePos, ...eOri];
-    const errNorm = Math.sqrt(error.reduce((s, v) => s + v * v, 0));
-    if (errNorm < cfg.tolerance) return theta as JointAngles;
-
-    const J = computeJacobian(theta, config);
-
-    // DLS: Δθ = Jᵀ(JJᵀ + λ²I)⁻¹ · e
-    const JJt = Matrix4x4.mat6Mul(J, Matrix4x4.mat6Transpose(J));
-    for (let i = 0; i < 6; i++) JJt[i][i] += lambda * lambda;
-    const JJtInv = Matrix4x4.mat6Inverse(JJt);
-    if (!JJtInv) {
-      lambda *= 2;
-      if (lambda > 100) return null;
-      continue;
-    }
-    const Jt = Matrix4x4.mat6Transpose(J);
-    const dTheta = Matrix4x4.mat6Vec6Mul(Matrix4x4.mat6Mul(Jt, JJtInv), error);
-
-    for (let i = 0; i < 6; i++) {
-      theta[i] += dTheta[i];
-      const range = Object.values(config.dhParams)[i].thetaRange;
-      theta[i] = Math.max(
-        (range[0] * Math.PI) / 180,
-        Math.min((range[1] * Math.PI) / 180, theta[i])
-      );
-    }
-
-    lambda = Math.max(lambda * cfg.lambdaDecay, 1e-4);
-  }
-
-  return null;
+/** Clamp a vector's magnitude to maxNorm. */
+function clampVector(v: number[], maxNorm: number): number[] {
+  const norm = Math.hypot(...v);
+  if (norm <= maxNorm || norm === 0) return v;
+  const s = maxNorm / norm;
+  return v.map((x) => x * s);
 }
 
-/** 计算空间Jacobian: J_i = [z_i×(p_n-p_i), z_i]  (Modified DH convention) */
+/** Scale a joint-step vector so no joint moves more than maxStepRad. */
+function clampStep(dTheta: number[], maxStepRad: number): number[] {
+  const maxAbs = Math.max(...dTheta.map((x) => Math.abs(x)));
+  if (maxAbs <= maxStepRad || maxAbs === 0) return dTheta;
+  const s = maxStepRad / maxAbs;
+  return dTheta.map((x) => x * s);
+}
+
+/** Orientation error as rotation vector (axis * sin(angle)) in base frame. */
+function orientationError(Rd: number[][], Rc: number[][]): number[] {
+  // Re = Rd * Rc^T
+  const Re = Matrix4x4.mat3Mul(Rd, Matrix4x4.mat3Transpose(Rc));
+  return [(Re[2][1] - Re[1][2]) / 2, (Re[0][2] - Re[2][0]) / 2, (Re[1][0] - Re[0][1]) / 2];
+}
+
+/** Conservative upper bound on reachable radius (sum of link lengths). */
+export function computeMaxReach(config: RobotConfig): number {
+  return Object.values(config.dhParams).reduce(
+    (sum, p) => sum + Math.sqrt(p.a * p.a + p.d * p.d),
+    0
+  );
+}
+
+/** Quick workspace pre-check. */
+export function isReachable(
+  targetPos: [number, number, number],
+  config: RobotConfig,
+  margin = 50
+): boolean {
+  const dist = Math.hypot(targetPos[0], targetPos[1], targetPos[2]);
+  return dist <= computeMaxReach(config) + margin;
+}
+
+/** Compute spatial Jacobian for this project's DH transform convention.
+ *  这里的 dhTransform 实际对应:
+ *    T = Tx(a) * Rx(alpha) * Tz(d) * Rz(theta)
+ *  关节变量 theta 出现在最后一项，因此第 i 个关节的旋转轴与原点都位于
+ *  T0(i) 之后、Rz(theta_i) 之前的位置；由于绕 Z 旋转不会改变原点，也不会改变 Z 轴自身方向，
+ *  直接使用 T0(i+1) 读取关节原点与轴向是成立的。
+ *
+ *  J_i = [ z_i × (p_e - p_i), z_i ]^T
+ */
 export function computeJacobian(joints: number[], config: RobotConfig): number[][] {
   const J: number[][] = Array(6)
     .fill(0)
     .map(() => Array(6).fill(0));
 
-  // 计算累积变换 T_0^1, T_0^2, ..., T_0^6
   const T0i: Matrix4x4[] = [Matrix4x4.identity()];
   const dhParams = Object.values(config.dhParams);
   for (let i = 0; i < 6; i++) {
-    const Ti = dhTransform(joints[i], dhParams[i].d, dhParams[i].a, dhParams[i].alpha);
+    const thetaOffset = dhParams[i].thetaOffset ?? 0;
+    const thetaSign = dhParams[i].thetaSign ?? 1;
+    const Ti = dhTransform(
+      joints[i] * thetaSign + thetaOffset,
+      dhParams[i].d,
+      dhParams[i].a,
+      dhParams[i].alpha
+    );
     T0i.push(T0i[i].multiply(Ti));
   }
 
-  const T06 = T0i[6];
-  const pe = T06.getPosition();
+  const pe = T0i[6].getPosition();
 
   for (let i = 0; i < 6; i++) {
-    // Modified DH: joint i+1 uses T_0^{i+1}
+    // 本项目的变换约定下，joint i 轴向/原点可直接从 T0(i+1) 读取
     const Ti = T0i[i + 1];
     const zi = Ti.getColumn(2);
     const pi = Ti.getPosition();
@@ -109,99 +117,165 @@ export function computeJacobian(joints: number[], config: RobotConfig): number[]
   return J;
 }
 
-/** 位置-only IK (3DOF): 当6DOF位姿IK失败时使用 */
+/** 6-DOF pose IK using Levenberg-Marquardt. */
+export function solveIK(
+  targetPos: [number, number, number],
+  targetEulerZYX: [number, number, number],
+  initialJoints: JointAngles,
+  config: RobotConfig,
+  solverConfig: Partial<IKSolverConfig> = {}
+): JointAngles | null {
+  const cfg = { ...DEFAULT_IK_CONFIG, ...solverConfig };
+  const theta = [...initialJoints] as number[];
+  let lambda = cfg.damping;
+  const Rd = eulerZYXToMatrix(targetEulerZYX);
+
+  const ranges = Object.values(config.dhParams).map(
+    (p) => [p.thetaRange[0] * (Math.PI / 180), p.thetaRange[1] * (Math.PI / 180)] as [number, number]
+  );
+
+  for (let iter = 0; iter < cfg.maxIterations; iter++) {
+    const T = forwardKinematics(theta as JointAngles, config);
+    const pc = T.getPosition();
+    const Rc = T.getRotation();
+
+    let ePos = [targetPos[0] - pc[0], targetPos[1] - pc[1], targetPos[2] - pc[2]];
+    ePos = clampVector(ePos, cfg.errorClampPos);
+
+    const eOriRaw = orientationError(Rd, Rc);
+    const eOri = clampVector(eOriRaw, cfg.errorClampOri);
+
+    const posNorm = Math.hypot(
+      targetPos[0] - pc[0],
+      targetPos[1] - pc[1],
+      targetPos[2] - pc[2]
+    );
+    const oriNorm = Math.hypot(...eOriRaw);
+
+    if (posNorm < cfg.posTolerance && oriNorm < cfg.oriTolerance) {
+      return theta as JointAngles;
+    }
+
+    const Jarr = computeJacobian(theta, config);
+    // Weight orientation rows so that position & orientation contribute comparably.
+    const Jrows = Jarr.map((row, r) =>
+      row.map((v) => (r >= 3 ? v * cfg.orientationScale : v))
+    );
+    const J = new Matrix(Jrows);
+    const Jt = J.transpose();
+
+    const eVec = Matrix.columnVector([
+      ...ePos,
+      eOri[0] * cfg.orientationScale,
+      eOri[1] * cfg.orientationScale,
+      eOri[2] * cfg.orientationScale,
+    ]);
+
+    const lhs = Jt.mmul(J).add(Matrix.eye(6).mul(lambda));
+    const rhs = Jt.mmul(eVec);
+
+    const dThetaM = solve(lhs, rhs, true);
+    let dTheta = dThetaM.to1DArray();
+    dTheta = clampStep(dTheta, cfg.maxStepRad);
+
+    const thetaCandidate = theta.map((t, i) =>
+      Math.max(ranges[i][0], Math.min(ranges[i][1], t + dTheta[i]))
+    );
+
+    // Adaptive damping: accept only if error decreases.
+    const Tc = forwardKinematics(thetaCandidate as JointAngles, config);
+    const pc2 = Tc.getPosition();
+    const ePos2Raw = [targetPos[0] - pc2[0], targetPos[1] - pc2[1], targetPos[2] - pc2[2]];
+    const ePos2 = clampVector(ePos2Raw, cfg.errorClampPos);
+    const eOri2Raw = orientationError(Rd, Tc.getRotation());
+    const eOri2 = clampVector(eOri2Raw, cfg.errorClampOri);
+
+    const err = Math.hypot(
+      ...ePos,
+      eOri[0] * cfg.orientationScale,
+      eOri[1] * cfg.orientationScale,
+      eOri[2] * cfg.orientationScale
+    );
+    const err2 = Math.hypot(
+      ...ePos2,
+      eOri2[0] * cfg.orientationScale,
+      eOri2[1] * cfg.orientationScale,
+      eOri2[2] * cfg.orientationScale
+    );
+
+    if (err2 < err) {
+      for (let i = 0; i < 6; i++) theta[i] = thetaCandidate[i];
+      lambda = Math.max(lambda * cfg.lambdaDecay, 1e-6);
+    } else {
+      lambda *= cfg.lambdaGrow;
+    }
+
+    if (lambda > cfg.maxLambda) { console.log("[IK pos] FAILED: lambda exceeded"); return null; }
+  }
+
+  return null;
+}
+
+/** 3-DOF position-only IK using Levenberg-Marquardt. */
 export function solvePositionOnlyIK(
   targetPos: [number, number, number],
   initialJoints: JointAngles,
   config: RobotConfig,
   solverConfig: Partial<IKSolverConfig> = {}
 ): JointAngles | null {
-  const cfg = { ...DEFAULT_IK_CONFIG, ...solverConfig, tolerance: 1e-3 };
-  let theta = [...initialJoints] as number[];
+  const cfg = { ...DEFAULT_IK_CONFIG, ...solverConfig };
+  const theta = [...initialJoints] as number[];
   let lambda = cfg.damping;
 
-  // 3x3矩阵求逆
-  const mat3Inverse = (A: number[][]): number[][] | null => {
-    const n = 3;
-    const aug = A.map((row, i) => [
-      ...row,
-      ...Array(n).fill(0).map((_, j) => (i === j ? 1 : 0)),
-    ]);
-    for (let i = 0; i < n; i++) {
-      let pivot = i;
-      for (let r = i + 1; r < n; r++) if (Math.abs(aug[r][i]) > Math.abs(aug[pivot][i])) pivot = r;
-      if (Math.abs(aug[pivot][i]) < 1e-14) return null;
-      [aug[i], aug[pivot]] = [aug[pivot], aug[i]];
-      const d = aug[i][i];
-      for (let j = 0; j < 2 * n; j++) aug[i][j] /= d;
-      for (let r = 0; r < n; r++) {
-        if (r === i) continue;
-        const f = aug[r][i];
-        for (let j = 0; j < 2 * n; j++) aug[r][j] -= f * aug[i][j];
-      }
-    }
-    return aug.map((row) => row.slice(n));
-  };
-
-  // 3x3 × 3x3
-  const mat3Mul = (A: number[][], B: number[][]): number[][] => {
-    const r = [[0,0,0],[0,0,0],[0,0,0]];
-    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) r[i][j] += A[i][k] * B[k][j];
-    return r;
-  };
-
-  // 6x3 × 3x3
-  const mat63Mul33 = (A: number[][], B: number[][]): number[][] => {
-    const r = Array(6).fill(0).map(() => Array(3).fill(0));
-    for (let i = 0; i < 6; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) r[i][j] += A[i][k] * B[k][j];
-    return r;
-  };
-
-  // 6x3 × 3x1
-  const mat63Vec3 = (A: number[][], v: number[]): number[] => {
-    return A.map((row) => row[0] * v[0] + row[1] * v[1] + row[2] * v[2]);
-  };
-
-  // 3x6 转置为 6x3
-  const transpose36 = (A: number[][]): number[][] => {
-    return A[0].map((_, c) => A.map((r) => r[c]));
-  };
+  const ranges = Object.values(config.dhParams).map(
+    (p) => [p.thetaRange[0] * (Math.PI / 180), p.thetaRange[1] * (Math.PI / 180)] as [number, number]
+  );
 
   for (let iter = 0; iter < cfg.maxIterations; iter++) {
     const T = forwardKinematics(theta as JointAngles, config);
     const pc = T.getPosition();
 
-    const ePos = [targetPos[0] - pc[0], targetPos[1] - pc[1], targetPos[2] - pc[2]];
-    const errNorm = Math.sqrt(ePos.reduce((s, v) => s + v * v, 0));
-    if (errNorm < cfg.tolerance) return theta as JointAngles;
+    let ePos = [targetPos[0] - pc[0], targetPos[1] - pc[1], targetPos[2] - pc[2]];
+    ePos = clampVector(ePos, cfg.errorClampPos);
 
-    // 3x6 Jacobian (position only)
+    const err = Math.hypot(...ePos);
+    console.log(`[IK pos] iter=${iter} err=${err.toFixed(2)} λ=${lambda.toFixed(4)} pos=[${pc.map(v=>v.toFixed(1)).join(',')}] joints=[${theta.map(r=>(r*180/Math.PI).toFixed(1)).join(',')}]°`);
+    if (err < cfg.posTolerance) return theta as JointAngles;
+
     const J6 = computeJacobian(theta, config);
-    const J: number[][] = [J6[0], J6[1], J6[2]];
+    const Jrows = [J6[0], J6[1], J6[2]];
+    const J = new Matrix(Jrows); // 3x6
+    const Jt = J.transpose();
 
-    // DLS: Δθ = J^T(JJ^T + λ²I)^-1 · e
-    const Jt = transpose36(J); // 6x3
-    const JJt = mat3Mul(J, Jt); // 3x3
-    for (let i = 0; i < 3; i++) JJt[i][i] += lambda * lambda;
-    const JJtInv = mat3Inverse(JJt);
-    if (!JJtInv) {
-      lambda *= 2;
-      if (lambda > 100) return null;
-      continue;
+    const eVec = Matrix.columnVector(ePos);
+    const lhs = Jt.mmul(J).add(Matrix.eye(6).mul(lambda));
+    const rhs = Jt.mmul(eVec);
+
+    const dThetaM = solve(lhs, rhs, true);
+    let dTheta = dThetaM.to1DArray();
+    dTheta = clampStep(dTheta, cfg.maxStepRad);
+
+    const thetaCandidate = theta.map((t, i) =>
+      Math.max(ranges[i][0], Math.min(ranges[i][1], t + dTheta[i]))
+    );
+
+    const Tc = forwardKinematics(thetaCandidate as JointAngles, config);
+    const ePos2Raw = [
+      targetPos[0] - Tc.getPosition()[0],
+      targetPos[1] - Tc.getPosition()[1],
+      targetPos[2] - Tc.getPosition()[2],
+    ];
+    const ePos2 = clampVector(ePos2Raw, cfg.errorClampPos);
+    const err2 = Math.hypot(...ePos2);
+
+    if (err2 < err) {
+      for (let i = 0; i < 6; i++) theta[i] = thetaCandidate[i];
+      lambda = Math.max(lambda * cfg.lambdaDecay, 1e-6);
+    } else {
+      lambda *= cfg.lambdaGrow;
     }
-    const dThetaMatrix = mat63Mul33(Jt, JJtInv); // 6x3
-    const dTheta = mat63Vec3(dThetaMatrix, ePos); // 6x1
 
-    for (let i = 0; i < 6; i++) {
-      theta[i] += dTheta[i];
-      const range = Object.values(config.dhParams)[i].thetaRange;
-      theta[i] = Math.max(
-        (range[0] * Math.PI) / 180,
-        Math.min((range[1] * Math.PI) / 180, theta[i])
-      );
-    }
-
-    lambda = Math.max(lambda * cfg.lambdaDecay, 1e-4);
+    if (lambda > cfg.maxLambda) { console.log("[IK pos] FAILED: lambda exceeded"); return null; }
   }
 
   return null;

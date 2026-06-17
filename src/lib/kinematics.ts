@@ -17,12 +17,42 @@ export function dhTransform(theta: number, d: number, a: number, alpha: number):
 
 export function forwardKinematics(joints: JointAngles, config: RobotConfig): Matrix4x4 {
   const dh = config.dhParams;
-  const T1 = dhTransform(joints[0], dh.joint1.d, dh.joint1.a, dh.joint1.alpha);
-  const T2 = dhTransform(joints[1], dh.joint2.d, dh.joint2.a, dh.joint2.alpha);
-  const T3 = dhTransform(joints[2], dh.joint3.d, dh.joint3.a, dh.joint3.alpha);
-  const T4 = dhTransform(joints[3], dh.joint4.d, dh.joint4.a, dh.joint4.alpha);
-  const T5 = dhTransform(joints[4], dh.joint5.d, dh.joint5.a, dh.joint5.alpha);
-  const T6 = dhTransform(joints[5], dh.joint6.d, dh.joint6.a, dh.joint6.alpha);
+  const T1 = dhTransform(
+    joints[0] * (dh.joint1.thetaSign ?? 1) + (dh.joint1.thetaOffset ?? 0),
+    dh.joint1.d,
+    dh.joint1.a,
+    dh.joint1.alpha
+  );
+  const T2 = dhTransform(
+    joints[1] * (dh.joint2.thetaSign ?? 1) + (dh.joint2.thetaOffset ?? 0),
+    dh.joint2.d,
+    dh.joint2.a,
+    dh.joint2.alpha
+  );
+  const T3 = dhTransform(
+    joints[2] * (dh.joint3.thetaSign ?? 1) + (dh.joint3.thetaOffset ?? 0),
+    dh.joint3.d,
+    dh.joint3.a,
+    dh.joint3.alpha
+  );
+  const T4 = dhTransform(
+    joints[3] * (dh.joint4.thetaSign ?? 1) + (dh.joint4.thetaOffset ?? 0),
+    dh.joint4.d,
+    dh.joint4.a,
+    dh.joint4.alpha
+  );
+  const T5 = dhTransform(
+    joints[4] * (dh.joint5.thetaSign ?? 1) + (dh.joint5.thetaOffset ?? 0),
+    dh.joint5.d,
+    dh.joint5.a,
+    dh.joint5.alpha
+  );
+  const T6 = dhTransform(
+    joints[5] * (dh.joint6.thetaSign ?? 1) + (dh.joint6.thetaOffset ?? 0),
+    dh.joint6.d,
+    dh.joint6.a,
+    dh.joint6.alpha
+  );
   return T1.multiply(T2).multiply(T3).multiply(T4).multiply(T5).multiply(T6);
 }
 
