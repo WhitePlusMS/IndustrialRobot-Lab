@@ -171,26 +171,6 @@ function stepVectorTowardTarget(
   ];
 }
 
-function stepEulerTowardTarget(
-  current: [number, number, number],
-  target: [number, number, number],
-  maxStepRad: number
-): [number, number, number] {
-  const delta: [number, number, number] = [
-    normalizeAngleDelta(target[0] - current[0]),
-    normalizeAngleDelta(target[1] - current[1]),
-    normalizeAngleDelta(target[2] - current[2]),
-  ];
-  const norm = Math.hypot(...delta);
-  if (norm <= maxStepRad || norm === 0) return [...target];
-  const scale = maxStepRad / norm;
-  return [
-    current[0] + delta[0] * scale,
-    current[1] + delta[1] * scale,
-    current[2] + delta[2] * scale,
-  ];
-}
-
 function quaternionToRotationMatrix(
   quaternion: [number, number, number, number]
 ): number[][] {
@@ -1392,9 +1372,10 @@ export function useRobotKinematics() {
     let nextDeg: JointAngles | null = null;
     let visualRemainingPos = Number.POSITIVE_INFINITY;
     let visualRemainingOri = Number.POSITIVE_INFINITY;
+    const preserveOrientation = cartesianPreserveOrientationRef.current;
+    let currentVisualPose: CartesianPose | VisualPose = startPose;
     if (cartesianUseVisualPositionRef.current) {
-      const preserveOrientation = cartesianPreserveOrientationRef.current;
-      const currentVisualPose =
+      currentVisualPose =
         getGlbPoseForJoints(displayJointsRef.current) ?? startPose;
       const targetRotation = getTargetRotation(targetPose);
       const remainingPos = Math.hypot(
@@ -1405,7 +1386,7 @@ export function useRobotKinematics() {
       const remainingOriError = preserveOrientation
         ? orientationErrorFromRotation(
             targetRotation,
-            currentVisualPose.rotation
+            getTargetRotation(currentVisualPose)
           )
         : ([0, 0, 0] as [number, number, number]);
       const remainingOri = Math.hypot(...remainingOriError);
@@ -1427,7 +1408,7 @@ export function useRobotKinematics() {
           );
           positionOrientationRotationLockRef.current = pickNextOrientationRotation(
             remainingOri,
-            currentVisualPose.rotation,
+            getTargetRotation(currentVisualPose),
             positionOrientationRotationLockRef.current
           );
         } else {
@@ -1782,7 +1763,7 @@ export function useRobotKinematics() {
           );
           positionOrientationRotationLockRef.current = pickNextOrientationRotation(
             visualRemainingOri,
-            currentVisualPose.rotation,
+            getTargetRotation(finalVisualPose),
             positionOrientationRotationLockRef.current
           );
         } else {
@@ -2107,6 +2088,35 @@ export function useRobotKinematics() {
           }
         );
         if (result) resultDeg = [...result];
+
+        // RY 更容易落入单一种子的局部极小值。
+        // 这里仅在首轮视觉位姿求解失败时，再补一次多种子恢复，
+        // 保持 RX/RZ 现有链路不变，同时尽量不扩大其他轴的行为面。
+        if (!resultDeg) {
+          const recovered = solveVisualPoseIKMultiSeed(
+            {
+              position: targetPos,
+              euler: targetEuler,
+              rotation: targetRotation,
+            },
+            currentJoints,
+            config,
+            {
+              maxIterations: 18,
+              toleranceMm: 1.5,
+              oriToleranceRad: 0.02,
+              damping: 0.8,
+              maxLambda: 120,
+              maxStepDeg: 3,
+              jacobianStepDeg: 0.3,
+              orientationScale: 250,
+            }
+          );
+          if (recovered) {
+            resultDeg = [...recovered];
+            console.log(`[moveDir] ${axis} 单种子视觉IK失败，已切换多种子恢复`);
+          }
+        }
 
         // 姿态按钮优先走真实 GLB 视觉 IK。
         // 但如果当前页面调试接口尚未挂载，视觉位姿采样会直接失败，
