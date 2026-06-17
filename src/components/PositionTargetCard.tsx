@@ -24,6 +24,7 @@ export default function PositionTargetCard({
   const [inputY, setInputY] = useState('');
   const [inputZ, setInputZ] = useState('');
   const [feedback, setFeedback] = useState<'idle' | 'success' | 'failed'>('idle');
+  const [feedbackText, setFeedbackText] = useState('');
   const feedbackTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 点击当前位姿的"填入"按钮时，将当前GLB坐标填入输入框
@@ -43,10 +44,14 @@ export default function PositionTargetCard({
 
     const ok = onGoToPosition(x, y, z);
     setFeedback(ok ? 'success' : 'failed');
+    setFeedbackText(ok ? '运动成功' : '目标不可达');
     if (feedbackTimeout.current) {
       clearTimeout(feedbackTimeout.current);
     }
-    feedbackTimeout.current = setTimeout(() => setFeedback('idle'), 1500);
+    feedbackTimeout.current = setTimeout(() => {
+      setFeedback('idle');
+      setFeedbackText('');
+    }, 1500);
   }, [inputX, inputY, inputZ, onGoToPosition]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -64,6 +69,7 @@ export default function PositionTargetCard({
           <div className="flex items-center justify-between">
             <span>当前 GLB 坐标 (mm):</span>
             <button
+              type="button"
               onClick={fillCurrent}
               disabled={disabled || !currentGLBPosition}
               className="text-[10px] px-1.5 py-0.5 border border-[#D1D5DB] rounded-sm hover:bg-[#F3F4F6] disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
@@ -87,6 +93,8 @@ export default function PositionTargetCard({
             <input
               id="target-x"
               type="number"
+              inputMode="decimal"
+              autoComplete="off"
               step="0.001"
               value={inputX}
               onChange={(e) => setInputX(e.target.value)}
@@ -103,6 +111,8 @@ export default function PositionTargetCard({
             <input
               id="target-y"
               type="number"
+              inputMode="decimal"
+              autoComplete="off"
               step="0.001"
               value={inputY}
               onChange={(e) => setInputY(e.target.value)}
@@ -119,6 +129,8 @@ export default function PositionTargetCard({
             <input
               id="target-z"
               type="number"
+              inputMode="decimal"
+              autoComplete="off"
               step="0.001"
               value={inputZ}
               onChange={(e) => setInputZ(e.target.value)}
@@ -134,6 +146,7 @@ export default function PositionTargetCard({
 
         {/* Go 按钮 */}
         <button
+          type="button"
           onClick={handleGo}
           disabled={disabled || !inputX || !inputY || !inputZ}
           className={`w-full flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded-sm transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none ${
@@ -143,12 +156,12 @@ export default function PositionTargetCard({
                 ? 'bg-[#DC2626] text-white'
                 : 'bg-[#2563EB] text-white hover:bg-[#1D4ED8]'
           } disabled:opacity-40 disabled:cursor-not-allowed`}
-          aria-live="polite"
-          aria-label={feedback === 'success' ? '运动成功' : feedback === 'failed' ? '目标不可达' : '运动到此点'}
+          aria-label={feedbackText || '运动到此点'}
         >
           <Crosshair className="w-3.5 h-3.5" />
           运动到此点
         </button>
+        <span className="sr-only top-0 left-0 mt-0" aria-live="polite">{feedbackText}</span>
       </div>
     </div>
   );

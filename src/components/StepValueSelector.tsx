@@ -11,7 +11,9 @@ export default function StepValueSelector({ values, unit, current, onChange }: S
     <div className="flex items-center gap-1">
       {values.map((v) => (
         <button
+          type="button"
           key={v}
+          aria-pressed={current === v}
           onClick={() => onChange(v)}
           className={`px-2 py-0.5 text-xs font-medium border rounded-sm transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none ${
             current === v

@@ -89,6 +89,7 @@ export default function DirectionButton({
 
   return (
     <button
+      type="button"
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseLeave}

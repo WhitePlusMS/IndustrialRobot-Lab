@@ -26,7 +26,7 @@ export default function StatusBar({ status, coordinateSystem, position, euler }:
   const config = statusConfig[status];
 
   return (
-    <div className="h-8 bg-[#F5F5F5] border-t border-[#E5E5E5] flex items-center px-3 gap-4 text-xs shrink-0">
+    <footer role="status" aria-live="polite" className="h-8 bg-[#F5F5F5] border-t border-[#E5E5E5] flex items-center px-3 gap-4 text-xs shrink-0">
       <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-sm ${config.bgColor}`}>
         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: config.color }} />
         <span style={{ color: config.color }} className="font-medium">
@@ -37,17 +37,17 @@ export default function StatusBar({ status, coordinateSystem, position, euler }:
       <span className="text-[#64748B] font-medium">{coordinateSystem}</span>
       <div className="w-px h-4 bg-[#D1D5DB]" />
       <span className="text-[#64748B]">X:</span>
-      <span className="font-mono text-[#0F172A]">{position[0].toFixed(2)}</span>
+      <span className="font-mono tabular-nums text-[#0F172A]">{position[0].toFixed(2)}</span>
       <span className="text-[#64748B]">Y:</span>
-      <span className="font-mono text-[#0F172A]">{position[1].toFixed(2)}</span>
+      <span className="font-mono tabular-nums text-[#0F172A]">{position[1].toFixed(2)}</span>
       <span className="text-[#64748B]">Z:</span>
-      <span className="font-mono text-[#0F172A]">{position[2].toFixed(2)}</span>
+      <span className="font-mono tabular-nums text-[#0F172A]">{position[2].toFixed(2)}</span>
       <span className="text-[#64748B] ml-2">Rx:</span>
-      <span className="font-mono text-[#0F172A]">{euler[0].toFixed(1)}°</span>
+      <span className="font-mono tabular-nums text-[#0F172A]">{euler[0].toFixed(1)}°</span>
       <span className="text-[#64748B]">Ry:</span>
-      <span className="font-mono text-[#0F172A]">{euler[1].toFixed(1)}°</span>
+      <span className="font-mono tabular-nums text-[#0F172A]">{euler[1].toFixed(1)}°</span>
       <span className="text-[#64748B]">Rz:</span>
-      <span className="font-mono text-[#0F172A]">{euler[2].toFixed(1)}°</span>
-    </div>
+      <span className="font-mono tabular-nums text-[#0F172A]">{euler[2].toFixed(1)}°</span>
+    </footer>
   );
 }

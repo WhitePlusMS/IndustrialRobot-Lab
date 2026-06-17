@@ -48,11 +48,13 @@ export default function SequenceEditor({
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const logsEndRef = useRef<HTMLDivElement>(null);
 
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
   useEffect(() => {
     if (logsEndRef.current) {
-      logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      logsEndRef.current.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth' });
     }
-  }, [logs]);
+  }, [logs, prefersReducedMotion]);
 
   const loadDefaultSequence = () => {
     setStepsList(createDefaultGraspSequence());
@@ -80,12 +82,14 @@ export default function SequenceEditor({
       {/* 预设按钮 */}
       <div className="flex gap-1">
         <button
+          type="button"
           onClick={loadDefaultSequence}
           className="flex-1 h-7 bg-[#EFF6FF] text-[#2563EB] text-[10px] font-medium rounded-sm border border-[#BFDBFE] hover:bg-[#DBEAFE] transition-colors"
         >
           加载默认抓取序列
         </button>
         <button
+          type="button"
           onClick={clearSequence}
           className="h-7 px-2 bg-[#FEF2F2] text-[#DC2626] text-[10px] rounded-sm border border-[#FECACA] hover:bg-[#FEE2E2] transition-colors"
         >
@@ -94,7 +98,7 @@ export default function SequenceEditor({
       </div>
 
       {/* 状态栏 */}
-      <div className="flex gap-3 text-[10px] bg-white rounded-sm border border-[#E5E7EB] px-2 py-1.5">
+      <div role="status" aria-live="polite" className="flex gap-3 text-[10px] bg-white rounded-sm border border-[#E5E7EB] px-2 py-1.5">
         <span>
           吸盘:
           <span className={suckerOn ? 'text-[#2563EB] font-medium' : 'text-[#94A3B8]'}>
@@ -126,34 +130,38 @@ export default function SequenceEditor({
       {/* 播放控制 */}
       <div className="grid grid-cols-4 gap-1">
         <button
+          type="button"
           onClick={runSequence}
           disabled={status === 'running' || steps.length === 0}
           className="h-8 bg-[#059669] text-white text-[10px] font-medium rounded-sm hover:bg-[#047857] disabled:opacity-40 transition-colors flex items-center justify-center gap-1"
         >
-          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
           运行
         </button>
         <button
+          type="button"
           onClick={runSingleStep}
           disabled={status === 'running' || steps.length === 0}
           className="h-8 bg-[#2563EB] text-white text-[10px] font-medium rounded-sm hover:bg-[#1D4ED8] disabled:opacity-40 transition-colors flex items-center justify-center gap-1"
         >
-          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" /></svg>
+          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" /></svg>
           单步
         </button>
         <button
+          type="button"
           onClick={stopSequence}
           disabled={status !== 'running'}
           className="h-8 bg-[#DC2626] text-white text-[10px] font-medium rounded-sm hover:bg-[#B91C1C] disabled:opacity-40 transition-colors flex items-center justify-center gap-1"
         >
-          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h12v12H6z" /></svg>
+          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h12v12H6z" /></svg>
           停止
         </button>
         <button
+          type="button"
           onClick={resetSequence}
           className="h-8 bg-[#6B7280] text-white text-[10px] font-medium rounded-sm hover:bg-[#4B5563] transition-colors flex items-center justify-center gap-1"
         >
-          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" /></svg>
+          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" /></svg>
           重置
         </button>
       </div>
@@ -182,19 +190,19 @@ export default function SequenceEditor({
             {captureImages.color && (
               <div className="space-y-0.5">
                 <div className="text-[9px] text-[#64748B] text-center">彩色</div>
-                <img src={captureImages.color} alt="彩色" className="w-full aspect-[4/3] object-contain border border-[#E5E7EB] rounded-sm bg-[#F8FAFC]" />
+                <img src={captureImages.color} alt="彩色" width="160" height="120" loading="lazy" className="w-full aspect-[4/3] object-contain border border-[#E5E7EB] rounded-sm bg-[#F8FAFC]" />
               </div>
             )}
             {captureImages.segmentation && (
               <div className="space-y-0.5">
                 <div className="text-[9px] text-[#64748B] text-center">分割</div>
-                <img src={captureImages.segmentation} alt="分割" className="w-full aspect-[4/3] object-contain border border-[#E5E7EB] rounded-sm bg-[#F8FAFC]" />
+                <img src={captureImages.segmentation} alt="分割" width="160" height="120" loading="lazy" className="w-full aspect-[4/3] object-contain border border-[#E5E7EB] rounded-sm bg-[#F8FAFC]" />
               </div>
             )}
             {captureImages.depth && (
               <div className="space-y-0.5">
                 <div className="text-[9px] text-[#64748B] text-center">深度</div>
-                <img src={captureImages.depth} alt="深度" className="w-full aspect-[4/3] object-contain border border-[#E5E7EB] rounded-sm bg-[#F8FAFC]" />
+                <img src={captureImages.depth} alt="深度" width="160" height="120" loading="lazy" className="w-full aspect-[4/3] object-contain border border-[#E5E7EB] rounded-sm bg-[#F8FAFC]" />
               </div>
             )}
           </div>
@@ -212,8 +220,8 @@ export default function SequenceEditor({
           ) : (
             logs.map((log, i) => (
               <div key={i} className={getLogColor(log.level)}>
-                <span className="text-[#475569] opacity-60">
-                  {new Date(log.timestamp).toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                <span className="text-[#475569] opacity-60 tabular-nums">
+                  {new Date(log.timestamp).toLocaleTimeString(navigator.language, { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                 </span>
                 {' '}{log.message}
               </div>

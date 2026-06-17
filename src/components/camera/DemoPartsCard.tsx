@@ -32,6 +32,8 @@ export default function DemoPartsCard({ onSpawn, onClear, hasParts }: DemoPartsC
           <input
             id="parts-count"
             type="number"
+            inputMode="numeric"
+            autoComplete="off"
             value={count}
             onChange={(e) => setCount(Math.max(1, Math.min(20, parseInt(e.target.value) || 1)))}
             className="flex-1 h-6 px-1.5 text-xs font-mono border border-[#D1D5DB] rounded-sm bg-white text-[#0F172A] focus:outline-none focus:ring-1 focus:ring-[#2563EB] focus:border-[#2563EB]"
@@ -57,6 +59,7 @@ export default function DemoPartsCard({ onSpawn, onClear, hasParts }: DemoPartsC
 
         <div className="flex gap-2">
           <button
+            type="button"
             onClick={() => onSpawn(count, sizeM)}
             className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium text-white bg-[#2563EB] rounded-sm hover:bg-[#1D4ED8] transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
           >
@@ -64,6 +67,7 @@ export default function DemoPartsCard({ onSpawn, onClear, hasParts }: DemoPartsC
             生成零件
           </button>
           <button
+            type="button"
             onClick={handleClear}
             disabled={!hasParts}
             className="flex items-center justify-center gap-1 py-1.5 px-3 text-xs font-medium text-[#64748B] bg-[#F1F5F9] border border-[#D1D5DB] rounded-sm hover:bg-[#E2E8F0] disabled:opacity-40 disabled:cursor-not-allowed transition-colors focus-visible:ring-2 focus-visible:ring-[#64748B] focus-visible:outline-none"

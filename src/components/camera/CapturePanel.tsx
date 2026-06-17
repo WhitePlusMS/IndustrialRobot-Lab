@@ -1,5 +1,5 @@
 // src/components/camera/CapturePanel.tsx
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import * as THREE from 'three';
 import type { CameraState, CaptureResult } from '@/types/camera';
 import { captureColorPhoto, captureSegmentationPhoto, captureDepthPhoto, generateFileName, downloadImage } from '@/lib/capture-engine';
@@ -178,6 +178,22 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
     setViewerLabel('');
   }, []);
 
+  useEffect(() => {
+    if (!viewerImage) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeViewer();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [viewerImage, closeViewer]);
+
+  const handlePreviewKeyDown = useCallback((e: React.KeyboardEvent, img: string, label: string) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openViewer(img, label);
+    }
+  }, [openViewer]);
+
   return (
     <>
       <div className="bg-white rounded-md border border-[#E5E7EB] overflow-hidden">
@@ -195,7 +211,9 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
               [1280, 720],
             ].map(([w, h]) => (
               <button
+                type="button"
                 key={`${w}x${h}`}
+                aria-pressed={cameraState.resolution[0] === w && cameraState.resolution[1] === h}
                 onClick={() => onResolutionChange(w, h)}
                 className={`px-1.5 py-0.5 text-[10px] rounded-sm border focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none ${
                   cameraState.resolution[0] === w && cameraState.resolution[1] === h
@@ -211,6 +229,7 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
         {/* 拍照按钮 */}
         <div className="grid grid-cols-3 gap-2">
           <button
+            type="button"
             onClick={handleCaptureColor}
             disabled={isCapturing}
             className="h-8 bg-[#2563EB] text-white text-[10px] font-medium rounded-sm hover:bg-[#1D4ED8] active:bg-[#1E40AF] disabled:opacity-50 transition-colors flex items-center justify-center gap-1 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
@@ -221,7 +240,7 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
             ) : (
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
@@ -229,6 +248,7 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
             彩色
           </button>
           <button
+            type="button"
             onClick={handleCaptureSegmentation}
             disabled={isCapturing}
             className="h-8 bg-[#F97316] text-white text-[10px] font-medium rounded-sm hover:bg-[#EA580C] active:bg-[#C2410C] disabled:opacity-50 transition-colors flex items-center justify-center gap-1 focus-visible:ring-2 focus-visible:ring-[#F97316] focus-visible:outline-none"
@@ -239,13 +259,14 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
             ) : (
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
               </svg>
             )}
             分割
           </button>
           <button
+            type="button"
             onClick={handleCaptureDepth}
             disabled={isCapturing}
             className="h-8 bg-[#7C3AED] text-white text-[10px] font-medium rounded-sm hover:bg-[#6D28D9] active:bg-[#5B21B6] disabled:opacity-50 transition-colors flex items-center justify-center gap-1 focus-visible:ring-2 focus-visible:ring-[#7C3AED] focus-visible:outline-none"
@@ -256,7 +277,7 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
             ) : (
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
               </svg>
             )}
@@ -278,9 +299,9 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
                 <div className="space-y-1">
                   <div className="text-[10px] text-[#64748B] text-center">彩色</div>
                   <div
-                    className="border border-[#E5E7EB] rounded-sm overflow-hidden bg-[#F8FAFC] aspect-[4/3] cursor-zoom-in"
+                    className="border border-[#E5E7EB] rounded-sm overflow-hidden bg-[#F8FAFC] aspect-[4/3] cursor-zoom-in focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
                     onDoubleClick={() => openViewer(captureResult.color!, '彩色照片')}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openViewer(captureResult.color!, '彩色照片'); }}
+                    onKeyDown={(e) => handlePreviewKeyDown(e, captureResult.color!, '彩色照片')}
                     tabIndex={0}
                     role="button"
                     aria-label="查看彩色照片大图"
@@ -288,6 +309,9 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
                     <img
                       src={captureResult.color}
                       alt="彩色照片"
+                      width="160"
+                      height="120"
+                      loading="lazy"
                       className="w-full h-full object-contain"
                     />
                   </div>
@@ -297,9 +321,9 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
                 <div className="space-y-1">
                   <div className="text-[10px] text-[#64748B] text-center">分割</div>
                   <div
-                    className="border border-[#E5E7EB] rounded-sm overflow-hidden bg-[#F8FAFC] aspect-[4/3] cursor-zoom-in"
+                    className="border border-[#E5E7EB] rounded-sm overflow-hidden bg-[#F8FAFC] aspect-[4/3] cursor-zoom-in focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
                     onDoubleClick={() => openViewer(captureResult.segmentation!, '分割照片')}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openViewer(captureResult.segmentation!, '分割照片'); }}
+                    onKeyDown={(e) => handlePreviewKeyDown(e, captureResult.segmentation!, '分割照片')}
                     tabIndex={0}
                     role="button"
                     aria-label="查看分割照片大图"
@@ -307,6 +331,9 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
                     <img
                       src={captureResult.segmentation}
                       alt="分割照片"
+                      width="160"
+                      height="120"
+                      loading="lazy"
                       className="w-full h-full object-contain"
                     />
                   </div>
@@ -316,9 +343,9 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
                 <div className="space-y-1">
                   <div className="text-[10px] text-[#64748B] text-center">深度</div>
                   <div
-                    className="border border-[#E5E7EB] rounded-sm overflow-hidden bg-[#F8FAFC] aspect-[4/3] cursor-zoom-in"
+                    className="border border-[#E5E7EB] rounded-sm overflow-hidden bg-[#F8FAFC] aspect-[4/3] cursor-zoom-in focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
                     onDoubleClick={() => openViewer(captureResult.depth!, '深度图')}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openViewer(captureResult.depth!, '深度图'); }}
+                    onKeyDown={(e) => handlePreviewKeyDown(e, captureResult.depth!, '深度图')}
                     tabIndex={0}
                     role="button"
                     aria-label="查看深度图大图"
@@ -326,6 +353,9 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
                     <img
                       src={captureResult.depth}
                       alt="深度图"
+                      width="160"
+                      height="120"
+                      loading="lazy"
                       className="w-full h-full object-contain"
                     />
                   </div>
@@ -355,10 +385,11 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
             <div className="grid grid-cols-3 gap-2">
               {captureResult.color && (
                 <button
+                  type="button"
                   onClick={handleDownloadColor}
                   className="h-7 bg-[#F1F5F9] text-[#1E293B] text-[10px] rounded-sm border border-[#CBD5E1] hover:bg-[#E2E8F0] active:bg-[#CBD5E1] transition-colors flex items-center justify-center gap-1 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
                 >
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
                   彩色
@@ -366,10 +397,11 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
               )}
               {captureResult.segmentation && (
                 <button
+                  type="button"
                   onClick={handleDownloadSegmentation}
                   className="h-7 bg-[#F1F5F9] text-[#1E293B] text-[10px] rounded-sm border border-[#CBD5E1] hover:bg-[#E2E8F0] active:bg-[#CBD5E1] transition-colors flex items-center justify-center gap-1 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
                 >
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
                   分割
@@ -377,10 +409,11 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
               )}
               {captureResult.depth && (
                 <button
+                  type="button"
                   onClick={handleDownloadDepth}
                   className="h-7 bg-[#F1F5F9] text-[#1E293B] text-[10px] rounded-sm border border-[#CBD5E1] hover:bg-[#E2E8F0] active:bg-[#CBD5E1] transition-colors flex items-center justify-center gap-1 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
                 >
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
                   深度
@@ -395,7 +428,10 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
       {/* 大图查看模态框 */}
       {viewerImage && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="viewer-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 overscroll-contain"
           onClick={closeViewer}
         >
           <div
@@ -404,13 +440,14 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
           >
             {/* 标题栏 */}
             <div className="flex items-center justify-between px-4 py-2 bg-[#F8FAFC] border-b border-[#E5E7EB]">
-              <span className="text-sm font-semibold text-[#1E293B]">{viewerLabel}</span>
+              <span id="viewer-title" className="text-sm font-semibold text-[#1E293B]">{viewerLabel}</span>
               <button
+                type="button"
                 onClick={closeViewer}
                 className="w-7 h-7 flex items-center justify-center rounded-sm text-[#64748B] hover:bg-[#E2E8F0] hover:text-[#1E293B] transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
                 aria-label="关闭"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -420,6 +457,8 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
               <img
                 src={viewerImage}
                 alt={viewerLabel}
+                width="1280"
+                height="960"
                 className="max-w-full max-h-[calc(90vh-60px)] object-contain"
               />
             </div>

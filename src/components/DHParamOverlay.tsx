@@ -14,9 +14,9 @@ export default function DHParamOverlay({ config, visible }: DHParamOverlayProps)
 
   return (
     <div className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur-sm border border-[#D1D5DB] rounded-sm p-3 shadow-lg z-10">
-      <div className="text-xs font-semibold text-[#1E293B] mb-2 text-center">DH 参数表 (改进DH法)</div>
+      <h3 className="text-xs font-semibold text-[#1E293B] mt-0 mb-2 text-center">DH 参数表 (改进DH法)</h3>
       <table className="text-xs font-mono" aria-label="DH参数表">
-        <caption className="sr-only">DH 参数表 (改进DH法)</caption>
+        <caption className="sr-only top-0 left-0">DH 参数表 (改进DH法)</caption>
         <thead>
           <tr className="border-b border-[#E5E7EB]">
             <th className="px-2 py-1 text-[#64748B] text-left">关节</th>
@@ -30,10 +30,10 @@ export default function DHParamOverlay({ config, visible }: DHParamOverlayProps)
           {joints.map((j, i) => (
             <tr key={i} className="border-b border-[#F3F4F6]">
               <td className="px-2 py-1 text-[#1E293B]">{i + 1}</td>
-              <td className="px-2 py-1 text-[#0F172A] text-right">{j.a.toFixed(0)}</td>
-              <td className="px-2 py-1 text-[#0F172A] text-right">{j.alpha.toFixed(4)}</td>
-              <td className="px-2 py-1 text-[#0F172A] text-right">{j.d.toFixed(0)}</td>
-              <td className="px-2 py-1 text-[#0F172A] text-right">
+              <td className="px-2 py-1 text-[#0F172A] text-right tabular-nums">{j.a.toFixed(0)}</td>
+              <td className="px-2 py-1 text-[#0F172A] text-right tabular-nums">{j.alpha.toFixed(4)}</td>
+              <td className="px-2 py-1 text-[#0F172A] text-right tabular-nums">{j.d.toFixed(0)}</td>
+              <td className="px-2 py-1 text-[#0F172A] text-right tabular-nums">
                 [{j.thetaRange[0]} ~ {j.thetaRange[1]}]
               </td>
             </tr>

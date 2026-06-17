@@ -52,10 +52,11 @@ export default function ViewportHUD({
   ];
 
   return (
-    <div className="absolute top-3 right-3 flex flex-col gap-2 z-10">
+    <div role="region" aria-label="视口控制" className="absolute top-3 right-3 flex flex-col gap-2 z-10">
       {/* 原点控制 */}
       <div className="flex gap-1 bg-white/90 backdrop-blur-sm border border-[#D1D5DB] rounded-sm p-1 shadow-sm">
         <button
+          type="button"
           onClick={onSaveOrigin}
           className="flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium text-[#1E293B] hover:bg-[#F3F4F6] rounded-sm transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
         >
@@ -63,6 +64,7 @@ export default function ViewportHUD({
           设置原点
         </button>
         <button
+          type="button"
           onClick={onGoToOrigin}
           disabled={!hasOrigin}
           title={!hasOrigin ? '请先设置原点' : ''}
@@ -72,6 +74,7 @@ export default function ViewportHUD({
           回原点
         </button>
         <button
+          type="button"
           onClick={onGoToZero}
           className="flex items-center gap-1 px-1.5 py-0.5 text-xs font-medium text-[#1E293B] hover:bg-[#F3F4F6] rounded-sm transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
         >
@@ -85,6 +88,7 @@ export default function ViewportHUD({
         <Camera className="w-3.5 h-3.5 text-[#64748B] mx-1 my-auto" aria-hidden="true" />
         {viewButtons.map((btn) => (
           <button
+            type="button"
             key={btn.view}
             onClick={() => onCameraView(btn.view)}
             className="px-2 py-0.5 text-xs font-medium text-[#1E293B] hover:bg-[#F3F4F6] rounded-sm transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
@@ -100,6 +104,7 @@ export default function ViewportHUD({
           const Icon = btn.icon;
           return (
             <button
+              type="button"
               key={btn.label}
               onClick={btn.onClick}
               title={btn.label}

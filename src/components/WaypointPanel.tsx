@@ -66,6 +66,7 @@ export default function WaypointPanel({ currentJoints, onGotoWaypoint }: Waypoin
         <input
           id="waypoint-name"
           type="text"
+          autoComplete="off"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="记忆点名称"
@@ -73,6 +74,7 @@ export default function WaypointPanel({ currentJoints, onGotoWaypoint }: Waypoin
           className="flex-1 px-2 py-1 text-xs border border-[#D1D5DB] rounded-sm bg-[#FAFAFA] focus:outline-none focus:border-[#2563EB] focus-visible:ring-2 focus-visible:ring-[#2563EB]"
         />
         <button
+          type="button"
           onClick={handleSave}
           disabled={!name.trim() || saveMutation.isPending}
           className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-white bg-[#2563EB] rounded-sm hover:bg-[#1D4ED8] disabled:opacity-40 transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
@@ -90,6 +92,7 @@ export default function WaypointPanel({ currentJoints, onGotoWaypoint }: Waypoin
               className="flex items-center justify-between px-2 py-1.5 bg-[#F9FAFB] border border-[#E5E7EB] rounded-sm"
             >
               <button
+                type="button"
                 onClick={() =>
                   onGotoWaypoint([wp.j1, wp.j2, wp.j3, wp.j4, wp.j5, wp.j6])
                 }
@@ -101,13 +104,14 @@ export default function WaypointPanel({ currentJoints, onGotoWaypoint }: Waypoin
                     原点
                   </span>
                 )}
-                <div className="text-[10px] text-[#64748B] font-mono mt-0.5 truncate">
+                <span className="block text-[10px] text-[#64748B] font-mono mt-0.5 truncate">
                   J: {wp.j1.toFixed(1)},{wp.j2.toFixed(1)},{wp.j3.toFixed(1)},
                   {wp.j4.toFixed(1)},{wp.j5.toFixed(1)},{wp.j6.toFixed(1)}
-                </div>
+                </span>
               </button>
               {wp.isOrigin !== '1' && (
                 <button
+                  type="button"
                   onClick={() => handleSetOrigin(wp.id)}
                   title="设置为原点"
                   aria-label={`将"${wp.name}"设置为原点`}
@@ -118,6 +122,7 @@ export default function WaypointPanel({ currentJoints, onGotoWaypoint }: Waypoin
                 </button>
               )}
               <button
+                type="button"
                 onClick={() => handleDelete(wp.id, wp.name)}
                 title={`删除${wp.name}`}
                 aria-label={`删除记忆点"${wp.name}"`}

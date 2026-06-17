@@ -91,6 +91,7 @@ export default function LongPressButton({
 
   return (
     <button
+      type="button"
       onClick={handleClick}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}

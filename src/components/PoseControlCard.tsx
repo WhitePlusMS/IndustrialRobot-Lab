@@ -49,6 +49,7 @@ export default function PoseControlCard({
   return (
     <div className="bg-white border border-[#D1D5DB] rounded-sm">
       <button
+        type="button"
         onClick={() => setCollapsed(!collapsed)}
         className="w-full flex items-center justify-between px-3 py-2 bg-[#F9FAFB] border-b border-[#E5E7EB] hover:bg-[#F3F4F6] transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
         aria-expanded={!collapsed}
@@ -61,8 +62,10 @@ export default function PoseControlCard({
           {/* 坐标系切换 */}
           <div className="flex items-center gap-2">
             <span className="text-xs text-[#64748B]">坐标系:</span>
-            <div className="flex border border-[#D1D5DB] rounded-sm overflow-hidden">
+            <div className="flex border border-[#D1D5DB] rounded-sm overflow-hidden" role="group" aria-label="坐标系选择">
               <button
+                type="button"
+                aria-pressed={coordinateSystem === 'World'}
                 onClick={() => onCoordinateChange('World')}
                 className={`flex items-center gap-1 px-3 py-1 text-xs font-medium transition-colors ${
                   coordinateSystem === 'World'
@@ -74,6 +77,8 @@ export default function PoseControlCard({
                 World
               </button>
               <button
+                type="button"
+                aria-pressed={coordinateSystem === 'Tool'}
                 onClick={() => onCoordinateChange('Tool')}
                 className={`flex items-center gap-1 px-3 py-1 text-xs font-medium transition-colors border-l border-[#D1D5DB] ${
                   coordinateSystem === 'Tool'

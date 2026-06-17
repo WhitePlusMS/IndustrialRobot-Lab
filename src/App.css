@@ -16,7 +16,8 @@
   }
 }
 
-/* 全局焦点环（fallback，Tailwind focus-visible:ring 为推荐方式） */
+/* 全局焦点环 fallback：当组件未显式设置 Tailwind focus-visible:ring 时仍保证可见焦点 */
 :focus-visible {
-  outline: none;
+  outline: 2px solid #2563EB;
+  outline-offset: 2px;
 }

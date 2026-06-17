@@ -15,6 +15,7 @@ export default function ToolCard({ selectedTool, onToolChange, tools }: ToolCard
   return (
     <div className="bg-white border border-[#D1D5DB] rounded-sm">
       <button
+        type="button"
         onClick={() => setCollapsed(!collapsed)}
         className="w-full flex items-center justify-between px-3 py-2 bg-[#F9FAFB] border-b border-[#E5E7EB] hover:bg-[#F3F4F6] transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
         aria-expanded={!collapsed}
@@ -26,7 +27,7 @@ export default function ToolCard({ selectedTool, onToolChange, tools }: ToolCard
         <div className="p-3 space-y-2">
           <div className="flex items-center gap-2">
             <Wrench className="w-3.5 h-3.5 text-[#64748B] shrink-0" aria-hidden="true" />
-            <label htmlFor="tool-select" className="sr-only">末端工具选择</label>
+            <label htmlFor="tool-select" className="sr-only top-0 left-0">末端工具选择</label>
             <select
               id="tool-select"
               value={selectedTool}

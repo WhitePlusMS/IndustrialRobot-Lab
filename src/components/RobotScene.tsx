@@ -160,10 +160,18 @@ function SceneContent({
   const startPosRef = useRef(new THREE.Vector3());
   const startTimeRef = useRef(0);
 
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
   useEffect(() => {
     cancelAnimationFrame(animRef.current);
 
     const target = new THREE.Vector3(...cameraPosition);
+    if (prefersReducedMotion) {
+      camera.position.copy(target);
+      camera.lookAt(0, 1, 0);
+      return;
+    }
+
     startPosRef.current.copy(camera.position);
     startTimeRef.current = performance.now();
 
@@ -186,7 +194,7 @@ function SceneContent({
     animRef.current = requestAnimationFrame(animate);
 
     return () => cancelAnimationFrame(animRef.current);
-  }, [cameraPosition, camera]);
+  }, [cameraPosition, camera, prefersReducedMotion]);
 
   return (
     <>
@@ -301,12 +309,12 @@ function SceneContent({
 
 export default function RobotScene(props: RobotSceneProps) {
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full" style={{ touchAction: 'manipulation' }}>
       <Canvas
         shadows={{ type: THREE.PCFShadowMap }}
         camera={{ position: props.cameraPosition, fov: 45, near: 0.01, far: 100 }}
         gl={{ antialias: true }}
-        style={{ background: '#E8E8E8', width: '100%', height: '100%' }}
+        style={{ background: '#E8E8E8', width: '100%', height: '100%', touchAction: 'manipulation' }}
       >
         <SceneContent {...props} />
       </Canvas>

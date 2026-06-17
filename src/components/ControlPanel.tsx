@@ -99,6 +99,8 @@ export default function ControlPanel(props: ControlPanelProps) {
       {/* Tab 切换条 */}
       <div className="flex border-b border-[#E5E7EB]" role="tablist">
         <button
+          type="button"
+          id="tab-robot"
           onClick={() => setActiveTab('robot')}
           role="tab"
           aria-selected={activeTab === 'robot'}
@@ -112,6 +114,8 @@ export default function ControlPanel(props: ControlPanelProps) {
           机器人控制
         </button>
         <button
+          type="button"
+          id="tab-camera"
           onClick={() => setActiveTab('camera')}
           role="tab"
           aria-selected={activeTab === 'camera'}
@@ -125,6 +129,8 @@ export default function ControlPanel(props: ControlPanelProps) {
           相机控制
         </button>
         <button
+          type="button"
+          id="tab-sequence"
           onClick={() => setActiveTab('sequence')}
           role="tab"
           aria-selected={activeTab === 'sequence'}
@@ -139,7 +145,12 @@ export default function ControlPanel(props: ControlPanelProps) {
         </button>
       </div>
 
-      <div className="p-3 space-y-3">
+      <div
+        className="p-3 space-y-3"
+        role="tabpanel"
+        id={`panel-${activeTab}`}
+        aria-labelledby={`tab-${activeTab}`}
+      >
         {activeTab === 'robot' && (
           <>
             <JointAngleCard

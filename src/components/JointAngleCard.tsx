@@ -30,6 +30,7 @@ export default function JointAngleCard({
   return (
     <div className="bg-white border border-[#D1D5DB] rounded-sm">
       <button
+        type="button"
         onClick={() => setCollapsed(!collapsed)}
         className="w-full flex items-center justify-between px-3 py-2 bg-[#F9FAFB] border-b border-[#E5E7EB] hover:bg-[#F3F4F6] transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
         aria-expanded={!collapsed}
@@ -46,25 +47,27 @@ export default function JointAngleCard({
               <div key={i} className="flex items-center justify-between gap-2">
                 <span className="text-xs font-medium text-[#64748B] w-10">J{i + 1}</span>
                 <LongPressButton
+                  aria-label={`减小 J${i + 1} 角度`}
                   onClick={(isContinuous) => onAdjustJoint(i, -1, isContinuous)}
                   className="w-7 h-7 flex items-center justify-center bg-[#F3F4F6] border border-[#D1D5DB] rounded-sm text-[#1E293B] hover:bg-[#E5E7EB] active:bg-[#2563EB] active:text-white active:border-[#2563EB] transition-colors"
                 >
                   <span className="pointer-events-none">−</span>
                 </LongPressButton>
                 <span
-                  className={`text-sm font-mono font-medium w-16 text-center pointer-events-none ${
+                  className={`text-sm font-mono tabular-nums font-medium w-16 text-center pointer-events-none ${
                     isOutOfRange ? 'text-[#EF4444]' : 'text-[#0F172A]'
                   }`}
                 >
                   {angle.toFixed(1)}°
                 </span>
                 <LongPressButton
+                  aria-label={`增大 J${i + 1} 角度`}
                   onClick={(isContinuous) => onAdjustJoint(i, 1, isContinuous)}
                   className="w-7 h-7 flex items-center justify-center bg-[#F3F4F6] border border-[#D1D5DB] rounded-sm text-[#1E293B] hover:bg-[#E5E7EB] active:bg-[#2563EB] active:text-white active:border-[#2563EB] transition-colors"
                 >
                   <span className="pointer-events-none">+</span>
                 </LongPressButton>
-                <span className="text-xs text-[#94A3B8] w-24 text-right">
+                <span className="text-xs text-[#94A3B8] w-24 text-right truncate">
                   [{range[0]} ~ {range[1]}]
                 </span>
               </div>
@@ -76,6 +79,7 @@ export default function JointAngleCard({
           </div>
           <div className="flex gap-2">
             <button
+              type="button"
               onClick={onReset}
               className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-medium text-[#1E293B] bg-[#F3F4F6] border border-[#D1D5DB] rounded-sm hover:bg-[#E5E7EB] transition-colors"
             >
@@ -83,6 +87,7 @@ export default function JointAngleCard({
               重置
             </button>
             <button
+              type="button"
               onClick={onRandom}
               className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-medium text-[#1E293B] bg-[#F3F4F6] border border-[#D1D5DB] rounded-sm hover:bg-[#E5E7EB] transition-colors"
             >

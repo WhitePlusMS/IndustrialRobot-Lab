@@ -42,8 +42,10 @@ export default function SequenceStepParams({
       {step.type === '生成箱子' && (
         <div className="space-y-3">
           {/* 模式切换 */}
-          <div className="flex gap-1">
+          <div className="flex gap-1" role="group" aria-label="箱子生成模式">
             <button
+              type="button"
+              aria-pressed={step.params.boxSpawn?.mode === 'fixed'}
               onClick={() => handleParamChange('boxSpawn', { ...step.params.boxSpawn, mode: 'fixed' })}
               className={`flex-1 h-6 text-[10px] rounded-sm border transition-colors ${
                 step.params.boxSpawn?.mode === 'fixed'
@@ -54,6 +56,8 @@ export default function SequenceStepParams({
               固定位置
             </button>
             <button
+              type="button"
+              aria-pressed={step.params.boxSpawn?.mode === 'random'}
               onClick={() => handleParamChange('boxSpawn', { ...step.params.boxSpawn, mode: 'random' })}
               className={`flex-1 h-6 text-[10px] rounded-sm border transition-colors ${
                 step.params.boxSpawn?.mode === 'random'
@@ -75,6 +79,9 @@ export default function SequenceStepParams({
                     <span className="text-[10px] text-[#64748B] w-3">{axis}</span>
                     <input
                       type="number"
+                      inputMode="decimal"
+                      autoComplete="off"
+                      aria-label={`箱子固定位置 ${axis}`}
                       value={step.params.boxSpawn?.fixedPosition?.[i] ?? 0}
                       onChange={(e) => {
                         const n = safeNumber(e.target.value);
@@ -105,6 +112,9 @@ export default function SequenceStepParams({
                   <span className="text-[10px] text-[#64748B]">中心 X</span>
                   <input
                     type="number"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    aria-label="随机生成中心 X"
                     value={step.params.boxSpawn?.randomCenter?.[0] ?? 300}
                     onChange={(e) => {
                       const n = safeNumber(e.target.value);
@@ -125,6 +135,9 @@ export default function SequenceStepParams({
                   <span className="text-[10px] text-[#64748B]">中心 Z</span>
                   <input
                     type="number"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    aria-label="随机生成中心 Z"
                     value={step.params.boxSpawn?.randomCenter?.[1] ?? 200}
                     onChange={(e) => {
                       const n = safeNumber(e.target.value);
@@ -145,6 +158,9 @@ export default function SequenceStepParams({
                   <span className="text-[10px] text-[#64748B]">X范围 (半宽)</span>
                   <input
                     type="number"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    aria-label="随机生成 X 范围"
                     value={step.params.boxSpawn?.randomRangeX ?? 150}
                     onChange={(e) => {
                       const n = safeNumber(e.target.value);
@@ -163,6 +179,9 @@ export default function SequenceStepParams({
                   <span className="text-[10px] text-[#64748B]">Z范围 (半宽)</span>
                   <input
                     type="number"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    aria-label="随机生成 Z 范围"
                     value={step.params.boxSpawn?.randomRangeZ ?? 150}
                     onChange={(e) => {
                       const n = safeNumber(e.target.value);
@@ -181,6 +200,9 @@ export default function SequenceStepParams({
                   <span className="text-[10px] text-[#64748B]">最小高度</span>
                   <input
                     type="number"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    aria-label="随机生成最小高度"
                     value={step.params.boxSpawn?.minHeight ?? 200}
                     onChange={(e) => {
                       const n = safeNumber(e.target.value);
@@ -199,6 +221,9 @@ export default function SequenceStepParams({
                   <span className="text-[10px] text-[#64748B]">最大高度</span>
                   <input
                     type="number"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    aria-label="随机生成最大高度"
                     value={step.params.boxSpawn?.maxHeight ?? 800}
                     onChange={(e) => {
                       const n = safeNumber(e.target.value);
@@ -222,6 +247,9 @@ export default function SequenceStepParams({
                 </div>
                 <input
                   type="number"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  aria-label="箱子停止高度"
                   value={step.params.boxSpawn?.restingHeight ?? 200}
                   onChange={(e) => {
                     const n = safeNumber(e.target.value);
@@ -251,6 +279,9 @@ export default function SequenceStepParams({
             <span className="text-[10px] text-[#64748B] w-16 shrink-0">接近高度</span>
             <input
               type="number"
+              inputMode="decimal"
+              autoComplete="off"
+              aria-label="接近高度"
               value={step.params.approachHeight ?? 50}
               onChange={(e) => { const n = safeNumber(e.target.value); if (n !== null) handleParamChange('approachHeight', n); }}
               className="flex-1 h-6 px-1.5 text-[11px] font-mono border border-[#D1D5DB] rounded-sm bg-white"
@@ -268,6 +299,9 @@ export default function SequenceStepParams({
             <span className="text-[10px] text-[#64748B] w-16 shrink-0">抬升高度</span>
             <input
               type="number"
+              inputMode="decimal"
+              autoComplete="off"
+              aria-label="抬升高度"
               value={step.params.liftHeight ?? 100}
               onChange={(e) => { const n = safeNumber(e.target.value); if (n !== null) handleParamChange('liftHeight', n); }}
               className="flex-1 h-6 px-1.5 text-[11px] font-mono border border-[#D1D5DB] rounded-sm bg-white"
@@ -288,6 +322,7 @@ export default function SequenceStepParams({
             </div>
           ) : (
             <select
+              aria-label="选择记忆点"
               value={step.params.memoryPointName ?? ''}
               onChange={(e) => handleParamChange('memoryPointName', e.target.value)}
               className="w-full h-7 px-1.5 text-[11px] border border-[#D1D5DB] rounded-sm bg-white"
@@ -310,6 +345,9 @@ export default function SequenceStepParams({
             <span className="text-[10px] text-[#64748B] w-16 shrink-0">等待时长</span>
             <input
               type="number"
+              inputMode="decimal"
+              autoComplete="off"
+              aria-label="等待时长"
               value={step.params.waitDuration ?? 1000}
               onChange={(e) => { const n = safeNumber(e.target.value); if (n !== null) handleParamChange('waitDuration', n); }}
               className="flex-1 h-6 px-1.5 text-[11px] font-mono border border-[#D1D5DB] rounded-sm bg-white"

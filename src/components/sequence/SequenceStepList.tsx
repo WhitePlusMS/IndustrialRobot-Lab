@@ -27,7 +27,7 @@ const STEP_TYPE_OPTIONS: { label: string; value: ActionStepType; color: string }
 ];
 
 function getStepRowClass(step: ActionStep, isActive: boolean, isSelected: boolean): string {
-  const base = 'flex items-center gap-2 px-2 py-1.5 cursor-pointer text-[11px] transition-colors border-l-2 ';
+  const base = 'w-full min-w-0 text-left flex items-center gap-2 px-2 py-1.5 text-[11px] transition-colors border-l-2 ';
   if (step.execStatus === 'error') {
     return base + 'bg-[#FEF2F2] border-l-[#DC2626] text-[#DC2626]';
   }
@@ -54,6 +54,11 @@ export default function SequenceStepList({
   onMoveUp,
   onMoveDown,
 }: SequenceStepListProps) {
+  const handleRemove = (index: number) => {
+    if (!confirm('确定删除该序列步骤？')) return;
+    onRemove(index);
+  };
+
   return (
     <div className="space-y-2">
       {/* 步骤列表 */}
@@ -70,31 +75,33 @@ export default function SequenceStepList({
               const typeColor = STEP_TYPE_OPTIONS.find((o) => o.value === step.type)?.color || '#64748B';
 
               return (
-                <div
+                <button
+                  type="button"
                   key={step.id}
                   onClick={() => onSelect(i)}
                   className={getStepRowClass(step, isActive, isSelected)}
+                  aria-current={isActive ? 'true' : undefined}
                 >
                   <span className="text-[#94A3B8] w-4 shrink-0 font-mono text-[10px]">{i + 1}</span>
-                  <div
+                  <span
                     className="w-1.5 h-1.5 rounded-full shrink-0"
                     style={{ backgroundColor: typeColor }}
                   />
                   <span className="flex-1 truncate">{step.type}</span>
                   {step.execStatus === 'success' && (
-                    <svg className="w-3 h-3 text-[#22C55E] shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-3 h-3 text-[#22C55E] shrink-0" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                   )}
                   {step.execStatus === 'error' && (
-                    <svg className="w-3 h-3 text-[#DC2626] shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <svg className="w-3 h-3 text-[#DC2626] shrink-0" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
                       <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                     </svg>
                   )}
                   {isActive && (
                     <span className="text-[#EAB308] text-[10px] font-medium shrink-0 animate-pulse">执行中</span>
                   )}
-                </div>
+                </button>
               );
             })}
           </div>
@@ -105,6 +112,7 @@ export default function SequenceStepList({
       <div className="flex flex-wrap gap-1">
         {STEP_TYPE_OPTIONS.map((opt) => (
           <button
+            type="button"
             key={opt.value}
             onClick={() => onAdd(opt.value)}
             className="px-1.5 py-0.5 text-[10px] rounded-sm border border-[#D1D5DB] bg-white text-[#1E293B] hover:bg-[#F3F4F6] transition-colors"
@@ -118,21 +126,27 @@ export default function SequenceStepList({
       {selectedIndex >= 0 && selectedIndex < steps.length && (
         <div className="flex gap-1">
           <button
+            type="button"
             onClick={() => onMoveUp(selectedIndex)}
             disabled={selectedIndex === 0}
+            aria-label="上移步骤"
             className="px-2 py-0.5 text-[10px] rounded-sm border border-[#D1D5DB] bg-white text-[#1E293B] hover:bg-[#F3F4F6] disabled:opacity-30 transition-colors"
           >
             ↑
           </button>
           <button
+            type="button"
             onClick={() => onMoveDown(selectedIndex)}
             disabled={selectedIndex === steps.length - 1}
+            aria-label="下移步骤"
             className="px-2 py-0.5 text-[10px] rounded-sm border border-[#D1D5DB] bg-white text-[#1E293B] hover:bg-[#F3F4F6] disabled:opacity-30 transition-colors"
           >
             ↓
           </button>
           <button
-            onClick={() => onRemove(selectedIndex)}
+            type="button"
+            onClick={() => handleRemove(selectedIndex)}
+            aria-label="删除步骤"
             className="px-2 py-0.5 text-[10px] rounded-sm border border-[#FCA5A5] bg-[#FEF2F2] text-[#DC2626] hover:bg-[#FEE2E2] transition-colors"
           >
             删除
