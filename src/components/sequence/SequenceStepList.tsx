@@ -1,10 +1,10 @@
 // src/components/sequence/SequenceStepList.tsx
-import type { ActionStep, ActionStepType } from '@/types/sequence';
+import type { ActionStep, ActionStepType, SequenceStatus } from '@/types/sequence';
 
 interface SequenceStepListProps {
   steps: ActionStep[];
   currentStepIndex: number;
-  status: 'idle' | 'running' | 'paused';
+  status: SequenceStatus;
   selectedIndex: number;
   onSelect: (index: number) => void;
   onAdd: (type: ActionStepType) => void;

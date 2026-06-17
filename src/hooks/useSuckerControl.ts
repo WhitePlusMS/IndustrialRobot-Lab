@@ -96,9 +96,9 @@ export function useSuckerControl({ joints, config, initialBoxPosition }: UseSuck
     const glb = getMat?.();
     if (glb?.position && glb?.rotation) {
       const [fx, fy, fz] = glb.position;
-      // glb.rotation[2] = Z轴方向（Three.js 列主序存储）
+      // rotation 现在为真实旋转矩阵（行主序），工具 Z 轴为世界坐标系下的第三列
       const tz: [number, number, number] = [
-        glb.rotation[2][0], glb.rotation[2][1], glb.rotation[2][2],
+        glb.rotation[0][2], glb.rotation[1][2], glb.rotation[2][2],
       ];
       // 吸盘尖端 = 法兰 - 工具Z * 吸盘长度（场景米）
       const sx = fx - tz[0] * (SUCKER_LENGTH / 1000);

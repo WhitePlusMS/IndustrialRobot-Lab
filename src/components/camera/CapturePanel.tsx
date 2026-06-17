@@ -1,5 +1,5 @@
 // src/components/camera/CapturePanel.tsx
-import { useCallback, useState, useRef } from 'react';
+import { useCallback, useState } from 'react';
 import * as THREE from 'three';
 import type { CameraState, CaptureResult } from '@/types/camera';
 import { captureColorPhoto, captureSegmentationPhoto, captureDepthPhoto, generateFileName, downloadImage } from '@/lib/capture-engine';

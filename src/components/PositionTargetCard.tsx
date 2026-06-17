@@ -24,7 +24,7 @@ export default function PositionTargetCard({
   const [inputY, setInputY] = useState('');
   const [inputZ, setInputZ] = useState('');
   const [feedback, setFeedback] = useState<'idle' | 'success' | 'failed'>('idle');
-  const feedbackTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const feedbackTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 点击当前位姿的"填入"按钮时，将当前GLB坐标填入输入框
   const fillCurrent = useCallback(() => {
@@ -43,7 +43,9 @@ export default function PositionTargetCard({
 
     const ok = onGoToPosition(x, y, z);
     setFeedback(ok ? 'success' : 'failed');
-    clearTimeout(feedbackTimeout.current);
+    if (feedbackTimeout.current) {
+      clearTimeout(feedbackTimeout.current);
+    }
     feedbackTimeout.current = setTimeout(() => setFeedback('idle'), 1500);
   }, [inputX, inputY, inputZ, onGoToPosition]);
 

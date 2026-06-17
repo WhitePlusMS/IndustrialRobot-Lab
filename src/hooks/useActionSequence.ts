@@ -82,7 +82,7 @@ export interface StepExecutorAPI {
 /** 返回 true=成功, false=失败(应停止序列) */
 async function executeStep(step: ActionStep, api: StepExecutorAPI): Promise<boolean> {
   const {
-    log, robot, ctxRef, setCtx, cameraState, onSuckerOn, onSuckerOff, onForceAttachBox, onSpawnBox, onResetBox,
+    log, robot, ctxRef, setCtx, cameraState, onSuckerOn, onSuckerOff, onForceAttachBox, onResetBox,
     abortRef, waypoints, onStepStatusChange, stepIndex, onCaptureSave,
   } = api;
 
@@ -106,7 +106,7 @@ async function executeStep(step: ActionStep, api: StepExecutorAPI): Promise<bool
       if (spawn.mode === 'fixed') {
         const pos = spawn.fixedPosition ?? [300, 40, 200];
         log('info', `生成箱子(固定): (${pos[0]}, ${pos[1]}, ${pos[2]}) mm`);
-        const newCtx = {
+        const newCtx: SeqContext = {
           ...ctxRef.current,
           boxPose: { position: pos, rotation: [0, 0, 0] as [number, number, number] },
         };
@@ -136,9 +136,12 @@ async function executeStep(step: ActionStep, api: StepExecutorAPI): Promise<bool
       // 触发 3D 场景中的掉落动画，传递停止高度
       api.onSpawnBox(dropPos, restingH);
 
-      const newCtx = {
+      const newCtx: SeqContext = {
         ...ctxRef.current,
-        boxPose: { position: [dropPos[0], restingH, dropPos[2]], rotation: [0, 0, 0] as [number, number, number] },
+        boxPose: {
+          position: [dropPos[0], restingH, dropPos[2]] as [number, number, number],
+          rotation: [0, 0, 0] as [number, number, number],
+        },
       };
       setCtx(newCtx);
       ctxRef.current = newCtx;

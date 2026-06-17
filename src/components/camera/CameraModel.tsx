@@ -1,5 +1,5 @@
 // src/components/camera/CameraModel.tsx
-import { useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import * as THREE from 'three';
 
 interface CameraModelProps {

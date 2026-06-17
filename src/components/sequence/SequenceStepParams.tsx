@@ -321,7 +321,7 @@ export default function SequenceStepParams({
       )}
 
       {/* 无参数步骤 */}
-      {(step.type === '拍照' || step.type === '识别箱子' ||
+      {(step.type === '拍照' ||
         step.type === '下降到箱面' || step.type === '吸盘开启' ||
         step.type === '吸盘关闭' || step.type === '归位') && (
         <div className="text-[10px] text-[#94A3B8]">此步骤无需参数</div>

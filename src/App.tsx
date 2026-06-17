@@ -180,7 +180,6 @@ export default function App() {
             onToolList={robot.setToolList}
             cameraState={camera.cameraState}
             // 箱子/吸盘
-            suckerOn={sucker.suckerOn}
             boxPosition={sucker.boxPosition}
             boxState={sucker.boxState}
             checkAttachment={sucker.checkAttachment}

@@ -35,7 +35,6 @@ interface RobotSceneProps {
   onToolList?: (tools: string[]) => void;
   cameraState?: CameraState;
   // 箱子/吸盘
-  suckerOn?: boolean;
   boxPosition?: [number, number, number];
   boxState?: BoxState;
   checkAttachment?: (boxPos: [number, number, number]) => void;
@@ -99,8 +98,10 @@ function TrajectoryLine({ points, visible }: { points: [number, number, number][
 function CaptureInjector() {
   const { gl, scene } = useThree();
   useEffect(() => {
+    (window as any).__SCENE_CONTENT_MOUNTED = true;
     (window as any).__R3F_CAPTURE = { renderer: gl, scene };
     return () => {
+      delete (window as any).__SCENE_CONTENT_MOUNTED;
       delete (window as any).__R3F_CAPTURE;
     };
   }, [gl, scene]);
@@ -145,7 +146,6 @@ function SceneContent({
   selectedTool,
   onToolList,
   cameraState,
-  suckerOn,
   boxPosition,
   boxState,
   checkAttachment,

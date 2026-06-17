@@ -42,7 +42,7 @@ export default function DirectionButton({
       // 启动 interval 实现长按持续运动
       longPressInterval.current = setInterval(() => {
         onLongPressStart?.();
-      }, 60);
+      }, 120);
     }, 150);
   }, [disabled, onLongPressStart]);
 
@@ -70,7 +70,7 @@ export default function DirectionButton({
       onLongPressStart?.();
       longPressInterval.current = setInterval(() => {
         onLongPressStart?.();
-      }, 60);
+      }, 120);
     }, 150);
   }, [disabled, onLongPressStart]);
 

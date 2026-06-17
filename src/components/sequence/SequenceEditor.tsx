@@ -46,7 +46,6 @@ export default function SequenceEditor({
   boxState,
 }: SequenceEditorProps) {
   const [selectedIndex, setSelectedIndex] = useState(-1);
-  const [sequenceName, setSequenceName] = useState('抓取演示');
   const logsEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
