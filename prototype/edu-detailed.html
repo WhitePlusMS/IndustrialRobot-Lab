@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>6F Robot 教学版整体布局</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd',
+              400: '#60a5fa', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8',
+              800: '#1e40af', 900: '#1e3a8a',
+            },
+            slate: {
+              50: '#f8fafc', 100: '#f1f5f9', 200: '#e2e8f0', 300: '#cbd5e1',
+              400: '#94a3b8', 500: '#64748b', 600: '#475569', 700: '#334155',
+              800: '#1e293b', 900: '#0f172a',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Fira Code', 'Consolas', 'monospace'],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    * { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+    *::-webkit-scrollbar { width: 6px; height: 6px; }
+    *::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+    body { background: #f1f5f9; color: #1e293b; font-family: 'Inter', system-ui, sans-serif; }
+
+    .step-card { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
+    .step-active { border-color: #3b82f6; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); box-shadow: 0 0 0 1px #3b82f6, 0 10px 25px -8px rgba(59, 130, 246, 0.18); }
+    .step-done { border-color: #86efac; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); }
+    .step-pending { border-color: #e2e8f0; background: white; }
+    .step-pending:hover { border-color: #cbd5e1; background: #f8fafc; transform: translateY(-1px); }
+
+    .edu-card { background: white; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+    .edu-card:hover { box-shadow: 0 4px 12px -2px rgba(0,0,0,0.06); }
+
+    .edu-btn {
+      background: white; border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 2px rgba(59, 130, 246, 0.06);
+      transition: all 0.15s ease;
+    }
+    .edu-btn:hover { border-color: #bfdbfe; background: #eff6ff; box-shadow: 0 4px 12px -2px rgba(59, 130, 246, 0.12); transform: translateY(-1px); }
+    .edu-btn:active { transform: translateY(0); background: #dbeafe; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05); }
+    .edu-btn-primary { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border-color: #2563eb; box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2); }
+    .edu-btn-primary:hover { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); box-shadow: 0 4px 12px -2px rgba(37, 99, 235, 0.3); }
+    .edu-btn-success { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); color: white; border-color: #16a34a; }
+    .edu-btn-success:hover { background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); }
+
+    .module-tab { transition: all 0.2s ease; position: relative; }
+    .module-tab.active { background: white; color: #2563eb; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+    .module-tab.active::after { content: ''; position: absolute; bottom: -1px; left: 12px; right: 12px; height: 2px; background: #3b82f6; border-radius: 2px 2px 0 0; }
+    .module-tab:not(.active):hover { background: rgba(255,255,255,0.5); color: #475569; }
+
+    .sub-tab { transition: all 0.2s ease; position: relative; }
+    .sub-tab.active { color: #2563eb; background: white; }
+    .sub-tab.active::after { content: ''; position: absolute; bottom: 0; left: 16px; right: 16px; height: 2px; background: #3b82f6; border-radius: 2px 2px 0 0; }
+    .sub-tab:not(.active):hover { color: #475569; background: rgba(255,255,255,0.6); }
+
+    .range-slider { -webkit-appearance: none; width: 100%; height: 8px; border-radius: 4px; background: #e2e8f0; outline: none; }
+    .range-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #3b82f6; cursor: pointer; border: 3px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.2); transition: transform 0.1s; }
+    .range-slider::-webkit-slider-thumb:hover { transform: scale(1.15); }
+
+    .breathe { animation: breathe 2.4s ease-in-out infinite; }
+    @keyframes breathe { 0%, 100% { box-shadow: 0 0 0 0 rgba(21, 128, 61, 0.4); } 50% { box-shadow: 0 0 0 4px rgba(21, 128, 61, 0); } }
+
+    .viewport-grid { background-image: linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px); background-size: 40px 40px; }
+
+    .joint-tag { transition: all 0.2s ease; }
+    .joint-tag:hover { background: #eff6ff; border-color: #bfdbfe; transform: scale(1.05); }
+
+    .hint-float { animation: float 3s ease-in-out infinite; }
+    @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+
+    .glass-card { background: rgba(255,255,255,0.85); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.6); }
+
+    .toggle-switch { position: relative; width: 40px; height: 22px; background: #e2e8f0; border-radius: 9999px; cursor: pointer; transition: background 0.2s; }
+    .toggle-switch.active { background: #3b82f6; }
+    .toggle-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: white; border-radius: 50%; transition: transform 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+    .toggle-switch.active::after { transform: translateX(18px); }
+
+    .nav-dot { transition: all 0.3s ease; }
+    .nav-dot.active { background: #3b82f6; width: 20px; }
+  </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col">
+  <!-- Header -->
+  <header class="h-[52px] shrink-0 bg-white border-b border-slate-200 flex items-center justify-between px-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] select-none z-20">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-white shadow-lg shadow-brand-200">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="3"/></svg>
+      </div>
+      <h1 class="text-base font-bold text-slate-800 tracking-tight">6F Robot 机械臂仿真平台</h1>
+    </div>
+
+    <div class="flex items-center gap-5">
+      <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200">
+        <span class="text-xs text-slate-500">练习模式</span>
+        <div id="mode-toggle" class="toggle-switch active" role="switch" aria-checked="true" tabindex="0"></div>
+        <span class="text-xs font-semibold text-brand-600">引导模式</span>
+      </div>
+      <button type="button" class="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-brand-600 transition-colors px-2 py-1.5 rounded-lg hover:bg-slate-50">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        帮助
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <div class="flex flex-1 overflow-hidden">
+    <!-- LEFT: Learning Panel -->
+    <aside class="w-[400px] shrink-0 bg-white border-r border-slate-200 flex flex-col shadow-[2px_0_12px_rgba(0,0,0,0.03)] z-10">
+      <!-- Module Tabs -->
+      <div class="flex border-b border-slate-200 bg-slate-50/80">
+        <button type="button" class="module-tab active flex-1 py-3.5 text-[13px] font-semibold text-slate-600 flex items-center justify-center gap-2" data-module="robot">
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="3"/></svg>
+          机械臂
+        </button>
+        <button type="button" class="module-tab flex-1 py-3.5 text-[13px] font-semibold text-slate-600 flex items-center justify-center gap-2" data-module="camera">
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+          相机系统
+        </button>
+        <button type="button" class="module-tab flex-1 py-3.5 text-[13px] font-semibold text-slate-600 flex items-center justify-center gap-2" data-module="grasp">
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 11v-1a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v1"/><path d="M13 11v8"/><path d="M17 11v8"/><path d="M21 19V9a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10"/><path d="M3 19h18"/></svg>
+          抓取实训
+        </button>
+      </div>
+
+      <!-- Progress -->
+      <div class="px-5 py-4 border-b border-slate-100">
+        <div class="flex items-center justify-between mb-2">
+          <h2 id="progress-title" class="text-sm font-bold text-slate-700">学习进度</h2>
+          <span id="progress-text" class="text-xs font-bold text-brand-600">2 / 5 完成</span>
+        </div>
+        <div class="h-2 bg-slate-100 rounded-full overflow-hidden flex">
+          <div id="progress-bar" class="h-full bg-gradient-to-r from-brand-400 to-brand-500 rounded-full transition-all duration-500" style="width: 40%"></div>
+        </div>
+      </div>
+
+      <!-- Sub Tabs -->
+      <div class="flex border-b border-slate-200 bg-slate-50/50 px-2">
+        <button type="button" class="sub-tab active flex-1 py-3 text-[13px] font-semibold text-slate-600 rounded-t-lg flex items-center justify-center gap-1.5 transition-colors relative" data-subtab="steps">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          学习步骤
+        </button>
+        <button type="button" class="sub-tab flex-1 py-3 text-[13px] font-semibold text-slate-600 rounded-t-lg flex items-center justify-center gap-1.5 transition-colors relative" data-subtab="explain">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          步骤讲解
+        </button>
+        <button type="button" class="sub-tab flex-1 py-3 text-[13px] font-semibold text-slate-600 rounded-t-lg flex items-center justify-center gap-1.5 transition-colors relative" data-subtab="knowledge">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+          相关知识
+        </button>
+      </div>
+
+      <!-- Tab Content -->
+      <div class="flex-1 overflow-hidden relative bg-slate-50/30">
+        <!-- Step List Tab -->
+        <div id="subtab-steps" class="subtab-panel absolute inset-0 overflow-y-auto p-4 space-y-2">
+          <div id="step-list" class="space-y-2">
+            <!-- Dynamic steps -->
+          </div>
+        </div>
+
+        <!-- Explanation Tab -->
+        <div id="subtab-explain" class="subtab-panel absolute inset-0 overflow-y-auto p-5 hidden">
+          <div id="explanation-card" class="edu-card rounded-2xl p-5">
+            <div class="flex items-center gap-2 mb-4">
+              <div class="w-8 h-8 rounded-lg bg-brand-100 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-brand-600"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              </div>
+              <h3 class="text-sm font-bold text-slate-800">步骤讲解</h3>
+            </div>
+            <div id="explanation-content"></div>
+          </div>
+        </div>
+
+        <!-- Knowledge Tab -->
+        <div id="subtab-knowledge" class="subtab-panel absolute inset-0 overflow-y-auto p-5 hidden">
+          <div id="theory-card" class="edu-card rounded-2xl p-5">
+            <h3 class="text-sm font-bold text-slate-800 mb-4">相关知识点</h3>
+            <div id="theory-content" class="space-y-3"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation -->
+      <div class="p-4 border-t border-slate-100 flex gap-3 bg-white">
+        <button type="button" id="btn-prev" class="edu-btn flex-1 px-4 py-2.5 text-[13px] font-medium text-slate-600 rounded-xl flex items-center justify-center gap-1">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          上一步
+        </button>
+        <button type="button" id="btn-next" class="edu-btn edu-btn-primary flex-1 px-4 py-2.5 text-[13px] font-medium rounded-xl flex items-center justify-center gap-1">
+          下一步
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+      </div>
+    </aside>
+
+    <!-- CENTER: 3D Viewport -->
+    <main class="flex-1 relative viewport-grid bg-gradient-to-b from-slate-50 to-slate-100 flex flex-col">
+      <!-- Viewport Toolbar -->
+      <div class="absolute top-4 left-4 flex items-center gap-2">
+        <button type="button" class="glass-card px-3 py-1.5 text-xs font-medium text-slate-600 rounded-lg flex items-center gap-1.5 hover:bg-white transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+          显示坐标系
+        </button>
+        <button type="button" class="glass-card px-3 py-1.5 text-xs font-medium text-slate-600 rounded-lg flex items-center gap-1.5 hover:bg-white transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+          显示轨迹
+        </button>
+        <button type="button" class="glass-card px-3 py-1.5 text-xs font-medium text-slate-600 rounded-lg flex items-center gap-1.5 hover:bg-white transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+          网格
+        </button>
+      </div>
+
+      <!-- Camera Controls -->
+      <div class="absolute bottom-20 right-4 flex flex-col gap-1.5">
+        <button type="button" class="w-9 h-9 rounded-lg glass-card shadow-md hover:bg-white flex items-center justify-center text-xs font-semibold text-slate-600 transition-colors">前</button>
+        <button type="button" class="w-9 h-9 rounded-lg glass-card shadow-md hover:bg-white flex items-center justify-center text-xs font-semibold text-slate-600 transition-colors">侧</button>
+        <button type="button" class="w-9 h-9 rounded-lg glass-card shadow-md hover:bg-white flex items-center justify-center text-xs font-semibold text-slate-600 transition-colors">顶</button>
+        <button type="button" class="w-9 h-9 rounded-lg glass-card shadow-md hover:bg-white flex items-center justify-center text-xs font-semibold text-slate-600 transition-colors">自</button>
+      </div>
+
+      <!-- 3D Robot Placeholder -->
+      <div class="flex-1 flex items-center justify-center">
+        <div class="text-center">
+          <div class="w-72 h-72 mx-auto mb-6 relative">
+            <div class="absolute inset-0 rounded-full bg-brand-100/40"></div>
+            <div class="absolute inset-6 rounded-full bg-brand-200/30"></div>
+            <div class="absolute inset-0 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="text-brand-400">
+                <path d="M12 2v20M2 12h20M4.93 4.93l14.14 14.14M19.07 4.93 4.93 19.07"/>
+                <circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="8"/>
+              </svg>
+            </div>
+            <div class="absolute top-1/2 left-2 -translate-y-1/2 joint-tag px-2.5 py-1.5 bg-white border border-slate-200 rounded-xl shadow-sm text-xs font-bold text-slate-600">J1</div>
+            <div class="absolute top-3 left-1/2 -translate-x-1/2 joint-tag px-2.5 py-1.5 bg-white border border-slate-200 rounded-xl shadow-sm text-xs font-bold text-slate-600">J2</div>
+            <div class="absolute top-1/2 right-2 -translate-y-1/2 joint-tag px-2.5 py-1.5 bg-white border border-slate-200 rounded-xl shadow-sm text-xs font-bold text-slate-600">J3</div>
+            <div class="absolute bottom-16 right-10 joint-tag px-2 py-1 bg-white border border-slate-200 rounded-lg shadow-sm text-[10px] font-bold text-slate-500">J4</div>
+            <div class="absolute bottom-10 right-14 joint-tag px-2 py-1 bg-white border border-slate-200 rounded-lg shadow-sm text-[10px] font-bold text-slate-500">J5</div>
+            <div class="absolute bottom-6 right-20 joint-tag px-2 py-1 bg-white border border-slate-200 rounded-lg shadow-sm text-[10px] font-bold text-slate-500">J6</div>
+          </div>
+          <p class="text-base font-bold text-slate-700">6F 机械臂 3D 仿真</p>
+          <p class="text-sm mt-1.5 text-slate-400">拖动旋转 · 滚轮缩放 · 右键平移</p>
+        </div>
+      </div>
+
+      <!-- Floating Hint -->
+      <div class="hint-float absolute bottom-5 left-1/2 -translate-x-1/2 px-5 py-2.5 glass-card rounded-full shadow-lg text-[13px] text-brand-700 font-medium border-brand-100">
+        💡 试着拖动右侧滑块，观察 J1 关节如何旋转
+      </div>
+    </main>
+
+    <!-- RIGHT: Operation Panel -->
+    <aside class="w-[340px] shrink-0 bg-white border-l border-slate-200 flex flex-col shadow-[-2px_0_12px_rgba(0,0,0,0.03)] z-10">
+      <div class="p-5 border-b border-slate-100">
+        <h2 class="text-sm font-bold text-slate-700">操作区</h2>
+        <p class="text-[11px] text-slate-500 mt-0.5" id="operation-subtitle">完成当前步骤所需的操作</p>
+      </div>
+      <div id="operation-panel" class="flex-1 overflow-y-auto p-5"></div>
+    </aside>
+  </div>
+
+  <!-- Status Bar -->
+  <footer class="h-10 shrink-0 bg-white border-t border-slate-200 flex items-center px-4 gap-4 text-[12px] z-20 shadow-[0_-1px_3px_rgba(0,0,0,0.03)]">
+    <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">
+      <div class="w-1.5 h-1.5 rounded-full bg-green-600 breathe"></div>
+      <span class="font-semibold">就绪</span>
+    </div>
+    <span class="text-slate-300">|</span>
+    <span class="text-slate-500 font-medium">基坐标系</span>
+    <span class="text-slate-300">|</span>
+    <div class="flex items-center gap-2">
+      <span class="text-slate-400">位置</span>
+      <span class="font-mono tabular-nums text-slate-700 font-medium bg-slate-100 px-1.5 py-0.5 rounded">X 1.23</span>
+      <span class="font-mono tabular-nums text-slate-700 font-medium bg-slate-100 px-1.5 py-0.5 rounded">Y 0.45</span>
+      <span class="font-mono tabular-nums text-slate-700 font-medium bg-slate-100 px-1.5 py-0.5 rounded">Z 2.10</span>
+    </div>
+    <span class="text-slate-300">|</span>
+    <div class="flex items-center gap-2">
+      <span class="text-slate-400">J1</span>
+      <span id="j1-display" class="font-mono tabular-nums text-brand-700 font-bold bg-brand-50 px-1.5 py-0.5 rounded">0.0°</span>
+    </div>
+  </footer>
+
+  <script>
+    const modules = {
+      robot: {
+        title: '机械臂',
+        progressTitle: '机械臂学习进度',
+        theory: [
+          { title: '关节空间', desc: '用 6 个关节角度（J1~J6）来描述机械臂的姿态。' },
+          { title: '工作空间', desc: '机械臂末端能够到达的所有位置集合。' },
+          { title: '正运动学', desc: '已知关节角度，计算末端位置和姿态。' }
+        ],
+        steps: [
+          {
+            title: '认识机械臂结构', subtitle: '了解 6 个关节的名称和作用', done: true,
+            explanation: `6F 机械臂由 6 个旋转关节组成，从底座到末端依次编号为 <span class="font-semibold text-brand-700">J1 ~ J6</span>。每个关节只负责一个自由度的运动，多个关节组合起来就能让末端到达空间中的任意位姿。`,
+            goal: '能够指出每个关节的位置，并说出 J1~J6 各自的主要运动方向。',
+            warning: '不要混淆相邻关节的运动方向，比如 J1 是水平旋转，J2 是垂直俯仰。'
+          },
+          {
+            title: '理解坐标系', subtitle: '基坐标系 vs 工具坐标系', done: true,
+            explanation: `描述机械臂运动需要明确参考对象。<span class="font-semibold text-brand-700">基坐标系</span>固定在底座中心，是全局不变的；<span class="font-semibold text-brand-700">工具坐标系</span>固定在末端，会随机械臂运动而改变。`,
+            goal: '能够在 3D 视口中同时显示两种坐标系，并理解同一位置在不同坐标系下的数值差异。',
+            warning: '切换坐标系时，底部状态栏的位置数值含义会随之改变。'
+          },
+          {
+            title: '练习单关节运动', subtitle: '控制 J1 关节旋转 30°', done: false,
+            explanation: `J1 关节是机械臂的<span class="font-semibold text-brand-700">底座旋转关节</span>，控制机械臂在水平面上的转动。当 J1 角度增加时，机械臂会向右旋转；角度减少时则向左旋转。`,
+            goal: '通过调整 J1 关节，观察末端执行器位置的变化，理解关节角度与末端位置的关系。',
+            warning: '旋转角度不要超过 ±180°，否则机械臂可能会进入奇异状态。'
+          },
+          {
+            title: '多关节联动', subtitle: '协调控制多个关节', done: false,
+            explanation: `实际任务中往往需要多个关节同时运动。本步骤练习同时调整 <span class="font-semibold text-brand-700">J2 和 J3</span>，让机械臂末端到达指定高度和距离。`,
+            goal: '理解多个关节如何协同工作，初步感受逆运动学的概念。',
+            warning: '注意关节之间的耦合关系，J2 和 J3 都会影响末端高度。'
+          },
+          {
+            title: '末端位置控制', subtitle: '用笛卡尔坐标移动末端', done: false,
+            explanation: `在工程应用中，通常直接指定末端要到达的 <span class="font-semibold text-brand-700">X、Y、Z 坐标</span>，由机器人自动计算各关节角度。这就是逆运动学的实际应用。`,
+            goal: '给定目标坐标，让机械臂末端到达指定位置。',
+            warning: '如果目标点在工作空间之外，机械臂会提示"目标不可达"。'
+          }
+        ]
+      },
+      camera: {
+        title: '相机系统',
+        progressTitle: '相机系统学习进度',
+        theory: [
+          { title: '针孔相机模型', desc: '光线通过针孔投影到成像平面的理想模型。' },
+          { title: '内参矩阵', desc: '描述相机内部几何特性，包括焦距和主点。' },
+          { title: '外参矩阵', desc: '描述相机在世界坐标系中的位置和朝向。' }
+        ],
+        steps: [
+          {
+            title: '认识相机模型', subtitle: '了解针孔相机成像原理', done: true,
+            explanation: `相机是机械臂的<span class="font-semibold text-brand-700">"眼睛"</span>。针孔相机模型是最简单的成像模型：物体发出的光线通过一个小孔，在成像平面上形成倒立的像。`,
+            goal: '理解针孔相机模型的基本构成：光心、成像平面和焦距。',
+            warning: '实际相机镜头会有畸变，针孔模型是理想化近似。'
+          },
+          {
+            title: '理解内外参', subtitle: '内参矩阵与外参矩阵的含义', done: false,
+            explanation: `<span class="font-semibold text-brand-700">内参</span>描述相机自身的特性，如焦距和主点；<span class="font-semibold text-brand-700">外参</span>描述相机在世界坐标系中的位姿。两者共同决定了 3D 点如何投影到 2D 图像。`,
+            goal: '能够区分内参和外参，并理解它们在成像过程中的作用。',
+            warning: '同一台相机的内参通常固定，外参会随安装位置变化。'
+          },
+          {
+            title: '调整相机位姿', subtitle: '控制相机位置和朝向', done: false,
+            explanation: `通过改变相机的 <span class="font-semibold text-brand-700">X、Y、Z 坐标和姿态角</span>，可以从不同视角观察机械臂和物体。合适的相机位姿是视觉抓取成功的前提。`,
+            goal: '掌握相机位姿参数的调整方法，能够切换到前视、侧视、顶视等常用视角。',
+            warning: '相机距离物体太近可能无法完整成像，太远则细节不足。'
+          },
+          {
+            title: '视场角与分辨率', subtitle: 'FOV 和分辨率对成像的影响', done: false,
+            explanation: `<span class="font-semibold text-brand-700">视场角（FOV）</span>决定了相机能看到的范围，<span class="font-semibold text-brand-700">分辨率</span>决定了图像的清晰度。两者需要权衡：大 FOV 看到更多但细节少，高分辨率细节多但处理慢。`,
+            goal: '理解 FOV 和分辨率对成像效果的影响，能够根据任务需求调整。',
+            warning: 'FOV 过大容易产生透视畸变，影响后续图像处理精度。'
+          },
+          {
+            title: '拍摄与标定', subtitle: '拍摄图像并进行标定', done: false,
+            explanation: `相机标定是通过拍摄已知图案（如棋盘格）来确定相机内外参的过程。标定后的相机才能准确地将图像像素坐标转换为世界坐标。`,
+            goal: '能够拍摄图像并理解标定的基本流程。',
+            warning: '标定板需要清晰完整地出现在图像中，避免过曝或过暗。'
+          }
+        ]
+      },
+      grasp: {
+        title: '抓取实训',
+        progressTitle: '抓取实训进度',
+        theory: [
+          { title: '真空吸附原理', desc: '利用负压使吸盘与物体表面产生吸附力。' },
+          { title: '末端执行器', desc: '安装在机械臂末端的工具，常见有吸盘、夹爪等。' },
+          { title: '动作规划', desc: '将抓取任务分解为多个有序动作。' }
+        ],
+        steps: [
+          {
+            title: '认识吸盘工具', subtitle: '了解真空吸盘的工作原理', done: false,
+            explanation: `真空吸盘是工业机械臂常用的末端执行器。当吸盘接触到物体表面并抽走空气后，吸盘内部形成负压，大气压会将物体压在吸盘上，从而实现<span class="font-semibold text-brand-700">抓取</span>。`,
+            goal: '理解真空吸盘的工作原理，知道吸盘适合抓取表面平整的物体。',
+            warning: '多孔、柔软或表面不平整的物体不适合用吸盘抓取。'
+          },
+          {
+            title: '生成物体', subtitle: '在场景中生成待抓取物体', done: false,
+            explanation: `在仿真环境中，我们可以随时<span class="font-semibold text-brand-700">生成</span>待抓取物体。通过调整物体的位置和大小，可以模拟不同的抓取场景。`,
+            goal: '能够在场景中生成一个箱子，并观察它出现在 3D 视口中的位置。',
+            warning: '物体不要生成在机械臂无法到达的位置。'
+          },
+          {
+            title: '接近物体', subtitle: '控制机械臂末端接近物体', done: false,
+            explanation: `抓取前需要将吸盘移动到物体正上方，并保持合适的距离。这一步练习用关节控制或坐标控制让机械臂<span class="font-semibold text-brand-700">接近</span>目标物体。`,
+            goal: '控制机械臂末端移动到物体上方约 5cm 处，准备吸取。',
+            warning: '移动速度不要太快，避免碰撞物体。'
+          },
+          {
+            title: '吸取与释放', subtitle: '开启/关闭吸盘完成抓取', done: false,
+            explanation: `当吸盘贴近物体表面后，<span class="font-semibold text-brand-700">开启吸盘</span>产生负压即可吸取物体；移动到目标位置后，<span class="font-semibold text-brand-700">关闭吸盘</span>释放物体。`,
+            goal: '掌握吸盘的开启和关闭时机，完成一次吸取-搬运-释放。',
+            warning: '吸取前要确保吸盘与物体表面充分接触，否则容易脱落。'
+          },
+          {
+            title: '动作序列', subtitle: '将多个动作组合成完整流程', done: false,
+            explanation: `完整的抓取任务可以拆分为多个步骤：接近 → 吸取 → 搬运 → 释放。通过<span class="font-semibold text-brand-700">动作序列</span>，可以让这些步骤自动按顺序执行。`,
+            goal: '创建一个包含 4 个步骤的动作序列，并运行完整抓取流程。',
+            warning: '序列中的每个步骤都需要设置合适的参数和等待时间。'
+          }
+        ]
+      }
+    };
+
+    let currentModule = 'robot';
+    let currentStep = 2;
+    let j1Value = 0;
+    let mode = 'guided';
+
+    const stepList = document.getElementById('step-list');
+    const explanationContent = document.getElementById('explanation-content');
+    const theoryContent = document.getElementById('theory-content');
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    const progressTitle = document.getElementById('progress-title');
+    const j1Display = document.getElementById('j1-display');
+    const operationSubtitle = document.getElementById('operation-subtitle');
+    const operationPanel = document.getElementById('operation-panel');
+
+    function renderModule(moduleKey) {
+      currentModule = moduleKey;
+      const mod = modules[moduleKey];
+      progressTitle.textContent = mod.progressTitle;
+      renderStepList();
+      renderStep(0);
+    }
+
+    function renderStepList() {
+      const mod = modules[currentModule];
+      stepList.innerHTML = mod.steps.map((step, i) => {
+        const statusClass = step.done ? 'step-done' : i === currentStep ? 'step-active' : 'step-pending';
+        const badge = step.done
+          ? '<div class="w-7 h-7 rounded-full bg-green-500 text-white flex items-center justify-center text-xs font-bold shrink-0 shadow-sm">✓</div>'
+          : `<div class="w-7 h-7 rounded-full ${i === currentStep ? 'bg-brand-500' : 'bg-slate-200'} text-white flex items-center justify-center text-xs font-bold shrink-0 shadow-sm">${i + 1}</div>`;
+        return `
+          <div class="step-card ${statusClass} flex items-start gap-3 p-3 rounded-xl border" data-step="${i}">
+            ${badge}
+            <div class="min-w-0">
+              <p class="text-[13px] font-semibold ${i === currentStep ? 'text-slate-800' : step.done ? 'text-slate-700' : 'text-slate-500'}">${step.title}</p>
+              <p class="text-[11px] ${i === currentStep ? 'text-slate-600' : 'text-slate-500'} mt-0.5 truncate">${step.subtitle}</p>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      document.querySelectorAll('.step-card').forEach(card => {
+        card.addEventListener('click', () => renderStep(parseInt(card.dataset.step)));
+      });
+    }
+
+    function renderStep(index) {
+      currentStep = index;
+      const mod = modules[currentModule];
+      const step = mod.steps[index];
+
+      renderStepList();
+
+      const completed = mod.steps.filter(s => s.done).length + (index > completedIndex() ? 1 : 0);
+      function completedIndex() { return mod.steps.filter(s => s.done).length - 1; }
+      const progress = ((index + 1) / mod.steps.length) * 100;
+      progressBar.style.width = `${progress}%`;
+      progressText.textContent = `${index + 1} / ${mod.steps.length} 课时`;
+
+      explanationContent.innerHTML = `
+        <p class="text-[13px] text-slate-600 leading-relaxed mb-4">${step.explanation}</p>
+        <div class="bg-brand-50 border border-brand-100 rounded-xl p-4 mb-4">
+          <p class="text-[12px] text-brand-800 font-semibold mb-2">🎯 本步目标</p>
+          <p class="text-[12px] text-brand-700 leading-relaxed">${step.goal}</p>
+        </div>
+        <div class="bg-amber-50 border border-amber-100 rounded-xl p-4">
+          <p class="text-[12px] text-amber-800 font-semibold mb-2">⚠️ 注意事项</p>
+          <p class="text-[12px] text-amber-700 leading-relaxed">${step.warning}</p>
+        </div>
+      `;
+
+      theoryContent.innerHTML = mod.theory.map((item, i) => `
+        <div class="flex items-start gap-3 group">
+          <div class="w-6 h-6 rounded-md bg-brand-100 flex items-center justify-center shrink-0 mt-0.5 group-hover:bg-brand-200 transition-colors">
+            <span class="text-xs font-bold text-brand-600">${i + 1}</span>
+          </div>
+          <div>
+            <p class="text-[13px] font-semibold text-slate-700">${item.title}</p>
+            <p class="text-[12px] text-slate-500 leading-relaxed mt-0.5">${item.desc}</p>
+          </div>
+        </div>
+      `).join('');
+
+      operationSubtitle.textContent = step.subtitle;
+      renderOperation(currentModule, index);
+    }
+
+    function renderOperation(module, stepIndex) {
+      const panel = operationPanel;
+      panel.innerHTML = '';
+
+      if (module === 'robot') {
+        if (stepIndex === 0) {
+          panel.innerHTML = `
+            <div class="edu-card rounded-2xl p-5 border-l-4 border-l-brand-500 mb-4">
+              <p class="text-[11px] font-bold text-brand-600 uppercase tracking-wider mb-1">当前任务</p>
+              <p class="text-[15px] font-bold text-slate-800">认识 6 个关节</p>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              ${['J1-底座旋转', 'J2-肩部俯仰', 'J3-肘部俯仰', 'J4-腕部旋转', 'J5-腕部俯仰', 'J6-末端旋转'].map(j => `
+                <button type="button" class="edu-btn text-left px-3 py-3 rounded-xl text-xs font-semibold text-slate-700 flex flex-col gap-1 hover:border-brand-300">
+                  <span class="text-brand-600 text-sm">${j.split('-')[0]}</span>
+                  <span class="text-slate-500 font-normal">${j.split('-')[1]}</span>
+                </button>
+              `).join('')}
+            </div>
+            <button type="button" class="edu-btn edu-btn-success w-full mt-5 py-3 text-[13px] font-semibold rounded-xl">我已认识所有关节</button>
+          `;
+        } else if (stepIndex === 1) {
+          panel.innerHTML = `
+            <div class="edu-card rounded-2xl p-5 border-l-4 border-l-brand-500 mb-4">
+              <p class="text-[11px] font-bold text-brand-600 uppercase tracking-wider mb-1">当前任务</p>
+              <p class="text-[15px] font-bold text-slate-800">切换并观察坐标系</p>
+            </div>
+            <div class="space-y-3 mb-5">
+              ${[
+                { value: 'base', title: '基坐标系', desc: '固定在机械臂底座' },
+                { value: 'tool', title: '工具坐标系', desc: '固定在末端执行器' },
+                { value: 'both', title: '同时显示', desc: '对比两种坐标系' }
+              ].map(opt => `
+                <label class="edu-card flex items-center gap-3 p-4 rounded-xl cursor-pointer hover:border-brand-300 transition-colors">
+                  <input type="radio" name="coord" value="${opt.value}" ${opt.value === 'base' ? 'checked' : ''} class="w-4 h-4 text-brand-600 accent-brand-600">
+                  <div>
+                    <p class="text-[13px] font-semibold text-slate-700">${opt.title}</p>
+                    <p class="text-[11px] text-slate-500">${opt.desc}</p>
+                  </div>
+                </label>
+              `).join('')}
+            </div>
+            <button type="button" class="edu-btn edu-btn-success w-full py-3 text-[13px] font-semibold rounded-xl">我理解了坐标系</button>
+          `;
+        } else if (stepIndex === 2) {
+          panel.innerHTML = `
+            <div class="edu-card rounded-2xl p-5 border-l-4 border-l-brand-500 mb-4">
+              <p class="text-[11px] font-bold text-brand-600 uppercase tracking-wider mb-1">当前任务</p>
+              <p class="text-[15px] font-bold text-slate-800">将 J1 旋转到 30°</p>
+            </div>
+            <div class="edu-card rounded-2xl p-5 mb-4">
+              <div class="flex items-center justify-between mb-4">
+                <label class="text-[13px] font-semibold text-slate-700">J1 关节角度</label>
+                <span id="j1-readout" class="font-mono text-lg font-bold text-brand-600 bg-brand-50 px-3 py-1 rounded-lg">${j1Value.toFixed(1)}°</span>
+              </div>
+              <input type="range" id="j1-slider" min="-180" max="180" step="0.1" value="${j1Value}" class="range-slider mb-2">
+              <div class="flex items-center justify-between text-[11px] text-slate-400 mb-4">
+                <span>-180°</span><span>0°</span><span>180°</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <button type="button" id="j1-minus" class="edu-btn w-10 h-10 flex items-center justify-center rounded-lg text-lg font-bold text-slate-600">−</button>
+                <button type="button" id="j1-zero" class="edu-btn px-4 h-10 text-xs font-medium text-slate-600 rounded-lg">归零</button>
+                <button type="button" id="j1-plus" class="edu-btn w-10 h-10 flex items-center justify-center rounded-lg text-lg font-bold text-slate-600">+</button>
+              </div>
+            </div>
+            <div class="edu-card rounded-2xl p-5 mb-4">
+              <p class="text-[12px] font-semibold text-slate-700 mb-3">快捷角度</p>
+              <div class="grid grid-cols-3 gap-2">
+                ${[-30, 0, 30, 60, 90, 180].map(deg => `
+                  <button type="button" class="j1-preset edu-btn py-2 text-xs font-medium rounded-lg ${deg === 30 ? 'edu-btn-primary' : 'text-slate-600'}" data-value="${deg}">${deg}°</button>
+                `).join('')}
+              </div>
+            </div>
+            <div id="feedback" class="edu-card rounded-2xl p-4 bg-amber-50 border-amber-200 mb-4">
+              <div class="flex items-start gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-600 shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <div>
+                  <p class="text-[12px] font-semibold text-amber-800">尚未完成</p>
+                  <p class="text-[11px] text-amber-700 mt-0.5">请将 J1 调整到 30° 后点击检查</p>
+                </div>
+              </div>
+            </div>
+            <button type="button" id="check-answer" class="edu-btn edu-btn-primary w-full py-3 text-[13px] font-semibold rounded-xl">检查答案</button>
+          `;
+          bindJ1Events();
+        } else if (stepIndex === 3) {
+          panel.innerHTML = `
+            <div class="edu-card rounded-2xl p-5 border-l-4 border-l-brand-500 mb-4">
+              <p class="text-[11px] font-bold text-brand-600 uppercase tracking-wider mb-1">当前任务</p>
+              <p class="text-[15px] font-bold text-slate-800">调整 J2 和 J3 使末端到达指定点</p>
+            </div>
+            ${['J2', 'J3'].map(j => `
+              <div class="edu-card rounded-2xl p-4 mb-3">
+                <div class="flex items-center justify-between mb-3">
+                  <label class="text-[13px] font-semibold text-slate-700">${j} 关节角度</label>
+                  <span class="font-mono text-sm font-bold text-brand-600 bg-brand-50 px-2 py-0.5 rounded">0.0°</span>
+                </div>
+                <input type="range" min="-90" max="90" value="0" class="range-slider">
+              </div>
+            `).join('')}
+            <div class="edu-card rounded-2xl p-4 bg-slate-50 border-slate-200 mb-4">
+              <p class="text-[12px] font-semibold text-slate-700 mb-2">目标位置</p>
+              <div class="grid grid-cols-3 gap-2 text-center">
+                ${['X 0.80', 'Y 0.00', 'Z 1.20'].map(pos => `
+                  <div class="bg-white rounded-lg p-2 border border-slate-200">
+                    <p class="text-[10px] text-slate-400">${pos.split(' ')[0]}</p>
+                    <p class="font-mono text-sm font-semibold text-slate-700">${pos.split(' ')[1]}</p>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+            <button type="button" class="edu-btn edu-btn-primary w-full py-3 text-[13px] font-semibold rounded-xl">检查答案</button>
+          `;
+        } else {
+          panel.innerHTML = `
+            <div class="edu-card rounded-2xl p-5 border-l-4 border-l-brand-500 mb-4">
+              <p class="text-[11px] font-bold text-brand-600 uppercase tracking-wider mb-1">当前任务</p>
+              <p class="text-[15px] font-bold text-slate-800">输入目标坐标移动末端</p>
+            </div>
+            <div class="edu-card rounded-2xl p-5 mb-4">
+              <p class="text-[12px] font-semibold text-slate-700 mb-3">目标位置（单位：米）</p>
+              <div class="space-y-3">
+                ${['X', 'Y', 'Z'].map(axis => `
+                  <div>
+                    <label class="text-[11px] font-medium text-slate-500 mb-1 block">${axis} 坐标</label>
+                    <div class="flex items-center gap-2">
+                      <input type="number" step="0.01" value="${axis === 'X' ? '0.80' : axis === 'Y' ? '0.00' : '1.20'}" class="flex-1 h-10 px-3 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400 font-mono">
+                      <span class="text-xs text-slate-400 w-8">m</span>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+            <button type="button" class="edu-btn edu-btn-primary w-full py-3 text-[13px] font-semibold rounded-xl">移动到目标点</button>
+          `;
+        }
+      }
+
+      if (module === 'camera') {
+        const cameraOps = [
+          { label: '相机位置 X', value: 3.0, min: -5, max: 5, step: 0.1 },
+          { label: '相机位置 Y', value: 2.0, min: -5, max: 5, step: 0.1 },
+          { label: '相机位置 Z', value: 3.0, min: -5, max: 5, step: 0.1 },
+          { label: '视场角 FOV', value: 50, min: 10, max: 120, step: 1 }
+        ];
+        panel.innerHTML = `
+          <div class="edu-card rounded-2xl p-5 border-l-4 border-l-brand-500 mb-4">
+            <p class="text-[11px] font-bold text-brand-600 uppercase tracking-wider mb-1">当前任务</p>
+            <p class="text-[15px] font-bold text-slate-800">调整相机观察场景</p>
+          </div>
+          <div class="space-y-3 mb-4">
+            ${cameraOps.map(op => `
+              <div class="edu-card rounded-xl p-4">
+                <div class="flex items-center justify-between mb-2">
+                  <label class="text-xs font-semibold text-slate-700">${op.label}</label>
+                  <span class="font-mono text-sm font-bold text-brand-600 bg-brand-50 px-2 py-0.5 rounded">${op.value}</span>
+                </div>
+                <input type="range" min="${op.min}" max="${op.max}" step="${op.step}" value="${op.value}" class="range-slider">
+              </div>
+            `).join('')}
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <button type="button" class="edu-btn py-2.5 text-xs font-semibold text-slate-600 rounded-xl flex items-center justify-center gap-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+              拍摄
+            </button>
+            <button type="button" class="edu-btn py-2.5 text-xs font-semibold text-slate-600 rounded-xl">重置相机</button>
+          </div>
+        `;
+      }
+
+      if (module === 'grasp') {
+        panel.innerHTML = `
+          <div class="edu-card rounded-2xl p-5 border-l-4 border-l-brand-500 mb-4">
+            <p class="text-[11px] font-bold text-brand-600 uppercase tracking-wider mb-1">当前任务</p>
+            <p class="text-[15px] font-bold text-slate-800">完成物体抓取流程</p>
+          </div>
+          <div class="space-y-3 mb-4">
+            <button type="button" class="edu-btn w-full py-3 text-[13px] font-semibold text-slate-700 rounded-xl flex items-center justify-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+              生成物体
+            </button>
+            <button type="button" class="edu-btn w-full py-3 text-[13px] font-semibold text-slate-700 rounded-xl flex items-center justify-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 11v-1a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v1"/><path d="M13 11v8"/><path d="M17 11v8"/></svg>
+              开启吸盘
+            </button>
+            <button type="button" class="edu-btn w-full py-3 text-[13px] font-semibold text-slate-700 rounded-xl flex items-center justify-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              关闭吸盘
+            </button>
+          </div>
+          <div class="edu-card rounded-2xl p-4 bg-slate-50 border-slate-200 mb-4">
+            <p class="text-[12px] font-semibold text-slate-700 mb-2">抓取状态</p>
+            <div class="flex items-center gap-2 px-3 py-2 bg-white rounded-lg border border-slate-200">
+              <div class="w-2 h-2 rounded-full bg-slate-300"></div>
+              <span class="text-xs text-slate-600">未吸取物体</span>
+            </div>
+          </div>
+          <button type="button" class="edu-btn edu-btn-primary w-full py-3 text-[13px] font-semibold rounded-xl">执行完整抓取</button>
+        `;
+      }
+    }
+
+    function bindJ1Events() {
+      const slider = document.getElementById('j1-slider');
+      const readout = document.getElementById('j1-readout');
+
+      slider.addEventListener('input', (e) => {
+        j1Value = parseFloat(e.target.value);
+        readout.textContent = `${j1Value.toFixed(1)}°`;
+        j1Display.textContent = `${j1Value.toFixed(1)}°`;
+        updateFeedback();
+      });
+
+      document.getElementById('j1-minus').addEventListener('click', () => setJ1(j1Value - 5));
+      document.getElementById('j1-plus').addEventListener('click', () => setJ1(j1Value + 5));
+      document.getElementById('j1-zero').addEventListener('click', () => setJ1(0));
+      document.querySelectorAll('.j1-preset').forEach(btn => {
+        btn.addEventListener('click', () => setJ1(parseFloat(btn.dataset.value)));
+      });
+      document.getElementById('check-answer').addEventListener('click', checkAnswer);
+
+      function setJ1(val) {
+        j1Value = Math.max(-180, Math.min(180, val));
+        slider.value = j1Value;
+        readout.textContent = `${j1Value.toFixed(1)}°`;
+        j1Display.textContent = `${j1Value.toFixed(1)}°`;
+        updateFeedback();
+      }
+      function updateFeedback() {
+        const fb = document.getElementById('feedback');
+        if (Math.abs(j1Value - 30) < 0.5) {
+          fb.className = 'edu-card rounded-2xl p-4 bg-green-50 border-green-200 mb-4';
+          fb.innerHTML = `
+            <div class="flex items-start gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-green-600 shrink-0 mt-0.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <div>
+                <p class="text-[12px] font-semibold text-green-800">目标达成！</p>
+                <p class="text-[11px] text-green-700 mt-0.5">J1 已接近 30°，可以点击检查答案</p>
+              </div>
+            </div>
+          `;
+        } else {
+          fb.className = 'edu-card rounded-2xl p-4 bg-amber-50 border-amber-200 mb-4';
+          fb.innerHTML = `
+            <div class="flex items-start gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-amber-600 shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <div>
+                <p class="text-[12px] font-semibold text-amber-800">尚未完成</p>
+                <p class="text-[11px] text-amber-700 mt-0.5">当前 ${j1Value.toFixed(1)}°，还需调整 ${(30 - j1Value).toFixed(1)}°</p>
+              </div>
+            </div>
+          `;
+        }
+      }
+      function checkAnswer() {
+        if (Math.abs(j1Value - 30) < 0.5) alert('✅ 回答正确！J1 已旋转到 30°。');
+        else alert('❌ 还不够准确，请继续调整 J1 到 30°。');
+      }
+    }
+
+    // Module tabs
+    document.querySelectorAll('.module-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.module-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        renderModule(tab.dataset.module);
+      });
+    });
+
+    // Sub tabs
+    function switchSubTab(name) {
+      document.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
+      document.querySelector(`.sub-tab[data-subtab="${name}"]`).classList.add('active');
+      document.querySelectorAll('.subtab-panel').forEach(p => p.classList.add('hidden'));
+      document.getElementById(`subtab-${name}`).classList.remove('hidden');
+    }
+
+    document.querySelectorAll('.sub-tab').forEach(tab => {
+      tab.addEventListener('click', () => switchSubTab(tab.dataset.subtab));
+    });
+
+    // Navigation
+    document.getElementById('btn-prev').addEventListener('click', () => {
+      if (currentStep > 0) renderStep(currentStep - 1);
+    });
+    document.getElementById('btn-next').addEventListener('click', () => {
+      const mod = modules[currentModule];
+      if (currentStep < mod.steps.length - 1) renderStep(currentStep + 1);
+    });
+
+    // Mode toggle
+    const modeToggle = document.getElementById('mode-toggle');
+    modeToggle.addEventListener('click', () => {
+      mode = mode === 'guided' ? 'free' : 'guided';
+      modeToggle.classList.toggle('active');
+      modeToggle.setAttribute('aria-checked', mode === 'guided');
+      if (mode === 'free') {
+        operationSubtitle.textContent = '自由练习模式：所有控件可用';
+        operationPanel.innerHTML = `
+          <div class="edu-card rounded-2xl p-5 border-l-4 border-l-purple-500 mb-4">
+            <p class="text-[11px] font-bold text-purple-600 uppercase tracking-wider mb-1">自由练习模式</p>
+            <p class="text-[15px] font-bold text-slate-800">所有关节控制</p>
+          </div>
+          <div class="space-y-3">
+            ${['J1', 'J2', 'J3', 'J4', 'J5', 'J6'].map(j => `
+              <div class="edu-card rounded-xl p-3">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-xs font-semibold text-slate-700">${j}</span>
+                  <span class="font-mono text-xs text-brand-600 bg-brand-50 px-2 py-0.5 rounded">0.0°</span>
+                </div>
+                <input type="range" min="-180" max="180" value="0" class="range-slider">
+              </div>
+            `).join('')}
+          </div>
+        `;
+      } else {
+        renderStep(currentStep);
+      }
+    });
+
+    // Initialize
+    renderModule('robot');
+  </script>
+</body>
+</html>

@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>右侧面板设计方案 - 自由练习模式</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #f1f5f9;
+      color: #1e293b;
+      line-height: 1.5;
+    }
+    .page { max-width: 1600px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 22px; margin: 0 0 8px; }
+    .subtitle { color: #64748b; font-size: 14px; margin-bottom: 24px; }
+    .analysis {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 28px;
+    }
+    .analysis h2 { font-size: 16px; margin: 0 0 12px; }
+    .analysis ul { margin: 0; padding-left: 20px; color: #475569; font-size: 14px; }
+    .analysis li { margin-bottom: 6px; }
+
+    .versions { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 24px; }
+    .version { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+    .version-header {
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .version-title { font-size: 15px; font-weight: 700; }
+    .version-tag {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: #dbeafe;
+      color: #1d4ed8;
+      font-weight: 600;
+    }
+    .version-body { padding: 18px; }
+    .version-desc {
+      font-size: 13px;
+      color: #64748b;
+      margin-bottom: 14px;
+      line-height: 1.6;
+    }
+
+    /* 模拟右侧面板容器 */
+    .panel-frame {
+      width: 360px;
+      height: 680px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      background: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    }
+    .panel-header {
+      padding: 12px 14px;
+      background: #fff;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .panel-header h3 { font-size: 13px; margin: 0 0 2px; }
+    .panel-header p { font-size: 11px; color: #64748b; margin: 0; }
+    .panel-content { flex: 1; overflow-y: auto; padding: 12px; }
+
+    /* 通用组件 */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #e2e8f0;
+      background: #fff;
+    }
+    .tab {
+      flex: 1;
+      padding: 10px 4px;
+      font-size: 12px;
+      font-weight: 600;
+      text-align: center;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: #64748b;
+      cursor: pointer;
+    }
+    .tab.active { color: #2563eb; border-bottom-color: #2563eb; background: #eff6ff; }
+
+    .card {
+      background: #fff;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      margin-bottom: 10px;
+      overflow: hidden;
+    }
+    .card-header {
+      width: 100%;
+      padding: 9px 12px;
+      background: #f9fafb;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      color: #1e293b;
+    }
+    .card-body { padding: 12px; }
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+    .row:last-child { margin-bottom: 0; }
+    .label { color: #64748b; }
+    .value {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-weight: 600;
+      color: #2563eb;
+      background: #eff6ff;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: 4px;
+      border: 1px solid #d1d5db;
+      background: #fff;
+      color: #1e293b;
+      cursor: pointer;
+    }
+    .btn-primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+    .btn-ghost { background: #f3f4f6; border-color: #d1d5db; }
+    .btn-sm { padding: 4px 8px; font-size: 11px; }
+    .btn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
+
+    .dir-pad {
+      display: grid;
+      grid-template-columns: repeat(3, 34px);
+      gap: 4px;
+      justify-content: center;
+    }
+    .dir-btn {
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #d1d5db;
+      background: #f3f4f6;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      color: #374151;
+      cursor: pointer;
+    }
+    .dir-center { background: #94a3b8; border-radius: 50%; width: 10px; height: 10px; align-self: center; justify-self: center; }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin: 14px 0 8px;
+    }
+
+    .quick-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 10px;
+      background: #f1f5f9;
+      border-radius: 6px;
+      font-size: 11px;
+      color: #475569;
+      margin-bottom: 10px;
+    }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; }
+
+    .input-range { width: 100%; margin: 6px 0; }
+    .range-row { display: flex; align-items: center; justify-content: space-between; font-size: 10px; color: #94a3b8; }
+
+    .accordion-item { border-bottom: 1px solid #e2e8f0; }
+    .accordion-btn {
+      width: 100%;
+      padding: 11px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #fff;
+      border: none;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      color: #1e293b;
+    }
+    .accordion-body { padding: 0 12px 12px; }
+
+    .dock { display: flex; flex-direction: column; gap: 10px; }
+    .dock-group { background: #fff; border: 1px solid #d1d5db; border-radius: 8px; padding: 10px; }
+    .dock-title { font-size: 11px; font-weight: 700; color: #64748b; margin-bottom: 8px; text-transform: uppercase; }
+    .dock-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+    .dock-btn { padding: 8px; font-size: 12px; text-align: center; border-radius: 6px; border: 1px solid #d1d5db; background: #fff; cursor: pointer; }
+    .dock-btn.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+
+    .hidden { display: none; }
+    .flex { display: flex; }
+    .gap-2 { gap: 8px; }
+    .gap-4 { gap: 16px; }
+    .justify-center { justify-content: center; }
+    .items-center { align-items: center; }
+    .mt-2 { margin-top: 8px; }
+    .mt-3 { margin-top: 12px; }
+    .mb-2 { margin-bottom: 8px; }
+    .text-xs { font-size: 11px; }
+    .text-sm { font-size: 12px; }
+    .text-slate { color: #64748b; }
+    .w-full { width: 100%; }
+
+    /* 响应式：在窄屏下单列展示 */
+    @media (max-width: 900px) {
+      .versions { grid-template-columns: 1fr; }
+      .panel-frame { width: 100%; max-width: 360px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>右侧面板 redesign 方案 - 自由练习模式</h1>
+    <p class="subtitle">基于“操作逻辑应优先、减少教学步骤卡片干扰”的原则，提供 5 个 HTML 原型供对比。</p>
+
+    <div class="analysis">
+      <h2>现状问题分析</h2>
+      <ul>
+        <li>自由模式下仍强行展示教学步骤卡片（关节认识、坐标系说明、单关节滑块等），占用大量空间。</li>
+        <li>原来的核心操作卡片（JointAngleCard、PoseControlCard、WaypointPanel）被压到最底部，操作路径变长。</li>
+        <li>相机/抓取模块同样把步骤说明放在操作控件之上， veteran 用户需要反复滚动。</li>
+        <li>自由练习模式的核心诉求是：<strong>快速调出对应功能、直接操作、状态可见</strong>。</li>
+      </ul>
+      <h2 style="margin-top:16px">设计原则</h2>
+      <ul>
+        <li>保留你原来 ControlPanel 的 tab 分组逻辑（机器人 / 相机 / 动作编排）。</li>
+        <li>去掉教学文案和步骤任务卡片，所有控件默认展开，减少点击层级。</li>
+        <li>高频操作（关节、位姿、吸盘、运行）放在首屏；低频/高级参数可折叠。</li>
+        <li>状态实时可见：当前坐标系、吸盘状态、运行状态等用 status bar 常驻。</li>
+      </ul>
+    </div>
+
+    <div class="versions">
+      <!-- Version 1: 经典 Tabs（最接近原 ControlPanel） -->
+      <div class="version">
+        <div class="version-header">
+          <span class="version-title">方案 1：经典 Tabs</span>
+          <span class="version-tag">推荐</span>
+        </div>
+        <div class="version-body">
+          <p class="version-desc">
+            直接复刻你原来 ControlPanel 的“机器人控制 / 相机控制 / 动作编排”三段 Tab。每个 Tab 内用可折叠卡片承载控件，结构清晰、学习成本低。
+          </p>
+          <div class="panel-frame">
+            <div class="panel-header">
+              <h3>操作区</h3>
+              <p>自由练习模式：所有控件可用</p>
+            </div>
+            <div class="tabs">
+              <button class="tab active" onclick="switchTab('v1', 0)">机器人控制</button>
+              <button class="tab" onclick="switchTab('v1', 1)">相机控制</button>
+              <button class="tab" onclick="switchTab('v1', 2)">动作编排</button>
+            </div>
+            <div class="panel-content">
+              <div id="v1-tab-0">
+                <div class="status-bar"><span class="status-dot"></span> 坐标系：World · 吸盘：关闭</div>
+                <div class="card">
+                  <button class="card-header" onclick="toggleCard(this)">
+                    <span>关节角度</span><span>▲</span>
+                  </button>
+                  <div class="card-body">
+                    <div class="row"><span class="label">J1</span><span class="value">0.0°</span></div>
+                    <div class="row"><span class="label">J2</span><span class="value">-45.0°</span></div>
+                    <div class="row"><span class="label">J3</span><span class="value">90.0°</span></div>
+                    <div class="row"><span class="label">J4</span><span class="value">0.0°</span></div>
+                    <div class="row"><span class="label">J5</span><span class="value">0.0°</span></div>
+                    <div class="row"><span class="label">J6</span><span class="value">0.0°</span></div>
+                    <div class="btn-grid">
+                      <button class="btn btn-ghost">重置</button>
+                      <button class="btn btn-ghost">随机</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="card">
+                  <button class="card-header" onclick="toggleCard(this)">
+                    <span>位姿控制</span><span>▲</span>
+                  </button>
+                  <div class="card-body">
+                    <div class="row" style="margin-bottom:12px">
+                      <span class="label">坐标系</span>
+                      <div class="flex gap-2">
+                        <button class="btn btn-primary btn-sm">World</button>
+                        <button class="btn btn-sm">Tool</button>
+                      </div>
+                    </div>
+                    <div class="flex gap-4 justify-center">
+                      <div>
+                        <div class="text-xs text-center text-slate mb-2">位置 (mm)</div>
+                        <div class="dir-pad">
+                          <div></div><button class="dir-btn">Z+</button><div></div>
+                          <button class="dir-btn">Y+</button><div class="dir-center"></div><button class="dir-btn">Y−</button>
+                          <div></div><button class="dir-btn">Z−</button><div></div>
+                          <button class="dir-btn">X−</button><div></div><button class="dir-btn">X+</button>
+                        </div>
+                      </div>
+                      <div>
+                        <div class="text-xs text-center text-slate mb-2">姿态 (°)</div>
+                        <div class="dir-pad">
+                          <div></div><button class="dir-btn">RZ+</button><div></div>
+                          <button class="dir-btn">RY+</button><div class="dir-center"></div><button class="dir-btn">RY−</button>
+                          <div></div><button class="dir-btn">RZ−</button><div></div>
+                          <button class="dir-btn">RX−</button><div></div><button class="dir-btn">RX+</button>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="row mt-3"><span class="label">位置步进</span><div class="flex gap-2"><button class="btn btn-sm">1mm</button><button class="btn btn-primary btn-sm">10mm</button></div></div>
+                    <div class="row"><span class="label">姿态步进</span><div class="flex gap-2"><button class="btn btn-sm">1°</button><button class="btn btn-primary btn-sm">5°</button></div></div>
+                  </div>
+                </div>
+                <div class="card">
+                  <button class="card-header" onclick="toggleCard(this)">
+                    <span>目标位置</span><span>▲</span>
+                  </button>
+                  <div class="card-body">
+                    <div class="row"><span class="label">X</span><input class="btn" style="width:80px;text-align:center" value="300" /></div>
+                    <div class="row"><span class="label">Y</span><input class="btn" style="width:80px;text-align:center" value="200" /></div>
+                    <div class="row"><span class="label">Z</span><input class="btn" style="width:80px;text-align:center" value="150" /></div>
+                    <button class="btn btn-primary w-full mt-2">运动到目标位置</button>
+                  </div>
+                </div>
+                <div class="card">
+                  <button class="card-header" onclick="toggleCard(this)">
+                    <span>记忆点</span><span>▲</span>
+                  </button>
+                  <div class="card-body">
+                    <button class="btn w-full mb-2">Home</button>
+                    <button class="btn w-full">Zero</button>
+                  </div>
+                </div>
+              </div>
+              <div id="v1-tab-1" class="hidden">
+                <div class="status-bar"><span class="status-dot"></span> 相机：开启 · 分辨率 1920×1080</div>
+                <div class="card">
+                  <button class="card-header" onclick="toggleCard(this)"><span>相机位姿</span><span>▲</span></button>
+                  <div class="card-body">
+                    <div class="row"><span class="label">位置 X</span><span class="value">1.50 m</span></div>
+                    <input type="range" class="input-range" />
+                    <div class="row"><span class="label">位置 Y</span><span class="value">2.00 m</span></div>
+                    <input type="range" class="input-range" />
+                    <div class="row"><span class="label">位置 Z</span><span class="value">3.00 m</span></div>
+                    <input type="range" class="input-range" />
+                  </div>
+                </div>
+                <div class="card">
+                  <button class="card-header" onclick="toggleCard(this)"><span>视场角 / 参数</span><span>▲</span></button>
+                  <div class="card-body">
+                    <div class="row"><span class="label">FOV</span><span class="value">45°</span></div>
+                    <input type="range" class="input-range" />
+                    <div class="row mt-2"><span class="label">显示模型</span><button class="btn btn-primary btn-sm">开</button></div>
+                    <div class="row"><span class="label">显示视锥</span><button class="btn btn-sm">关</button></div>
+                  </div>
+                </div>
+                <div class="card">
+                  <button class="card-header" onclick="toggleCard(this)"><span>拍摄</span><span>▲</span></button>
+                  <div class="card-body">
+                    <button class="btn btn-primary w-full">拍摄当前画面</button>
+                    <div class="btn-grid mt-2">
+                      <button class="btn">彩色图</button>
+                      <button class="btn">深度图</button>
+                      <button class="btn">语义图</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div id="v1-tab-2" class="hidden">
+                <div class="status-bar"><span class="status-dot"></span> 序列：已停止</div>
+                <div class="card">
+                  <div class="card-header" style="cursor:default"><span>动作序列</span></div>
+                  <div class="card-body">
+                    <div class="row"><span class="label">1.</span><span>移动到 Home</span></div>
+                    <div class="row"><span class="label">2.</span><span>开启吸盘</span></div>
+                    <div class="row"><span class="label">3.</span><span>抓取物体</span></div>
+                    <div class="quick-actions mt-2">
+                      <button class="btn btn-primary">运行</button>
+                      <button class="btn">单步</button>
+                      <button class="btn">停止</button>
+                      <button class="btn">重置</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="card">
+                  <div class="card-header" style="cursor:default"><span>添加步骤</span></div>
+                  <div class="card-body">
+                    <div class="btn-grid">
+                      <button class="btn">移动</button>
+                      <button class="btn">吸盘开</button>
+                      <button class="btn">吸盘关</button>
+                      <button class="btn">拍照</button>
+                      <button class="btn">生成物体</button>
+                      <button class="btn">复位</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Version 2: 全展开 Accordion -->
+      <div class="version">
+        <div class="version-header">
+          <span class="version-title">方案 2：全展开 Accordion</span>
+          <span class="version-tag">紧凑</span>
+        </div>
+        <div class="version-body">
+          <p class="version-desc">
+            不切换 Tab，所有功能按模块折叠排列在一个面板内。适合大屏幕或希望一眼看到全部功能的用户；小屏需要滚动。
+          </p>
+          <div class="panel-frame">
+            <div class="panel-header">
+              <h3>操作区</h3>
+              <p>自由练习模式：所有控件可用</p>
+            </div>
+            <div class="panel-content">
+              <div class="status-bar"><span class="status-dot"></span> World · 吸盘关 · 序列停止</div>
+
+              <div class="section-title">机械臂</div>
+              <div class="accordion-item">
+                <button class="accordion-btn" onclick="toggleAccordion(this)"><span>关节角度</span><span>▲</span></button>
+                <div class="accordion-body">
+                  <div class="row"><span class="label">J1</span><span class="value">0.0°</span></div>
+                  <div class="row"><span class="label">J2</span><span class="value">-45.0°</span></div>
+                  <div class="row"><span class="label">J3</span><span class="value">90.0°</span></div>
+                  <div class="row"><span class="label">J4-J6</span><span class="value">0.0°</span></div>
+                  <div class="flex gap-2 mt-2"><button class="btn btn-ghost w-full">重置</button><button class="btn btn-ghost w-full">随机</button></div>
+                </div>
+              </div>
+              <div class="accordion-item">
+                <button class="accordion-btn" onclick="toggleAccordion(this)"><span>位姿控制</span><span>▲</span></button>
+                <div class="accordion-body">
+                  <div class="flex gap-4 justify-center">
+                    <div>
+                      <div class="text-xs text-center text-slate mb-2">位置</div>
+                      <div class="dir-pad">
+                        <div></div><button class="dir-btn">Z+</button><div></div>
+                        <button class="dir-btn">Y+</button><div class="dir-center"></div><button class="dir-btn">Y−</button>
+                        <div></div><button class="dir-btn">Z−</button><div></div>
+                        <button class="dir-btn">X−</button><div></div><button class="dir-btn">X+</button>
+                      </div>
+                    </div>
+                    <div>
+                      <div class="text-xs text-center text-slate mb-2">姿态</div>
+                      <div class="dir-pad">
+                        <div></div><button class="dir-btn">RZ+</button><div></div>
+                        <button class="dir-btn">RY+</button><div class="dir-center"></div><button class="dir-btn">RY−</button>
+                        <div></div><button class="dir-btn">RZ−</button><div></div>
+                        <button class="dir-btn">RX−</button><div></div><button class="dir-btn">RX+</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="section-title">相机</div>
+              <div class="accordion-item">
+                <button class="accordion-btn" onclick="toggleAccordion(this)"><span>相机参数</span><span>▲</span></button>
+                <div class="accordion-body">
+                  <div class="row"><span class="label">FOV</span><span class="value">45°</span></div>
+                  <input type="range" class="input-range" />
+                  <div class="row mt-2"><span class="label">显示模型</span><button class="btn btn-primary btn-sm">开</button></div>
+                </div>
+              </div>
+              <div class="accordion-item">
+                <button class="accordion-btn" onclick="toggleAccordion(this)"><span>拍摄</span><span>▲</span></button>
+                <div class="accordion-body">
+                  <button class="btn btn-primary w-full">拍摄</button>
+                </div>
+              </div>
+
+              <div class="section-title">动作编排</div>
+              <div class="accordion-item">
+                <button class="accordion-btn" onclick="toggleAccordion(this)"><span>序列</span><span>▲</span></button>
+                <div class="accordion-body">
+                  <div class="row"><span class="label">当前</span><span>已停止</span></div>
+                  <div class="quick-actions"><button class="btn btn-primary">运行</button><button class="btn">单步</button><button class="btn">停止</button></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Version 3: 模块 Tabs + 顶部快捷工具栏 -->
+      <div class="version">
+        <div class="version-header">
+          <span class="version-title">方案 3：模块 Tabs + 快捷工具栏</span>
+          <span class="version-tag">现代</span>
+        </div>
+        <div class="version-body">
+          <p class="version-desc">
+            保留 Tab 切换，但在每个 Tab 顶部增加一行常驻快捷按钮（如回零、回原点、重置相机、运行序列）。高频操作一键直达，下方再展开细节。
+          </p>
+          <div class="panel-frame">
+            <div class="panel-header">
+              <h3>操作区</h3>
+              <p>自由练习模式：所有控件可用</p>
+            </div>
+            <div class="tabs">
+              <button class="tab active" onclick="switchTab('v3', 0)">机械臂</button>
+              <button class="tab" onclick="switchTab('v3', 1)">相机</button>
+              <button class="tab" onclick="switchTab('v3', 2)">抓取/序列</button>
+            </div>
+            <div class="panel-content">
+              <div id="v3-tab-0">
+                <div class="quick-actions" style="margin-top:0">
+                  <button class="btn btn-primary">回零位</button>
+                  <button class="btn">回原点</button>
+                  <button class="btn">保存原点</button>
+                  <button class="btn">随机姿态</button>
+                </div>
+                <div class="status-bar"><span class="status-dot"></span> World · 吸盘关闭</div>
+                <div class="card">
+                  <div class="card-header" style="cursor:default"><span>关节角度</span></div>
+                  <div class="card-body">
+                    <div class="row"><span class="label">J1</span><span class="value">0.0°</span></div>
+                    <div class="row"><span class="label">J2</span><span class="value">-45.0°</span></div>
+                    <div class="row"><span class="label">J3</span><span class="value">90.0°</span></div>
+                    <div class="row"><span class="label">J4</span><span class="value">0.0°</span></div>
+                    <div class="row"><span class="label">J5</span><span class="value">0.0°</span></div>
+                    <div class="row"><span class="label">J6</span><span class="value">0.0°</span></div>
+                    <div class="row mt-2"><span class="label">步进</span><div class="flex gap-2"><button class="btn btn-sm">1°</button><button class="btn btn-primary btn-sm">5°</button></div></div>
+                  </div>
+                </div>
+                <div class="card">
+                  <div class="card-header" style="cursor:default"><span>位姿控制</span></div>
+                  <div class="card-body">
+                    <div class="row"><span class="label">坐标系</span><div class="flex gap-2"><button class="btn btn-primary btn-sm">World</button><button class="btn btn-sm">Tool</button></div></div>
+                    <div class="flex gap-4 justify-center mt-3">
+                      <div class="dir-pad">
+                        <div></div><button class="dir-btn">Z+</button><div></div>
+                        <button class="dir-btn">Y+</button><div class="dir-center"></div><button class="dir-btn">Y−</button>
+                        <div></div><button class="dir-btn">Z−</button><div></div>
+                        <button class="dir-btn">X−</button><div></div><button class="dir-btn">X+</button>
+                      </div>
+                      <div class="dir-pad">
+                        <div></div><button class="dir-btn">RZ+</button><div></div>
+                        <button class="dir-btn">RY+</button><div class="dir-center"></div><button class="dir-btn">RY−</button>
+                        <div></div><button class="dir-btn">RZ−</button><div></div>
+                        <button class="dir-btn">RX−</button><div></div><button class="dir-btn">RX+</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div id="v3-tab-1" class="hidden">
+                <div class="quick-actions" style="margin-top:0">
+                  <button class="btn btn-primary">重置相机</button>
+                  <button class="btn">前视</button>
+                  <button class="btn">侧视</button>
+                  <button class="btn">俯视</button>
+                </div>
+                <div class="status-bar"><span class="status-dot"></span> FOV 45° · 模型显示中</div>
+                <div class="card">
+                  <div class="card-header" style="cursor:default"><span>位姿滑块</span></div>
+                  <div class="card-body">
+                    <div class="row"><span class="label">X</span><span class="value">1.50</span></div>
+                    <input type="range" class="input-range" />
+                    <div class="row"><span class="label">Y</span><span class="value">2.00</span></div>
+                    <input type="range" class="input-range" />
+                    <div class="row"><span class="label">Z</span><span class="value">3.00</span></div>
+                    <input type="range" class="input-range" />
+                  </div>
+                </div>
+                <div class="card">
+                  <div class="card-header" style="cursor:default"><span>参数</span></div>
+                  <div class="card-body">
+                    <div class="row"><span class="label">FOV</span><span class="value">45°</span></div>
+                    <input type="range" class="input-range" />
+                    <button class="btn btn-primary w-full mt-2">拍摄</button>
+                  </div>
+                </div>
+              </div>
+              <div id="v3-tab-2" class="hidden">
+                <div class="quick-actions" style="margin-top:0">
+                  <button class="btn btn-primary">生成物体</button>
+                  <button class="btn">开启吸盘</button>
+                  <button class="btn">关闭吸盘</button>
+                </div>
+                <div class="status-bar"><span class="status-dot"></span> 无物体 · 吸盘关</div>
+                <div class="card">
+                  <div class="card-header" style="cursor:default"><span>动作序列</span></div>
+                  <div class="card-body">
+                    <div class="row"><span class="label">1.</span><span>移动到 Home</span></div>
+                    <div class="row"><span class="label">2.</span><span>开启吸盘</span></div>
+                    <div class="row"><span class="label">3.</span><span>抓取物体</span></div>
+                    <div class="quick-actions mt-2"><button class="btn btn-primary">运行</button><button class="btn">单步</button><button class="btn">停止</button></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Version 4: 扁平 Dock 工具面板 -->
+      <div class="version">
+        <div class="version-header">
+          <span class="version-title">方案 4：扁平 Dock 工具面板</span>
+          <span class="version-tag">极简</span>
+        </div>
+        <div class="version-body">
+          <p class="version-desc">
+            弱化“卡片”概念，把功能区做成一组组按钮块。每个块只有标题和按钮网格，信息密度最高，适合熟练用户快速操作。
+          </p>
+          <div class="panel-frame">
+            <div class="panel-header">
+              <h3>操作区</h3>
+              <p>自由练习模式：所有控件可用</p>
+            </div>
+            <div class="tabs">
+              <button class="tab active" onclick="switchTab('v4', 0)">机械臂</button>
+              <button class="tab" onclick="switchTab('v4', 1)">相机</button>
+              <button class="tab" onclick="switchTab('v4', 2)">抓取</button>
+            </div>
+            <div class="panel-content">
+              <div id="v4-tab-0">
+                <div class="dock">
+                  <div class="status-bar"><span class="status-dot"></span> World</div>
+                  <div class="dock-group">
+                    <div class="dock-title">关节</div>
+                    <div class="dock-grid">
+                      <button class="dock-btn active">J1 -</button>
+                      <button class="dock-btn">J1 +</button>
+                      <button class="dock-btn">J2 -</button>
+                      <button class="dock-btn">J2 +</button>
+                      <button class="dock-btn">J3 -</button>
+                      <button class="dock-btn">J3 +</button>
+                    </div>
+                    <div class="dock-grid mt-2">
+                      <button class="dock-btn">重置</button>
+                      <button class="dock-btn">随机</button>
+                    </div>
+                  </div>
+                  <div class="dock-group">
+                    <div class="dock-title">位姿</div>
+                    <div class="dock-grid">
+                      <button class="dock-btn">X+</button>
+                      <button class="dock-btn">X-</button>
+                      <button class="dock-btn">Y+</button>
+                      <button class="dock-btn">Y-</button>
+                      <button class="dock-btn">Z+</button>
+                      <button class="dock-btn">Z-</button>
+                    </div>
+                  </div>
+                  <div class="dock-group">
+                    <div class="dock-title">姿态</div>
+                    <div class="dock-grid">
+                      <button class="dock-btn">RX+</button>
+                      <button class="dock-btn">RX-</button>
+                      <button class="dock-btn">RY+</button>
+                      <button class="dock-btn">RY-</button>
+                      <button class="dock-btn">RZ+</button>
+                      <button class="dock-btn">RZ-</button>
+                    </div>
+                  </div>
+                  <div class="dock-group">
+                    <div class="dock-title">步进</div>
+                    <div class="dock-grid">
+                      <button class="dock-btn">1mm</button>
+                      <button class="dock-btn active">10mm</button>
+                      <button class="dock-btn">1°</button>
+                      <button class="dock-btn">5°</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div id="v4-tab-1" class="hidden">
+                <div class="dock">
+                  <div class="status-bar"><span class="status-dot"></span> FOV 45°</div>
+                  <div class="dock-group">
+                    <div class="dock-title">视角</div>
+                    <div class="dock-grid">
+                      <button class="dock-btn">前</button>
+                      <button class="dock-btn">侧</button>
+                      <button class="dock-btn">顶</button>
+                      <button class="dock-btn">自由</button>
+                    </div>
+                  </div>
+                  <div class="dock-group">
+                    <div class="dock-title">拍摄</div>
+                    <div class="dock-grid">
+                      <button class="dock-btn active">彩色</button>
+                      <button class="dock-btn">深度</button>
+                      <button class="dock-btn">语义</button>
+                    </div>
+                    <button class="dock-btn w-full mt-2" style="background:#2563eb;color:#fff">拍摄</button>
+                  </div>
+                </div>
+              </div>
+              <div id="v4-tab-2" class="hidden">
+                <div class="dock">
+                  <div class="status-bar"><span class="status-dot"></span> 吸盘关 · 无物体</div>
+                  <div class="dock-group">
+                    <div class="dock-title">物体</div>
+                    <div class="dock-grid">
+                      <button class="dock-btn">生成</button>
+                      <button class="dock-btn">清除</button>
+                    </div>
+                  </div>
+                  <div class="dock-group">
+                    <div class="dock-title">吸盘</div>
+                    <div class="dock-grid">
+                      <button class="dock-btn active">开启</button>
+                      <button class="dock-btn">关闭</button>
+                    </div>
+                  </div>
+                  <div class="dock-group">
+                    <div class="dock-title">序列</div>
+                    <div class="dock-grid">
+                      <button class="dock-btn" style="background:#2563eb;color:#fff">运行</button>
+                      <button class="dock-btn">单步</button>
+                      <button class="dock-btn">停止</button>
+                      <button class="dock-btn">重置</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Version 5: 原逻辑 + 新视觉（Refined） -->
+      <div class="version">
+        <div class="version-header">
+          <span class="version-title">方案 5：原逻辑 + 新视觉</span>
+          <span class="version-tag">稳妥</span>
+        </div>
+        <div class="version-body">
+          <p class="version-desc">
+            完全保留原 ControlPanel 的 Tab 和卡片结构，只把视觉风格升级为当前项目的圆角、阴影、蓝色主色调。改动最小、风险最低。
+          </p>
+          <div class="panel-frame">
+            <div class="panel-header">
+              <h3>操作区</h3>
+              <p>自由练习模式：所有控件可用</p>
+            </div>
+            <div class="tabs">
+              <button class="tab active" onclick="switchTab('v5', 0)">机器人控制</button>
+              <button class="tab" onclick="switchTab('v5', 1)">相机控制</button>
+              <button class="tab" onclick="switchTab('v5', 2)">动作编排</button>
+            </div>
+            <div class="panel-content">
+              <div id="v5-tab-0">
+                <div class="status-bar"><span class="status-dot"></span> 机器人就绪 · World</div>
+                <div class="card" style="border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
+                  <button class="card-header" style="border-radius:10px 10px 0 0" onclick="toggleCard(this)"><span>关节角度</span><span>▲</span></button>
+                  <div class="card-body">
+                    <div class="row"><span class="label">J1</span><span class="value">0.0°</span></div>
+                    <div class="row"><span class="label">J2</span><span class="value">-45.0°</span></div>
+                    <div class="row"><span class="label">J3</span><span class="value">90.0°</span></div>
+                    <div class="row"><span class="label">J4</span><span class="value">0.0°</span></div>
+                    <div class="row"><span class="label">J5</span><span class="value">0.0°</span></div>
+                    <div class="row"><span class="label">J6</span><span class="value">0.0°</span></div>
+                    <div class="flex gap-2 mt-2"><button class="btn btn-ghost w-full">重置</button><button class="btn btn-ghost w-full">随机</button></div>
+                  </div>
+                </div>
+                <div class="card" style="border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
+                  <button class="card-header" style="border-radius:10px 10px 0 0" onclick="toggleCard(this)"><span>位姿控制</span><span>▲</span></button>
+                  <div class="card-body">
+                    <div class="row"><span class="label">坐标系</span><div class="flex gap-2"><button class="btn btn-primary btn-sm">World</button><button class="btn btn-sm">Tool</button></div></div>
+                    <div class="flex gap-4 justify-center mt-3">
+                      <div class="dir-pad">
+                        <div></div><button class="dir-btn">Z+</button><div></div>
+                        <button class="dir-btn">Y+</button><div class="dir-center"></div><button class="dir-btn">Y−</button>
+                        <div></div><button class="dir-btn">Z−</button><div></div>
+                        <button class="dir-btn">X−</button><div></div><button class="dir-btn">X+</button>
+                      </div>
+                      <div class="dir-pad">
+                        <div></div><button class="dir-btn">RZ+</button><div></div>
+                        <button class="dir-btn">RY+</button><div class="dir-center"></div><button class="dir-btn">RY−</button>
+                        <div></div><button class="dir-btn">RZ−</button><div></div>
+                        <button class="dir-btn">RX−</button><div></div><button class="dir-btn">RX+</button>
+                      </div>
+                    </div>
+                    <div class="row mt-3"><span class="label">位置步进</span><div class="flex gap-2"><button class="btn btn-sm">1</button><button class="btn btn-primary btn-sm">10</button></div></div>
+                  </div>
+                </div>
+                <div class="card" style="border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
+                  <button class="card-header" style="border-radius:10px 10px 0 0" onclick="toggleCard(this)"><span>目标位置</span><span>▲</span></button>
+                  <div class="card-body">
+                    <div class="row"><span class="label">X</span><input class="btn" style="width:80px;text-align:center" value="300" /></div>
+                    <div class="row"><span class="label">Y</span><input class="btn" style="width:80px;text-align:center" value="200" /></div>
+                    <div class="row"><span class="label">Z</span><input class="btn" style="width:80px;text-align:center" value="150" /></div>
+                    <button class="btn btn-primary w-full mt-2">运动到目标位置</button>
+                  </div>
+                </div>
+                <div class="card" style="border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
+                  <button class="card-header" style="border-radius:10px 10px 0 0" onclick="toggleCard(this)"><span>记忆点</span><span>▲</span></button>
+                  <div class="card-body">
+                    <button class="btn w-full mb-2">Home</button>
+                    <button class="btn w-full">Zero</button>
+                  </div>
+                </div>
+              </div>
+              <div id="v5-tab-1" class="hidden">
+                <div class="status-bar"><span class="status-dot"></span> 相机开启</div>
+                <div class="card" style="border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
+                  <button class="card-header" style="border-radius:10px 10px 0 0" onclick="toggleCard(this)"><span>相机参数</span><span>▲</span></button>
+                  <div class="card-body">
+                    <div class="row"><span class="label">FOV</span><span class="value">45°</span></div>
+                    <input type="range" class="input-range" />
+                    <div class="row mt-2"><span class="label">显示模型</span><button class="btn btn-primary btn-sm">开</button></div>
+                  </div>
+                </div>
+                <div class="card" style="border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
+                  <button class="card-header" style="border-radius:10px 10px 0 0" onclick="toggleCard(this)"><span>拍摄</span><span>▲</span></button>
+                  <div class="card-body">
+                    <button class="btn btn-primary w-full">拍摄当前画面</button>
+                  </div>
+                </div>
+              </div>
+              <div id="v5-tab-2" class="hidden">
+                <div class="status-bar"><span class="status-dot"></span> 序列停止</div>
+                <div class="card" style="border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,0.05)">
+                  <div class="card-header" style="cursor:default;border-radius:10px 10px 0 0"><span>动作序列</span></div>
+                  <div class="card-body">
+                    <div class="row"><span class="label">1.</span><span>移动到 Home</span></div>
+                    <div class="row"><span class="label">2.</span><span>开启吸盘</span></div>
+                    <div class="quick-actions mt-2"><button class="btn btn-primary">运行</button><button class="btn">单步</button><button class="btn">停止</button></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="analysis" style="margin-top:28px">
+      <h2>我的建议</h2>
+      <ul>
+        <li><strong>如果你希望改动最小、保留原操作习惯</strong>：选方案 5 或方案 1。它们都保留了你原来的 Tab + 可折叠卡片结构，只是去掉教学步骤卡片、把核心控件前置。</li>
+        <li><strong>如果你希望首屏操作效率最高</strong>：选方案 3。顶部快捷工具栏让回零、重置相机、运行序列等高频操作一键直达。</li>
+        <li><strong>如果你希望一屏看到所有功能</strong>：选方案 2。但面板会较长，需要滚动。</li>
+        <li><strong>如果你追求极简、按钮化</strong>：选方案 4。但对新手不够友好。</li>
+      </ul>
+      <p style="margin-top:12px; color:#475569; font-size:14px">
+        请看完这几个 HTML 原型后告诉我倾向哪一版（或哪几版元素组合），我再把它落地到 React 组件里。
+      </p>
+    </div>
+  </div>
+
+  <script>
+    function switchTab(version, index) {
+      const tabs = document.querySelectorAll(`.panel-frame:has([id^="${version}-tab-"]) .tab, #${version}-tab-0`).length;
+      const panel = document.querySelector(`[id^="${version}-tab-0"]`).closest('.panel-content');
+      const allTabs = panel.parentElement.querySelectorAll('.tab');
+      allTabs.forEach((t, i) => {
+        t.classList.toggle('active', i === index);
+      });
+      for (let i = 0; i < allTabs.length; i++) {
+        const tabContent = panel.querySelector(`#${version}-tab-${i}`);
+        if (tabContent) tabContent.classList.toggle('hidden', i !== index);
+      }
+    }
+
+    function toggleCard(btn) {
+      const body = btn.nextElementSibling;
+      const arrow = btn.querySelector('span:last-child');
+      if (body.style.display === 'none') {
+        body.style.display = 'block';
+        arrow.textContent = '▲';
+      } else {
+        body.style.display = 'none';
+        arrow.textContent = '▼';
+      }
+    }
+
+    function toggleAccordion(btn) {
+      const body = btn.nextElementSibling;
+      const arrow = btn.querySelector('span:last-child');
+      if (body.style.display === 'none') {
+        body.style.display = 'block';
+        arrow.textContent = '▲';
+      } else {
+        body.style.display = 'none';
+        arrow.textContent = '▼';
+      }
+    }
+  </script>
+</body>
+</html>
