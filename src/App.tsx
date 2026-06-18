@@ -6,13 +6,15 @@ import { useSuckerControl, INITIAL_BOX_POSITION } from '@/hooks/useSuckerControl
 import { useDemoParts } from '@/hooks/useDemoParts';
 import { useActionSequence, buildSequenceRobotAPI } from '@/hooks/useActionSequence';
 import { trpc } from '@/providers/trpc';
-import Header from '@/components/Header';
-import ControlPanel from '@/components/ControlPanel';
+import Header from '@/components/layout/Header';
+import LearningPanel from '@/components/learning/LearningPanel';
+import OperationPanel from '@/components/operation/OperationPanel';
 import RobotScene from '@/components/RobotScene';
-import StatusBar from '@/components/StatusBar';
+import StatusBar from '@/components/layout/StatusBar';
 import DataOverlay from '@/components/DataOverlay';
 import ViewportHUD from '@/components/ViewportHUD';
 import DHParamOverlay from '@/components/DHParamOverlay';
+import { getModuleById, type ModuleId, type LearningSubTab, type LearningMode } from '@/lib/course-config';
 import type { JointAngles } from '@/types/robot';
 
 export default function App() {
@@ -29,12 +31,32 @@ export default function App() {
   // 视角控制（场景单位：米）
   const [cameraPosition, setCameraPosition] = useState<[number, number, number]>([3, 2, 3]);
 
+  // 教学状态
+  const [currentModule, setCurrentModule] = useState<ModuleId>('robot');
+  const [currentStep, setCurrentStep] = useState(0);
+  const [learningSubTab, setLearningSubTab] = useState<LearningSubTab>('steps');
+  const [learningMode, setLearningMode] = useState<LearningMode>('guided');
+  const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
+  const [leftCollapsed, setLeftCollapsed] = useState(false);
+  const [rightCollapsed, setRightCollapsed] = useState(false);
+
+  const module = getModuleById(currentModule);
+  const step = module?.steps[currentStep];
+
   const handleCameraView = useCallback((view: 'front' | 'side' | 'top' | 'free') => {
     switch (view) {
-      case 'front': setCameraPosition([0, 1.5, 4]); break;
-      case 'side': setCameraPosition([4, 1.5, 0]); break;
-      case 'top': setCameraPosition([0, 5, 0.01]); break;
-      case 'free': setCameraPosition([3, 2, 3]); break;
+      case 'front':
+        setCameraPosition([0, 1.5, 4]);
+        break;
+      case 'side':
+        setCameraPosition([4, 1.5, 0]);
+        break;
+      case 'top':
+        setCameraPosition([0, 5, 0.01]);
+        break;
+      case 'free':
+        setCameraPosition([3, 2, 3]);
+        break;
     }
   }, []);
 
@@ -94,12 +116,125 @@ export default function App() {
     }
   }, [sequence.ctx.boxPose, sucker]);
 
-  return (
-    <div className="h-screen w-screen flex flex-col bg-[#F0F0F0] overflow-hidden">
-      <Header />
+  // 步骤切换时自动切到讲解 Tab
+  const handleStepChange = useCallback(
+    (index: number) => {
+      setCurrentStep(index);
+      setLearningSubTab('explain');
+    },
+    []
+  );
 
-      <div className="flex flex-1 overflow-hidden">
-        <ControlPanel
+  // 模块切换时重置步骤
+  const handleModuleChange = useCallback(
+    (moduleId: ModuleId) => {
+      setCurrentModule(moduleId);
+      setCurrentStep(0);
+      setLearningSubTab('steps');
+    },
+    []
+  );
+
+  // 上一步/下一步
+  const handlePrev = useCallback(() => {
+    if (!module) return;
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+      setLearningSubTab('explain');
+    }
+  }, [currentStep, module]);
+
+  const handleNext = useCallback(() => {
+    if (!module) return;
+    if (currentStep < module.steps.length - 1) {
+      setCompletedSteps((prev) => new Set([...prev, module.steps[currentStep].id]));
+      setCurrentStep(currentStep + 1);
+      setLearningSubTab('explain');
+    }
+  }, [currentStep, module]);
+
+  if (!module || !step) {
+    return <div className="h-screen w-screen flex items-center justify-center">课程加载失败</div>;
+  }
+
+  return (
+    <div className="h-screen w-full flex flex-col bg-slate-100 overflow-hidden">
+      <Header mode={learningMode} onModeChange={setLearningMode} />
+
+      <div className="flex flex-1 overflow-hidden min-w-0">
+        <LearningPanel
+          currentModule={currentModule}
+          currentStep={currentStep}
+          subTab={learningSubTab}
+          completedSteps={completedSteps}
+          collapsed={leftCollapsed}
+          onCollapse={() => setLeftCollapsed(!leftCollapsed)}
+          onModuleChange={handleModuleChange}
+          onStepClick={handleStepChange}
+          onSubTabChange={setLearningSubTab}
+          onPrev={handlePrev}
+          onNext={handleNext}
+        />
+
+        <div className="flex-1 relative min-w-0 bg-gradient-to-b from-slate-50 to-slate-100">
+          <RobotScene
+            joints={robot.joints}
+            trajectory={robot.trajectory}
+            showGrid={showGrid}
+            showAxes={showAxes}
+            showTrajectory={showTrajectory}
+            cameraPosition={cameraPosition}
+            onTrajectoryPoint={robot.addTrajectoryPoint}
+            selectedTool={robot.selectedTool}
+            onToolList={robot.setToolList}
+            cameraState={camera.cameraState}
+            // 箱子/吸盘
+            boxPosition={sucker.boxPosition}
+            boxState={sucker.boxState}
+            checkAttachment={sucker.checkAttachment}
+            updateBoxFollow={sucker.updateBoxFollow}
+            applyGravity={sucker.applyGravity}
+            spawnFence={sequence.steps.find((s) => s.type === '生成箱子')?.params?.boxSpawn ?? null}
+            demoParts={demoParts.parts}
+          />
+
+          <ViewportHUD
+            showGrid={showGrid}
+            onToggleGrid={() => setShowGrid(!showGrid)}
+            showAxes={showAxes}
+            onToggleAxes={() => setShowAxes(!showAxes)}
+            showTrajectory={showTrajectory}
+            onToggleTrajectory={() => setShowTrajectory(!showTrajectory)}
+            showDH={showDH}
+            onToggleDH={() => setShowDH(!showDH)}
+            showDataOverlay={showDataOverlay}
+            onToggleDataOverlay={() => setShowDataOverlay(!showDataOverlay)}
+            onCameraView={handleCameraView}
+            onSaveOrigin={robot.saveOrigin}
+            onGoToOrigin={robot.goToOrigin}
+            onGoToZero={robot.goToZero}
+            hasOrigin={robot.originJoints !== null}
+          />
+
+          {showDataOverlay && (
+            <DataOverlay
+              coordinateSystem={robot.coordinateSystem}
+              position={robot.endEffectorPose.position}
+              euler={robot.endEffectorPose.euler}
+              joints={robot.joints}
+            />
+          )}
+
+          <DHParamOverlay config={robot.config} visible={showDH} />
+        </div>
+
+        <OperationPanel
+          currentModule={currentModule}
+          currentStep={step}
+          mode={learningMode}
+          collapsed={rightCollapsed}
+          onCollapse={() => setRightCollapsed(!rightCollapsed)}
+          // Robot
           joints={robot.joints}
           config={robot.config}
           jointStep={robot.jointStep}
@@ -156,68 +291,24 @@ export default function App() {
           suckerOn={sucker.suckerOn}
           boxState={sucker.boxState}
           // Demo parts
-          onSpawnParts={(n, s) => demoParts.spawnParts(n, s, {
-            position: camera.cameraState.position,
-            rotation: camera.cameraState.rotation,
-            fov: camera.cameraState.fov,
-            near: camera.cameraState.near,
-            far: camera.cameraState.far,
-          })}
+          onSpawnParts={(n, s) =>
+            demoParts.spawnParts(n, s, {
+              position: camera.cameraState.position,
+              rotation: camera.cameraState.rotation,
+              fov: camera.cameraState.fov,
+              near: camera.cameraState.near,
+              far: camera.cameraState.far,
+            })
+          }
           onClearParts={demoParts.clearParts}
           hasDemoParts={demoParts.parts.length > 0}
+          // Sucker direct
+          turnSuckerOn={sucker.turnSuckerOn}
+          turnSuckerOff={sucker.turnSuckerOff}
+          forceAttachBox={sucker.forceAttachBox}
+          spawnBox={sucker.spawnBox}
+          resetBox={sucker.resetBox}
         />
-
-        <div className="flex-1 relative bg-[#E8E8E8]">
-          <RobotScene
-            joints={robot.joints}
-            trajectory={robot.trajectory}
-            showGrid={showGrid}
-            showAxes={showAxes}
-            showTrajectory={showTrajectory}
-            cameraPosition={cameraPosition}
-            onTrajectoryPoint={robot.addTrajectoryPoint}
-            selectedTool={robot.selectedTool}
-            onToolList={robot.setToolList}
-            cameraState={camera.cameraState}
-            // 箱子/吸盘
-            boxPosition={sucker.boxPosition}
-            boxState={sucker.boxState}
-            checkAttachment={sucker.checkAttachment}
-            updateBoxFollow={sucker.updateBoxFollow}
-            applyGravity={sucker.applyGravity}
-            spawnFence={sequence.steps.find((s) => s.type === '生成箱子')?.params?.boxSpawn ?? null}
-            demoParts={demoParts.parts}
-          />
-
-          <ViewportHUD
-            showGrid={showGrid}
-            onToggleGrid={() => setShowGrid(!showGrid)}
-            showAxes={showAxes}
-            onToggleAxes={() => setShowAxes(!showAxes)}
-            showTrajectory={showTrajectory}
-            onToggleTrajectory={() => setShowTrajectory(!showTrajectory)}
-            showDH={showDH}
-            onToggleDH={() => setShowDH(!showDH)}
-            showDataOverlay={showDataOverlay}
-            onToggleDataOverlay={() => setShowDataOverlay(!showDataOverlay)}
-            onCameraView={handleCameraView}
-            onSaveOrigin={robot.saveOrigin}
-            onGoToOrigin={robot.goToOrigin}
-            onGoToZero={robot.goToZero}
-            hasOrigin={robot.originJoints !== null}
-          />
-
-          {showDataOverlay && (
-            <DataOverlay
-              coordinateSystem={robot.coordinateSystem}
-              position={robot.endEffectorPose.position}
-              euler={robot.endEffectorPose.euler}
-              joints={robot.joints}
-            />
-          )}
-
-          <DHParamOverlay config={robot.config} visible={showDH} />
-        </div>
       </div>
 
       <StatusBar
@@ -225,6 +316,7 @@ export default function App() {
         coordinateSystem={robot.coordinateSystem}
         position={robot.endEffectorPose.position}
         euler={robot.endEffectorPose.euler}
+        joints={robot.joints}
       />
     </div>
   );
