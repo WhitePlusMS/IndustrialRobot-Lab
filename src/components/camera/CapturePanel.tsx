@@ -196,15 +196,15 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
 
   return (
     <>
-      <div className="bg-white rounded-md border border-[#E5E7EB] overflow-hidden">
-        <div className="px-3 py-2 bg-[#F8FAFC] border-b border-[#E5E7EB]">
-          <h3 className="text-xs font-semibold text-[#1E293B] tracking-wide uppercase">拍照输出</h3>
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="px-4 py-3 bg-slate-50/80 border-b border-slate-100">
+          <h3 className="text-sm font-semibold text-slate-700">拍照输出</h3>
         </div>
 
-        <div className="p-3 space-y-3">
+        <div className="p-4 space-y-3">
           {/* 分辨率选择 */}
           <div className="flex items-center gap-1">
-            <span className="text-[10px] text-[#64748B] shrink-0">分辨率:</span>
+            <span className="text-[10px] text-slate-500 shrink-0">分辨率:</span>
             {[
               [320, 240],
               [640, 480],
@@ -215,10 +215,10 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
                 key={`${w}x${h}`}
                 aria-pressed={cameraState.resolution[0] === w && cameraState.resolution[1] === h}
                 onClick={() => onResolutionChange(w, h)}
-                className={`px-1.5 py-0.5 text-[10px] rounded-sm border focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none ${
+                className={`px-1.5 py-0.5 text-[10px] rounded-sm border focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none ${
                   cameraState.resolution[0] === w && cameraState.resolution[1] === h
-                    ? 'bg-[#2563EB] text-white border-[#2563EB]'
-                    : 'bg-white text-[#1E293B] border-[#D1D5DB] hover:bg-[#F3F4F6]'
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                 }`}
               >
                 {w}x{h}
@@ -232,7 +232,7 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
             type="button"
             onClick={handleCaptureColor}
             disabled={isCapturing}
-            className="h-8 bg-[#2563EB] text-white text-[10px] font-medium rounded-sm hover:bg-[#1D4ED8] active:bg-[#1E40AF] disabled:opacity-50 transition-colors flex items-center justify-center gap-1 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
+            className="h-8 bg-blue-600 text-white text-[10px] font-medium rounded-sm hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 transition-colors flex items-center justify-center gap-1 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
           >
             {isCapturing ? (
               <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -251,7 +251,7 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
             type="button"
             onClick={handleCaptureSegmentation}
             disabled={isCapturing}
-            className="h-8 bg-[#F97316] text-white text-[10px] font-medium rounded-sm hover:bg-[#EA580C] active:bg-[#C2410C] disabled:opacity-50 transition-colors flex items-center justify-center gap-1 focus-visible:ring-2 focus-visible:ring-[#F97316] focus-visible:outline-none"
+            className="h-8 bg-orange-500 text-white text-[10px] font-medium rounded-sm hover:bg-orange-600 active:bg-orange-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-1 focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:outline-none"
           >
             {isCapturing ? (
               <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -269,7 +269,7 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
             type="button"
             onClick={handleCaptureDepth}
             disabled={isCapturing}
-            className="h-8 bg-[#7C3AED] text-white text-[10px] font-medium rounded-sm hover:bg-[#6D28D9] active:bg-[#5B21B6] disabled:opacity-50 transition-colors flex items-center justify-center gap-1 focus-visible:ring-2 focus-visible:ring-[#7C3AED] focus-visible:outline-none"
+            className="h-8 bg-violet-600 text-white text-[10px] font-medium rounded-sm hover:bg-violet-700 active:bg-violet-800 disabled:opacity-50 transition-colors flex items-center justify-center gap-1 focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:outline-none"
           >
             {isCapturing ? (
               <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -286,20 +286,20 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
         </div>
 
         {isCapturing && (
-          <div className="text-center text-[11px] text-[#64748B]" role="status" aria-live="polite">正在渲染…</div>
+          <div className="text-center text-[11px] text-slate-500" role="status" aria-live="polite">正在渲染…</div>
         )}
 
         {/* 预览区域 */}
         {captureResult && (
           <div className="space-y-2">
-            <div className="text-[11px] font-semibold text-[#64748B]">最近拍摄（双击或按 Enter 查看大图）</div>
+            <div className="text-[11px] font-semibold text-slate-500">最近拍摄（双击或按 Enter 查看大图）</div>
 
             <div className="grid grid-cols-3 gap-2">
               {captureResult.color && (
                 <div className="space-y-1">
-                  <div className="text-[10px] text-[#64748B] text-center">彩色</div>
+                  <div className="text-[10px] text-slate-500 text-center">彩色</div>
                   <div
-                    className="border border-[#E5E7EB] rounded-sm overflow-hidden bg-[#F8FAFC] aspect-[4/3] cursor-zoom-in focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
+                    className="border border-slate-100 rounded-sm overflow-hidden bg-slate-50 aspect-[4/3] cursor-zoom-in focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
                     onDoubleClick={() => openViewer(captureResult.color!, '彩色照片')}
                     onKeyDown={(e) => handlePreviewKeyDown(e, captureResult.color!, '彩色照片')}
                     tabIndex={0}
@@ -319,9 +319,9 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
               )}
               {captureResult.segmentation && (
                 <div className="space-y-1">
-                  <div className="text-[10px] text-[#64748B] text-center">分割</div>
+                  <div className="text-[10px] text-slate-500 text-center">分割</div>
                   <div
-                    className="border border-[#E5E7EB] rounded-sm overflow-hidden bg-[#F8FAFC] aspect-[4/3] cursor-zoom-in focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
+                    className="border border-slate-100 rounded-sm overflow-hidden bg-slate-50 aspect-[4/3] cursor-zoom-in focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
                     onDoubleClick={() => openViewer(captureResult.segmentation!, '分割照片')}
                     onKeyDown={(e) => handlePreviewKeyDown(e, captureResult.segmentation!, '分割照片')}
                     tabIndex={0}
@@ -341,9 +341,9 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
               )}
               {captureResult.depth && (
                 <div className="space-y-1">
-                  <div className="text-[10px] text-[#64748B] text-center">深度</div>
+                  <div className="text-[10px] text-slate-500 text-center">深度</div>
                   <div
-                    className="border border-[#E5E7EB] rounded-sm overflow-hidden bg-[#F8FAFC] aspect-[4/3] cursor-zoom-in focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
+                    className="border border-slate-100 rounded-sm overflow-hidden bg-slate-50 aspect-[4/3] cursor-zoom-in focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
                     onDoubleClick={() => openViewer(captureResult.depth!, '深度图')}
                     onKeyDown={(e) => handlePreviewKeyDown(e, captureResult.depth!, '深度图')}
                     tabIndex={0}
@@ -366,15 +366,15 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
             {/* 颜色映射表 */}
             {Object.keys(captureResult.colorMap).length > 0 && (
               <div className="space-y-1">
-                <div className="text-[10px] font-semibold text-[#64748B]">分割颜色映射</div>
+                <div className="text-[10px] font-semibold text-slate-500">分割颜色映射</div>
                 <div className="grid grid-cols-2 gap-1">
                   {Object.entries(captureResult.colorMap).map(([color, name]) => (
                     <div key={color} className="flex items-center gap-1.5">
                       <div
-                        className="w-3 h-3 rounded-sm border border-[#D1D5DB] shrink-0"
+                        className="w-3 h-3 rounded-sm border border-slate-200 shrink-0"
                         style={{ backgroundColor: color }}
                       />
-                      <span className="text-[10px] text-[#1E293B] truncate">{name}</span>
+                      <span className="text-[10px] text-slate-700 truncate">{name}</span>
                     </div>
                   ))}
                 </div>
@@ -387,7 +387,7 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
                 <button
                   type="button"
                   onClick={handleDownloadColor}
-                  className="h-7 bg-[#F1F5F9] text-[#1E293B] text-[10px] rounded-sm border border-[#CBD5E1] hover:bg-[#E2E8F0] active:bg-[#CBD5E1] transition-colors flex items-center justify-center gap-1 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
+                  className="h-7 bg-slate-100 text-slate-700 text-[10px] rounded-sm border border-slate-200 hover:bg-slate-200 active:bg-slate-300 transition-colors flex items-center justify-center gap-1 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
                 >
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -399,7 +399,7 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
                 <button
                   type="button"
                   onClick={handleDownloadSegmentation}
-                  className="h-7 bg-[#F1F5F9] text-[#1E293B] text-[10px] rounded-sm border border-[#CBD5E1] hover:bg-[#E2E8F0] active:bg-[#CBD5E1] transition-colors flex items-center justify-center gap-1 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
+                  className="h-7 bg-slate-100 text-slate-700 text-[10px] rounded-sm border border-slate-200 hover:bg-slate-200 active:bg-slate-300 transition-colors flex items-center justify-center gap-1 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
                 >
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -411,7 +411,7 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
                 <button
                   type="button"
                   onClick={handleDownloadDepth}
-                  className="h-7 bg-[#F1F5F9] text-[#1E293B] text-[10px] rounded-sm border border-[#CBD5E1] hover:bg-[#E2E8F0] active:bg-[#CBD5E1] transition-colors flex items-center justify-center gap-1 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
+                  className="h-7 bg-slate-100 text-slate-700 text-[10px] rounded-sm border border-slate-200 hover:bg-slate-200 active:bg-slate-300 transition-colors flex items-center justify-center gap-1 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
                 >
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -439,12 +439,12 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
             onClick={(e) => e.stopPropagation()}
           >
             {/* 标题栏 */}
-            <div className="flex items-center justify-between px-4 py-2 bg-[#F8FAFC] border-b border-[#E5E7EB]">
-              <span id="viewer-title" className="text-sm font-semibold text-[#1E293B]">{viewerLabel}</span>
+            <div className="flex items-center justify-between px-4 py-2 bg-slate-50/80 border-b border-slate-100">
+              <span id="viewer-title" className="text-sm font-semibold text-slate-700">{viewerLabel}</span>
               <button
                 type="button"
                 onClick={closeViewer}
-                className="w-7 h-7 flex items-center justify-center rounded-sm text-[#64748B] hover:bg-[#E2E8F0] hover:text-[#1E293B] transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
+                className="w-7 h-7 flex items-center justify-center rounded-sm text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
                 aria-label="关闭"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
@@ -453,7 +453,7 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
               </button>
             </div>
             {/* 图片 */}
-            <div className="flex items-center justify-center p-2 bg-[#FAFAFA]">
+            <div className="flex items-center justify-center p-2 bg-slate-50">
               <img
                 src={viewerImage}
                 alt={viewerLabel}

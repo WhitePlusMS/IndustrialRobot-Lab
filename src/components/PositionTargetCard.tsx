@@ -59,37 +59,37 @@ export default function PositionTargetCard({
   }, [handleGo]);
 
   return (
-    <div className="bg-white border border-[#D1D5DB] rounded-sm">
-      <div className="px-3 py-2 bg-[#F9FAFB] border-b border-[#E5E7EB]">
-        <span className="text-sm font-semibold text-[#1E293B]">笛卡尔空间定位</span>
+    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+      <div className="px-4 py-3 bg-slate-50/80 border-b border-slate-100">
+        <span className="text-sm font-semibold text-slate-700">笛卡尔空间定位</span>
       </div>
-      <div className="p-3 space-y-3">
+      <div className="p-4 space-y-3">
         {/* 当前GLB坐标 */}
-        <div className="text-xs text-[#64748B] space-y-1">
+        <div className="text-xs text-slate-500 space-y-1">
           <div className="flex items-center justify-between">
             <span>当前 GLB 坐标 (mm):</span>
             <button
               type="button"
               onClick={fillCurrent}
               disabled={disabled || !currentGLBPosition}
-              className="text-[10px] px-1.5 py-0.5 border border-[#D1D5DB] rounded-sm hover:bg-[#F3F4F6] disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
+              className="text-[10px] px-1.5 py-0.5 bg-white border border-slate-200 text-slate-700 rounded-sm hover:bg-slate-50 disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
             >
               填入
             </button>
           </div>
           {currentGLBPosition ? (
-            <div className="font-mono text-[#1E293B]">
+            <div className="font-mono text-slate-800">
               X:{fmtMm(currentGLBPosition[0])} Y:{fmtMm(currentGLBPosition[1])} Z:{fmtMm(currentGLBPosition[2])}
             </div>
           ) : (
-            <div className="text-[#94A3B8]">加载中…</div>
+            <div className="text-slate-400">加载中…</div>
           )}
         </div>
 
         {/* 目标坐标输入 */}
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-[#64748B] w-4" htmlFor="target-x">X</label>
+            <label className="text-xs font-medium text-slate-500 w-4" htmlFor="target-x">X</label>
             <input
               id="target-x"
               type="number"
@@ -100,14 +100,14 @@ export default function PositionTargetCard({
               onChange={(e) => setInputX(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="-1.1348"
-              className="flex-1 px-2 py-1 text-xs font-mono border border-[#D1D5DB] rounded-sm focus:outline-none focus:border-[#2563EB] focus-visible:ring-2 focus-visible:ring-[#2563EB]"
+              className="flex-1 px-2 py-1 text-xs font-mono border border-slate-200 rounded-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               disabled={disabled}
               aria-label="目标 X 坐标"
             />
-            <span className="text-[10px] text-[#94A3B8]">m</span>
+            <span className="text-[10px] text-slate-400">m</span>
           </div>
           <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-[#64748B] w-4" htmlFor="target-y">Y</label>
+            <label className="text-xs font-medium text-slate-500 w-4" htmlFor="target-y">Y</label>
             <input
               id="target-y"
               type="number"
@@ -118,14 +118,14 @@ export default function PositionTargetCard({
               onChange={(e) => setInputY(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="1.3166"
-              className="flex-1 px-2 py-1 text-xs font-mono border border-[#D1D5DB] rounded-sm focus:outline-none focus:border-[#2563EB] focus-visible:ring-2 focus-visible:ring-[#2563EB]"
+              className="flex-1 px-2 py-1 text-xs font-mono border border-slate-200 rounded-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               disabled={disabled}
               aria-label="目标 Y 坐标"
             />
-            <span className="text-[10px] text-[#94A3B8]">m</span>
+            <span className="text-[10px] text-slate-400">m</span>
           </div>
           <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-[#64748B] w-4" htmlFor="target-z">Z</label>
+            <label className="text-xs font-medium text-slate-500 w-4" htmlFor="target-z">Z</label>
             <input
               id="target-z"
               type="number"
@@ -136,11 +136,11 @@ export default function PositionTargetCard({
               onChange={(e) => setInputZ(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="0.0559"
-              className="flex-1 px-2 py-1 text-xs font-mono border border-[#D1D5DB] rounded-sm focus:outline-none focus:border-[#2563EB] focus-visible:ring-2 focus-visible:ring-[#2563EB]"
+              className="flex-1 px-2 py-1 text-xs font-mono border border-slate-200 rounded-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               disabled={disabled}
               aria-label="目标 Z 坐标"
             />
-            <span className="text-[10px] text-[#94A3B8]">m</span>
+            <span className="text-[10px] text-slate-400">m</span>
           </div>
         </div>
 
@@ -149,12 +149,12 @@ export default function PositionTargetCard({
           type="button"
           onClick={handleGo}
           disabled={disabled || !inputX || !inputY || !inputZ}
-          className={`w-full flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded-sm transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none ${
+          className={`w-full flex items-center justify-center gap-1.5 py-1.5 text-xs font-bold rounded-sm transition-colors focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none ${
             feedback === 'success'
-              ? 'bg-[#16A34A] text-white'
+              ? 'bg-green-600 text-white'
               : feedback === 'failed'
-                ? 'bg-[#DC2626] text-white'
-                : 'bg-[#2563EB] text-white hover:bg-[#1D4ED8]'
+                ? 'bg-red-600 text-white'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
           } disabled:opacity-40 disabled:cursor-not-allowed`}
           aria-label={feedbackText || '运动到此点'}
         >

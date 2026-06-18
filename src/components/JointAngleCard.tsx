@@ -1,6 +1,6 @@
 // src/components/JointAngleCard.tsx
 import { ChevronDown, ChevronUp, Shuffle, RotateCcw } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { RobotConfig, JointAngles } from '@/types/robot';
 import StepValueSelector from './StepValueSelector';
 import LongPressButton from './LongPressButton';
@@ -25,63 +25,170 @@ export default function JointAngleCard({
   onRandom,
 }: JointAngleCardProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const [editing, setEditing] = useState<{ index: number; value: string } | null>(null);
+  const [sliderValues, setSliderValues] = useState<Record<number, number>>({});
+  const rafRef = useRef<number | null>(null);
+  const pendingRef = useRef<{ index: number; value: number } | null>(null);
   const dhValues = Object.values(config.dhParams);
 
+  // 组件卸载时取消未执行的 rAF
+  useEffect(() => {
+    return () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    };
+  }, []);
+
+  // 拖动结束时清掉本地 slider 覆盖，避免外部更新关节后显示仍被本地值覆盖
+  useEffect(() => {
+    if (Object.keys(sliderValues).length === 0) return;
+
+    const handlePointerUp = () => {
+      // 先 flush 最后一帧的 pending 更新
+      if (pendingRef.current) {
+        const pending = pendingRef.current;
+        pendingRef.current = null;
+        if (rafRef.current !== null) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+        }
+        const base = joints[pending.index];
+        onAdjustJoint(pending.index, pending.value - base, false);
+      }
+      setSliderValues({});
+    };
+
+    window.addEventListener('pointerup', handlePointerUp);
+    return () => window.removeEventListener('pointerup', handlePointerUp);
+  }, [sliderValues, joints, onAdjustJoint]);
+
+  // 实时提交，但通过 requestAnimationFrame 节流，避免 onChange 事件风暴导致卡顿
+  const scheduleUpdate = (index: number, value: number) => {
+    setSliderValues((prev) => ({ ...prev, [index]: value }));
+    pendingRef.current = { index, value };
+
+    if (rafRef.current === null) {
+      rafRef.current = requestAnimationFrame(() => {
+        const pending = pendingRef.current;
+        rafRef.current = null;
+        pendingRef.current = null;
+        if (!pending) return;
+        const base = joints[pending.index];
+        onAdjustJoint(pending.index, pending.value - base, false);
+      });
+    }
+  };
+
+  // 手动输入角度：回车或失焦时应用
+  const applyManualValue = (index: number) => {
+    if (!editing || editing.index !== index) return;
+    const v = parseFloat(editing.value);
+    if (!Number.isNaN(v)) {
+      onAdjustJoint(index, v - joints[index], false);
+    }
+    setEditing(null);
+  };
+
   return (
-    <div className="bg-white border border-[#D1D5DB] rounded-sm">
+    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
       <button
         type="button"
         onClick={() => setCollapsed(!collapsed)}
-        className="w-full flex items-center justify-between px-3 py-2 bg-[#F9FAFB] border-b border-[#E5E7EB] hover:bg-[#F3F4F6] transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
+        className="w-full flex items-center justify-between px-4 py-3 bg-slate-50/80 border-b border-slate-100 hover:bg-slate-100 transition-colors focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
         aria-expanded={!collapsed}
       >
-        <span className="text-sm font-semibold text-[#1E293B]">关节角度</span>
-        {collapsed ? <ChevronDown className="w-4 h-4 text-[#64748B]" /> : <ChevronUp className="w-4 h-4 text-[#64748B]" />}
+        <span className="text-sm font-semibold text-slate-700">关节角度</span>
+        {collapsed ? <ChevronDown className="w-4 h-4 text-slate-500" /> : <ChevronUp className="w-4 h-4 text-slate-500" />}
       </button>
       {!collapsed && (
-        <div className="p-3 space-y-2">
+        <div className="p-4 space-y-3">
           {joints.map((angle, i) => {
             const range = dhValues[i].thetaRange;
-            const isOutOfRange = angle < range[0] - 0.01 || angle > range[1] + 0.01;
+            const displayAngle = i in sliderValues ? sliderValues[i] : angle;
+            const isOutOfRange = displayAngle < range[0] - 0.01 || displayAngle > range[1] + 0.01;
             return (
-              <div key={i} className="flex items-center justify-between gap-2">
-                <span className="text-xs font-medium text-[#64748B] w-10">J{i + 1}</span>
-                <LongPressButton
-                  aria-label={`减小 J${i + 1} 角度`}
-                  onClick={(isContinuous) => onAdjustJoint(i, -1, isContinuous)}
-                  className="w-7 h-7 flex items-center justify-center bg-[#F3F4F6] border border-[#D1D5DB] rounded-sm text-[#1E293B] hover:bg-[#E5E7EB] active:bg-[#2563EB] active:text-white active:border-[#2563EB] transition-colors"
-                >
-                  <span className="pointer-events-none">−</span>
-                </LongPressButton>
-                <span
-                  className={`text-sm font-mono tabular-nums font-medium w-16 text-center pointer-events-none ${
-                    isOutOfRange ? 'text-[#EF4444]' : 'text-[#0F172A]'
-                  }`}
-                >
-                  {angle.toFixed(1)}°
-                </span>
-                <LongPressButton
-                  aria-label={`增大 J${i + 1} 角度`}
-                  onClick={(isContinuous) => onAdjustJoint(i, 1, isContinuous)}
-                  className="w-7 h-7 flex items-center justify-center bg-[#F3F4F6] border border-[#D1D5DB] rounded-sm text-[#1E293B] hover:bg-[#E5E7EB] active:bg-[#2563EB] active:text-white active:border-[#2563EB] transition-colors"
-                >
-                  <span className="pointer-events-none">+</span>
-                </LongPressButton>
-                <span className="text-xs text-[#94A3B8] w-24 text-right truncate">
-                  [{range[0]} ~ {range[1]}]
-                </span>
+              <div key={i} className="space-y-1.5">
+                {/* 按钮 + 数值 + 范围 */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-medium text-slate-500 w-8">J{i + 1}</span>
+                  <LongPressButton
+                    aria-label={`减小 J${i + 1} 角度`}
+                    onClick={(isContinuous) => onAdjustJoint(i, -1, isContinuous)}
+                    className="w-7 h-7 flex items-center justify-center bg-slate-100 border border-slate-200 rounded-sm text-slate-700 hover:bg-slate-200 active:bg-blue-600 active:text-white active:border-blue-600 transition-colors"
+                  >
+                    <span className="pointer-events-none">−</span>
+                  </LongPressButton>
+                  {editing?.index === i ? (
+                    <div className="w-14 flex items-center justify-center">
+                      <input
+                        type="number"
+                        step={0.1}
+                        value={editing.value}
+                        onChange={(e) => setEditing({ index: i, value: e.target.value })}
+                        onBlur={() => applyManualValue(i)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            applyManualValue(i);
+                          } else if (e.key === 'Escape') {
+                            setEditing(null);
+                          }
+                        }}
+                        autoFocus
+                        className={`w-12 text-sm font-mono tabular-nums font-medium text-center bg-white border-b-2 focus:outline-none ${
+                          isOutOfRange ? 'text-red-500 border-red-400' : 'text-slate-800 border-blue-500'
+                        }`}
+                      />
+                      <span className={`text-sm ${isOutOfRange ? 'text-red-500' : 'text-slate-800'}`}>°</span>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setEditing({ index: i, value: angle.toFixed(1) })}
+                      className={`text-sm font-mono tabular-nums font-medium w-14 text-center rounded px-1 py-0.5 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                        isOutOfRange ? 'text-red-500' : 'text-slate-800'
+                      }`}
+                      aria-label={`编辑 J${i + 1} 角度`}
+                    >
+                      {displayAngle.toFixed(1)}°
+                    </button>
+                  )}
+                  <LongPressButton
+                    aria-label={`增大 J${i + 1} 角度`}
+                    onClick={(isContinuous) => onAdjustJoint(i, 1, isContinuous)}
+                    className="w-7 h-7 flex items-center justify-center bg-slate-100 border border-slate-200 rounded-sm text-slate-700 hover:bg-slate-200 active:bg-blue-600 active:text-white active:border-blue-600 transition-colors"
+                  >
+                    <span className="pointer-events-none">+</span>
+                  </LongPressButton>
+                  <span className="text-[10px] text-slate-400 w-20 text-right truncate">
+                    {range[0]}~{range[1]}
+                  </span>
+                </div>
+                {/* 滑块：实时更新，rAF 节流 */}
+                <input
+                  type="range"
+                  min={range[0]}
+                  max={range[1]}
+                  step={0.1}
+                  value={displayAngle}
+                  onChange={(e) => scheduleUpdate(i, parseFloat(e.target.value))}
+                  className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                  aria-label={`J${i + 1} 角度滑块`}
+                />
               </div>
             );
           })}
-          <div className="flex items-center gap-2 pt-2 border-t border-[#E5E7EB]">
-            <span className="text-xs text-[#64748B]">步进:</span>
+
+          <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+            <span className="text-xs text-slate-500">步进:</span>
             <StepValueSelector values={[0.1, 1, 5, 10]} unit="°" current={jointStep} onChange={onJointStepChange} />
           </div>
+
           <div className="flex gap-2">
             <button
               type="button"
               onClick={onReset}
-              className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-medium text-[#1E293B] bg-[#F3F4F6] border border-[#D1D5DB] rounded-sm hover:bg-[#E5E7EB] transition-colors"
+              className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 border border-slate-200 rounded-sm hover:bg-slate-200 transition-colors"
             >
               <RotateCcw className="w-3 h-3" />
               重置
@@ -89,7 +196,7 @@ export default function JointAngleCard({
             <button
               type="button"
               onClick={onRandom}
-              className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-medium text-[#1E293B] bg-[#F3F4F6] border border-[#D1D5DB] rounded-sm hover:bg-[#E5E7EB] transition-colors"
+              className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 border border-slate-200 rounded-sm hover:bg-slate-200 transition-colors"
             >
               <Shuffle className="w-3 h-3" />
               随机
