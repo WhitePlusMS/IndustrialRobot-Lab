@@ -18,13 +18,10 @@ export const KUKA_LIKE: RobotConfig = {
   name: 'KUKA-6DOF',
   dhParams: {
     joint1: { a: 0, alpha: 0, d: 459, thetaOffset: 0, thetaSign: 1, thetaRange: [-180, 180] },
-    joint2: { a: 354, alpha: -Math.PI / 2, d: 0, thetaOffset: 0, thetaSign: 1, thetaRange: [-190, 45] },
-    joint3: { a: 941, alpha: 0, d: 0, thetaOffset: 0, thetaSign: 1, thetaRange: [-120, 156] },
-    // J4 起，真实 GLB 的后腕三轴约定不再与原先的简化腕部链一致。
-    // 通过真实 pivot 轴向扫描确认：把 J4 扭转改为 +90°，并在零位补一个 -90° 偏置，
-    // 能显著降低 J4/J5/J6 在零位下的几何中心误差，同时让三轴方向与 GLB 更一致。
+    joint2: { a: 354, alpha: -Math.PI / 2, d: 0, thetaOffset: 0, thetaSign: 1, thetaRange: [-90, 45] },
+    joint3: { a: 941, alpha: 0, d: 0, thetaOffset: 0, thetaSign: 1, thetaRange: [-45, 90] },
     joint4: { a: 0, alpha: Math.PI / 2, d: 705, thetaOffset: -Math.PI / 2, thetaSign: 1, thetaRange: [-185, 185] },
-    joint5: { a: 272, alpha: Math.PI / 2, d: 0, thetaOffset: 0, thetaSign: 1, thetaRange: [-120, 120] },
+    joint5: { a: 272, alpha: Math.PI / 2, d: 0, thetaOffset: 0, thetaSign: 1, thetaRange: [-50, 210] },
     joint6: { a: 0, alpha: -Math.PI / 2, d: 201, thetaOffset: 0, thetaSign: 1, thetaRange: [-350, 350] },
   },
   baseHeight: 150,
