@@ -1,10 +1,10 @@
 // src/components/operation/CameraOperations.tsx
 import { Camera, Aperture, RotateCcw } from 'lucide-react';
-import type { OperationPanelProps } from './OperationPanel';
+import type { OperationPanelData } from './OperationPanel';
 import CameraParamsCard from '@/components/camera/CameraParamsCard';
 import CapturePanel from '@/components/camera/CapturePanel';
 
-export default function CameraOperations(props: OperationPanelProps) {
+export default function CameraOperations(props: OperationPanelData) {
   const stepId = props.currentStep.id;
   const isFree = props.mode === 'free';
 
@@ -54,9 +54,9 @@ export default function CameraOperations(props: OperationPanelProps) {
                 key={view.label}
                 type="button"
                 onClick={() => {
-                  props.setCameraPositionAxis(0, view.pos[0]);
-                  props.setCameraPositionAxis(1, view.pos[1]);
-                  props.setCameraPositionAxis(2, view.pos[2]);
+                  props.setSceneCameraPositionAxis(0, view.pos[0]);
+                  props.setSceneCameraPositionAxis(1, view.pos[1]);
+                  props.setSceneCameraPositionAxis(2, view.pos[2]);
                 }}
                 className="py-2 text-xs font-semibold text-slate-600 rounded-lg bg-white border border-slate-200 shadow-sm hover:bg-slate-50 active:bg-slate-100"
               >
@@ -140,7 +140,7 @@ export default function CameraOperations(props: OperationPanelProps) {
       {stepId === 'camera-pose' && (
         <button
           type="button"
-          onClick={() => props.resetCamera()}
+          onClick={() => props.resetSceneCamera()}
           className="w-full py-3 text-[13px] font-semibold rounded-xl text-white bg-gradient-to-r from-green-500 to-green-600 border border-green-600 shadow-sm hover:from-green-600 hover:to-green-700 flex items-center justify-center gap-2"
         >
           <RotateCcw className="w-4 h-4" />

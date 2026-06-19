@@ -1,18 +1,8 @@
 // src/components/ViewportHUD.tsx
 import { Eye, Grid3X3, Route, Table, Camera, Pin, RotateCcw, Home, MapPin } from 'lucide-react';
+import { useSceneViewport } from '@/contexts/SceneViewportContext';
 
 interface ViewportHUDProps {
-  showGrid: boolean;
-  onToggleGrid: () => void;
-  showAxes: boolean;
-  onToggleAxes: () => void;
-  showTrajectory: boolean;
-  onToggleTrajectory: () => void;
-  showDH: boolean;
-  onToggleDH: () => void;
-  showDataOverlay: boolean;
-  onToggleDataOverlay: () => void;
-  onCameraView: (view: 'front' | 'side' | 'top' | 'free') => void;
   onSaveOrigin: () => void;
   onGoToOrigin: () => void;
   onGoToZero: () => void;
@@ -20,22 +10,24 @@ interface ViewportHUDProps {
 }
 
 export default function ViewportHUD({
-  showGrid,
-  onToggleGrid,
-  showAxes,
-  onToggleAxes,
-  showTrajectory,
-  onToggleTrajectory,
-  showDH,
-  onToggleDH,
-  showDataOverlay,
-  onToggleDataOverlay,
-  onCameraView,
   onSaveOrigin,
   onGoToOrigin,
   onGoToZero,
   hasOrigin,
 }: ViewportHUDProps) {
+  const {
+    showGrid,
+    showAxes,
+    showTrajectory,
+    showDH,
+    showDataOverlay,
+    toggleGrid,
+    toggleAxes,
+    toggleTrajectory,
+    toggleDH,
+    toggleDataOverlay,
+    setCameraView,
+  } = useSceneViewport();
   const viewButtons = [
     { label: '正视', view: 'front' as const },
     { label: '侧视', view: 'side' as const },
@@ -44,11 +36,11 @@ export default function ViewportHUD({
   ];
 
   const toggleButtons = [
-    { label: '网格', icon: Grid3X3, active: showGrid, onClick: onToggleGrid },
-    { label: '坐标系', icon: Eye, active: showAxes, onClick: onToggleAxes },
-    { label: '轨迹', icon: Route, active: showTrajectory, onClick: onToggleTrajectory },
-    { label: 'DH表', icon: Table, active: showDH, onClick: onToggleDH },
-    { label: '位置', icon: MapPin, active: showDataOverlay, onClick: onToggleDataOverlay },
+    { label: '网格', icon: Grid3X3, active: showGrid, onClick: toggleGrid },
+    { label: '坐标系', icon: Eye, active: showAxes, onClick: toggleAxes },
+    { label: '轨迹', icon: Route, active: showTrajectory, onClick: toggleTrajectory },
+    { label: 'DH表', icon: Table, active: showDH, onClick: toggleDH },
+    { label: '位置', icon: MapPin, active: showDataOverlay, onClick: toggleDataOverlay },
   ];
 
   return (
@@ -90,7 +82,7 @@ export default function ViewportHUD({
           <button
             type="button"
             key={btn.view}
-            onClick={() => onCameraView(btn.view)}
+            onClick={() => setCameraView(btn.view)}
             className="px-2 py-0.5 text-xs font-medium text-[#1E293B] hover:bg-[#F3F4F6] rounded-sm transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
           >
             {btn.label}

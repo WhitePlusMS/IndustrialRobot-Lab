@@ -1,20 +1,27 @@
 // src/components/GLBRobotArm.tsx
 // 从GLB模型动态构建六轴可动机械臂
 // 根据GLB节点名称自动识别关节位置和层级，所有参数动态计算
-import { useMemo, useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useGLTF } from '@react-three/drei';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { Matrix, SingularValueDecomposition } from 'ml-matrix';
 import type { JointAngles } from '@/types/robot';
 import { KUKA_LIKE } from '@/lib/robot-config';
 import { dhTransform } from '@/lib/kinematics';
 import { Matrix4x4 } from '@/lib/matrix4x4';
+import { robotPoseBridge } from '@/lib/robot-pose-bridge';
+import type { RobotPoseAPI } from '@/lib/robot-pose-bridge';
+import type { Pose } from '@/types/robot';
+import { quaternionToRotationMatrix, rotationMatrixToEulerZYX } from '@/lib/math/rotation3d';
 
 interface GLBRobotArmProps {
   joints: JointAngles;
   onTrajectoryPoint?: (pos: [number, number, number]) => void;
   selectedTool?: string;
   onToolList?: (tools: string[]) => void;
+  /** 滑块/输入框直接写入的目标关节 ref；存在时 useFrame 直接读 ref，跳过 React 渲染链路 */
+  sliderTargetRef?: React.MutableRefObject<JointAngles>;
 }
 
 // 关节名称列表（KUKA标准六轴）
@@ -250,7 +257,7 @@ function deriveDhCandidatesFromPivots(
       x = normalizeTuple(projected);
     }
 
-    let y = normalizeTuple(crossTuple(z, x));
+    const y = normalizeTuple(crossTuple(z, x));
     x = normalizeTuple(crossTuple(y, z));
 
     frames.push({
@@ -386,83 +393,6 @@ function computeDhFramesMm(jointsDeg: JointAngles) {
   return frames;
 }
 
-function extractRotation3(transform: Matrix4x4): number[][] {
-  return [
-    [transform.data[0][0], transform.data[0][1], transform.data[0][2]],
-    [transform.data[1][0], transform.data[1][1], transform.data[1][2]],
-    [transform.data[2][0], transform.data[2][1], transform.data[2][2]],
-  ];
-}
-
-function computeDhFrameDetails(jointsDeg: JointAngles) {
-  const dhVals = Object.values(KUKA_LIKE.dhParams);
-  const jointsRad = jointsDeg.map((value) => (value * Math.PI) / 180) as JointAngles;
-  const frames: {
-    name: string;
-    positionMm: [number, number, number];
-    rotation: number[][];
-    axes: {
-      x: [number, number, number];
-      y: [number, number, number];
-      z: [number, number, number];
-    };
-  }[] = [];
-
-  let transform = new Matrix4x4([
-    [1, 0, 0, 0],
-    [0, 1, 0, 0],
-    [0, 0, 1, 0],
-    [0, 0, 0, 1],
-  ]);
-
-  JOINT_NAMES.forEach((name, index) => {
-    const dh = dhVals[index];
-    const theta =
-      jointsRad[index] * (dh.thetaSign ?? 1) + (dh.thetaOffset ?? 0);
-    transform = transform.multiply(dhTransform(theta, dh.d, dh.a, dh.alpha));
-    const rotation = extractRotation3(transform);
-    frames.push({
-      name,
-      positionMm: [
-        roundValue(transform.data[0][3], 1),
-        roundValue(transform.data[1][3], 1),
-        roundValue(transform.data[2][3], 1),
-      ],
-      rotation,
-      axes: {
-        x: normalizeTuple([rotation[0][0], rotation[1][0], rotation[2][0]]),
-        y: normalizeTuple([rotation[0][1], rotation[1][1], rotation[2][1]]),
-        z: normalizeTuple([rotation[0][2], rotation[1][2], rotation[2][2]]),
-      },
-    });
-  });
-
-  return frames;
-}
-
-function applyBasisToDirection(
-  basis: {
-    x: [number, number, number];
-    y: [number, number, number];
-    z: [number, number, number];
-  },
-  direction: [number, number, number]
-): [number, number, number] {
-  return normalizeTuple([
-    basis.x[0] * direction[0] + basis.y[0] * direction[1] + basis.z[0] * direction[2],
-    basis.x[1] * direction[0] + basis.y[1] * direction[1] + basis.z[1] * direction[2],
-    basis.x[2] * direction[0] + basis.y[2] * direction[1] + basis.z[2] * direction[2],
-  ]);
-}
-
-function angleBetweenDirectionsDeg(
-  a: [number, number, number],
-  b: [number, number, number]
-) {
-  const cosine = Math.max(-1, Math.min(1, dotTuple(normalizeTuple(a), normalizeTuple(b))));
-  return roundValue((Math.acos(cosine) * 180) / Math.PI, 2);
-}
-
 function matrixToTuple3(matrix: Matrix): [number, number, number] {
   return [matrix.get(0, 0), matrix.get(1, 0), matrix.get(2, 0)];
 }
@@ -568,255 +498,6 @@ function alignDhFramesToWorld(
         rotated[1] + frameAlignment.translationMm[1],
         rotated[2] + frameAlignment.translationMm[2],
       ], 1),
-    };
-  });
-}
-
-function buildDhComparison(
-  jointsDeg: JointAngles,
-  debugState: ReturnType<typeof captureArmDebugState>,
-  calibrationReport: ReturnType<typeof buildCalibrationReport>
-) {
-  const dhFrameDetails = computeDhFrameDetails(jointsDeg);
-  const dhFramesMm = dhFrameDetails.map((frame) => ({
-    name: frame.name,
-    positionMm: frame.positionMm,
-  }));
-  const zeroPoseAlignment = calibrationReport.zeroPoseFrameAlignment;
-  const bestFitAlignment = calibrationReport.bestFitRigidAlignment;
-
-  const alignedDhFramesMm = bestFitAlignment
-    ? alignDhFramesToWorld(bestFitAlignment, dhFramesMm)
-    : zeroPoseAlignment
-      ? alignDhFramesToWorld(zeroPoseAlignment, dhFramesMm)
-      : null;
-  const zeroPoseAlignedDhFramesMm = zeroPoseAlignment
-    ? alignDhFramesToWorld(zeroPoseAlignment, dhFramesMm)
-    : null;
-
-  const alignedDhAxes = zeroPoseAlignment
-    ? dhFrameDetails.map((frame) => ({
-        name: frame.name,
-        axes: {
-          x: applyBasisToDirection(zeroPoseAlignment.basisAxesDhToWorld, frame.axes.x),
-          y: applyBasisToDirection(zeroPoseAlignment.basisAxesDhToWorld, frame.axes.y),
-          z: applyBasisToDirection(zeroPoseAlignment.basisAxesDhToWorld, frame.axes.z),
-        },
-      }))
-    : null;
-  const alignedDhFramesByName = new Map(
-    alignedDhFramesMm?.map((frame) => [frame.name, frame]) ?? []
-  );
-  const zeroPoseAlignedDhFramesByName = new Map(
-    zeroPoseAlignedDhFramesMm?.map((frame) => [frame.name, frame]) ?? []
-  );
-  const compareFrames = () =>
-    JOINT_NAMES.map((name) => {
-      const frame = alignedDhFramesByName.get(name) ?? null;
-      const zeroPoseFrame = zeroPoseAlignedDhFramesByName.get(name) ?? null;
-      if (!frame) {
-        return {
-          name,
-          dhPositionMm: null,
-          namedNodePositionMm: null,
-          pivotPositionMm: null,
-          namedNodeErrorMm: null,
-          namedNodeErrorNormMm: null,
-          pivotErrorMm: null,
-          pivotErrorNormMm: null,
-          zeroPoseDhPositionMm: zeroPoseFrame?.positionMm ?? null,
-          zeroPosePivotErrorMm: null,
-          zeroPosePivotErrorNormMm: null,
-          predictedAxesWorld: null,
-          actualPivotAxisWorld: null,
-          pivotAxisAngleErrorDeg: null,
-        };
-      }
-
-      const namedNode = namedNodeMap.get(name) ?? null;
-      const pivot = pivotMap.get(name) ?? null;
-      const actualPivot = debugState.jointPivots.find((item) => item.name === name) ?? null;
-      const alignedAxes = alignedDhAxes?.find((item) => item.name === name)?.axes ?? null;
-      const nodeError = namedNode
-        ? roundTuple(subTuple(frame.positionMm, namedNode), 1)
-        : null;
-      const pivotError = pivot
-        ? roundTuple(subTuple(frame.positionMm, pivot), 1)
-        : null;
-      const zeroPosePivotError = zeroPoseFrame && pivot
-        ? roundTuple(subTuple(zeroPoseFrame.positionMm, pivot), 1)
-        : null;
-
-      return {
-        name,
-        dhPositionMm: frame.positionMm,
-        namedNodePositionMm: namedNode,
-        pivotPositionMm: pivot,
-        namedNodeErrorMm: nodeError,
-        namedNodeErrorNormMm: namedNode ? roundValue(distanceMm(frame.positionMm, namedNode), 1) : null,
-        pivotErrorMm: pivotError,
-        pivotErrorNormMm: pivot ? roundValue(distanceMm(frame.positionMm, pivot), 1) : null,
-        zeroPoseDhPositionMm: zeroPoseFrame?.positionMm ?? null,
-        zeroPosePivotErrorMm: zeroPosePivotError,
-        zeroPosePivotErrorNormMm:
-          zeroPoseFrame && pivot ? roundValue(distanceMm(zeroPoseFrame.positionMm, pivot), 1) : null,
-        predictedAxesWorld: alignedAxes,
-        actualPivotAxisWorld: actualPivot?.worldAxis ?? null,
-        pivotAxisAngleErrorDeg:
-          alignedAxes && actualPivot
-            ? angleBetweenDirectionsDeg(alignedAxes.z, actualPivot.worldAxis)
-            : null,
-      };
-    });
-
-  const namedNodeMap = new Map<string, [number, number, number]>();
-  debugState.namedNodes.forEach((node) => {
-    namedNodeMap.set(node.name, node.worldPositionMm);
-  });
-  const pivotMap = new Map<string, [number, number, number]>();
-  debugState.jointPivots.forEach((pivot) => {
-    pivotMap.set(pivot.name, pivot.worldPositionMm);
-  });
-
-  return {
-    jointsDeg: [...jointsDeg] as JointAngles,
-    zeroPoseFrameAlignment: zeroPoseAlignment,
-    bestFitRigidAlignment: bestFitAlignment,
-    dhFrameDetails,
-    dhFramesMm,
-    alignedDhFramesMm,
-    zeroPoseAlignedDhFramesMm,
-    alignedFrameComparisons: alignedDhFramesMm ? compareFrames() : null,
-  };
-}
-
-function projectWorldVectorToFrame(
-  frameAxes: {
-    x: [number, number, number];
-    y: [number, number, number];
-    z: [number, number, number];
-  },
-  vectorWorld: [number, number, number]
-): [number, number, number] {
-  return [
-    roundValue(dotTuple(vectorWorld, frameAxes.x), 1),
-    roundValue(dotTuple(vectorWorld, frameAxes.y), 1),
-    roundValue(dotTuple(vectorWorld, frameAxes.z), 1),
-  ];
-}
-
-function buildPivotResidualSuggestions(
-  comparison: ReturnType<typeof buildDhComparison>
-) {
-  if (!comparison.alignedFrameComparisons) return null;
-
-  const frameMap = new Map(
-    comparison.alignedFrameComparisons.map((item) => [item.name, item])
-  );
-
-  return JOINT_NAMES.slice(1).map((name, index) => {
-    const parentName = JOINT_NAMES[index];
-    const parent = frameMap.get(parentName);
-    const current = frameMap.get(name);
-    if (!parent || !current || !parent.predictedAxesWorld || !current.pivotPositionMm || !parent.pivotPositionMm) {
-      return null;
-    }
-
-    const predictedVectorWorld = subTuple(
-      current.dhPositionMm,
-      parent.dhPositionMm
-    );
-    const actualVectorWorld = subTuple(
-      current.pivotPositionMm,
-      parent.pivotPositionMm
-    );
-    const residualVectorWorld = subTuple(
-      actualVectorWorld,
-      predictedVectorWorld
-    );
-
-    return {
-      parent: parentName,
-      joint: name,
-      predictedVectorWorldMm: roundTuple(predictedVectorWorld, 1),
-      actualVectorWorldMm: roundTuple(actualVectorWorld, 1),
-      residualVectorWorldMm: roundTuple(residualVectorWorld, 1),
-      residualInParentFrameMm: projectWorldVectorToFrame(
-        parent.predictedAxesWorld,
-        residualVectorWorld
-      ),
-      residualInJointFrameMm: current.predictedAxesWorld
-        ? projectWorldVectorToFrame(
-            current.predictedAxesWorld,
-            residualVectorWorld
-          )
-        : null,
-    };
-  }).filter((item): item is NonNullable<typeof item> => item !== null);
-}
-
-function quaternionToAxes(
-  quaternion: [number, number, number, number]
-): {
-  x: [number, number, number];
-  y: [number, number, number];
-  z: [number, number, number];
-} {
-  const [x, y, z, w] = quaternion;
-  const xx = x * x;
-  const yy = y * y;
-  const zz = z * z;
-  const xy = x * y;
-  const xz = x * z;
-  const yz = y * z;
-  const wx = w * x;
-  const wy = w * y;
-  const wz = w * z;
-
-  const rotation = [
-    [1 - 2 * (yy + zz), 2 * (xy - wz), 2 * (xz + wy)],
-    [2 * (xy + wz), 1 - 2 * (xx + zz), 2 * (yz - wx)],
-    [2 * (xz - wy), 2 * (yz + wx), 1 - 2 * (xx + yy)],
-  ];
-  return {
-    x: normalizeTuple([rotation[0][0], rotation[1][0], rotation[2][0]]),
-    y: normalizeTuple([rotation[0][1], rotation[1][1], rotation[2][1]]),
-    z: normalizeTuple([rotation[0][2], rotation[1][2], rotation[2][2]]),
-  };
-}
-
-function buildPivotOffsetModelSuggestions(
-  debugState: ReturnType<typeof captureArmDebugState>,
-  residualSuggestions: ReturnType<typeof buildPivotResidualSuggestions>
-) {
-  if (!residualSuggestions) return null;
-
-  const nodeMap = new Map(
-    debugState.namedNodes.map((node) => [node.name, node])
-  );
-
-  return residualSuggestions.map((item) => {
-    const parentNode = nodeMap.get(item.parent);
-    if (!parentNode) {
-      return {
-        ...item,
-        residualInParentModelAxesMm: null,
-        suggestedPivotOffsetDeltaMm: null,
-      };
-    }
-
-    const parentAxes = quaternionToAxes(parentNode.worldQuaternion);
-    const residualInParentModelAxesMm = projectWorldVectorToFrame(
-      parentAxes,
-      item.residualVectorWorldMm
-    );
-
-    return {
-      ...item,
-      residualInParentModelAxesMm,
-      suggestedPivotOffsetDeltaMm: residualInParentModelAxesMm.map((value) =>
-        roundValue(-value, 1)
-      ) as [number, number, number],
     };
   });
 }
@@ -1044,20 +725,6 @@ function restorePivotQuaternions(root: THREE.Group, quaternions: THREE.Quaternio
   root.updateMatrixWorld(true);
 }
 
-function captureArmDebugState(root: THREE.Group) {
-  root.updateMatrixWorld(true);
-
-  const flange = findNode(root, '快拆机器人端口');
-  const flangeSnapshot = flange ? captureNodeSnapshot(flange) : null;
-
-  return {
-    jointPivots: collectJointDebugSnapshots(root),
-    namedNodes: collectNamedNodeSnapshots(root),
-    meshNodes: collectInterestingMeshSnapshots(root),
-    flange: flangeSnapshot,
-  };
-}
-
 /**
  * 构建可动关节层级
  * 对每个关节节点，在其上方插入一个PivotGroup用于旋转
@@ -1184,19 +851,16 @@ export default function GLBRobotArm({
   onTrajectoryPoint,
   selectedTool = '无',
   onToolList,
+  sliderTargetRef,
 }: GLBRobotArmProps) {
   const { scene } = useGLTF('/models/KUKA_V1.glb');
 
-  const armRef = useRef<THREE.Group | null>(null);
-  const previousJointsRef = useRef<JointAngles | null>(null);
-
+  // 在渲染路径内一次性构建 Three.js 层级，保证对象在首帧即可挂载到 R3F 场景。
+  // useMemo 只依赖 scene，避免 joints 变化时重复构建；初始角度由 buildArticulated 应用一次即可。
   const arm = useMemo(() => {
     if (!scene) return null;
-    if (armRef.current) return armRef.current;
-
     console.log('[GLBRobotArm] 构建关节层级...');
     const built = buildArticulated(scene as THREE.Group, joints);
-    armRef.current = built;
 
     JOINT_NAMES.forEach((name) => {
       const pivot = findNode(built, `Pivot_${name}`);
@@ -1209,46 +873,65 @@ export default function GLBRobotArm({
       }
     });
 
-    previousJointsRef.current = [...joints];
     return built;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scene]);
 
-  // ===== DH 标定：归零后测量 GLB 模型各关节世界坐标 =====
+  const currentJointsRef = useRef<JointAngles>([...joints]);
+  const targetJointsRef = useRef<JointAngles>([...joints]);
+  const lastTrajectoryTimeRef = useRef<number>(0);
+
+  // ===== DH 标定：归零后测量 GLB 模型各关节世界坐标（仅日志输出，不再注入 window） =====
   const calibratedRef = useRef(false);
   useEffect(() => {
     if (!arm || calibratedRef.current) return;
     calibratedRef.current = true;
-    (window as any).__GLB_ARM_MOUNTED = true;
     const report = buildCalibrationReport(arm);
-    (window as any).__GLB_CALIBRATION = report;
     console.log('[GLBRobotArm] 零位标定报告:', report);
   }, [arm]);
 
+  // 目标关节角度随 props 更新
   useEffect(() => {
+    targetJointsRef.current = [...joints];
+  }, [joints]);
+
+  // 在渲染循环中把 current 插值到 target，直接操作 Three.js 对象，避免 React 渲染延迟
+  useFrame((_, delta) => {
     if (!arm) return;
 
-    if (previousJointsRef.current) {
-      const same = previousJointsRef.current.every((v, i) => v === joints[i]);
-      if (same) return;
+    const current = currentJointsRef.current;
+    // 优先读 slider 直接写入的 ref，避免 React 高频 setState 导致丢帧/瞬移
+    const target = sliderTargetRef?.current ?? targetJointsRef.current;
+    const factor = Math.min(delta * 60, 1); // 高密度目标更新下几乎即时追上，同时保留一帧级平滑
+
+    let changed = false;
+    const next = current.map((c, i) => {
+      const diff = target[i] - c;
+      if (Math.abs(diff) < 0.005) return target[i];
+      changed = true;
+      return c + diff * factor;
+    }) as JointAngles;
+
+    if (changed) {
+      applyJointAngles(arm, next);
+      currentJointsRef.current = next;
     }
 
-    applyJointAngles(arm, joints);
-    previousJointsRef.current = [...joints];
-  }, [arm, joints]);
-
-  useEffect(() => {
-    if (!arm || !onTrajectoryPoint) return;
-
-    if (previousJointsRef.current) {
-      arm.updateMatrixWorld(true);
-      const flangeNode = findNode(arm, '快拆机器人端口');
-      if (flangeNode) {
-        const worldPos = new THREE.Vector3();
-        flangeNode.getWorldPosition(worldPos);
-        onTrajectoryPoint([worldPos.x, worldPos.y, worldPos.z]);
+    // 轨迹采样：每 50ms 或角度变化明显时记录一次
+    if (onTrajectoryPoint) {
+      const now = performance.now();
+      if (now - lastTrajectoryTimeRef.current > 50) {
+        lastTrajectoryTimeRef.current = now;
+        arm.updateMatrixWorld(true);
+        const flangeNode = findNode(arm, '快拆机器人端口');
+        if (flangeNode) {
+          const worldPos = new THREE.Vector3();
+          flangeNode.getWorldPosition(worldPos);
+          onTrajectoryPoint([worldPos.x, worldPos.y, worldPos.z]);
+        }
       }
     }
-  }, [arm, joints, onTrajectoryPoint]);
+  });
 
   useEffect(() => {
     if (!scene || !onToolList) return;
@@ -1274,11 +957,15 @@ export default function GLBRobotArm({
     });
   }, [arm, selectedTool]);
 
+  // 注册 GLB 位姿能力到应用级 bridge，替代 window.__GLB_* 全局注入
   useEffect(() => {
-    if (!arm) return;
+    if (!arm) {
+      robotPoseBridge.setAPI(null);
+      return;
+    }
     const currentArm = arm;
-    const getCalibrationReport = () => buildCalibrationReport(currentArm);
-    (window as any).__GLB_getFlangeMatrix = () => {
+
+    const getFlangeMatrix = () => {
       currentArm.updateMatrixWorld(true);
       const flange = findNode(currentArm, '快拆机器人端口');
       if (!flange) return null;
@@ -1290,18 +977,11 @@ export default function GLBRobotArm({
       m.decompose(pos, quat, new THREE.Vector3());
       return {
         position: [pos.x, pos.y, pos.z] as [number, number, number],
-        rotation: [
-          [m.elements[0], m.elements[1], m.elements[2]],
-          [m.elements[4], m.elements[5], m.elements[6]],
-          [m.elements[8], m.elements[9], m.elements[10]],
-        ] as number[][],
+        rotation: quaternionToRotationMatrix([quat.x, quat.y, quat.z, quat.w]),
       };
     };
-    (window as any).__GLB_applyJoints = (angles: number[]) => {
-      applyJointAngles(currentArm, angles as JointAngles);
-      currentArm.updateMatrixWorld(true);
-    };
-    (window as any).__GLB_capturePoseForJoints = (angles: number[]) => {
+
+    const capturePoseForJoints = (angles: number[]): Pose | null => {
       const savedQuaternions = captureCurrentPivotQuaternions(currentArm);
       applyJointAngles(currentArm, angles as JointAngles);
       currentArm.updateMatrixWorld(true);
@@ -1320,95 +1000,25 @@ export default function GLBRobotArm({
       const scale = new THREE.Vector3();
       matrix.decompose(pos, quat, scale);
 
-      const snapshot = {
-        jointsDeg: [...angles] as JointAngles,
+      const rotation = quaternionToRotationMatrix([quat.x, quat.y, quat.z, quat.w]);
+      const snapshot: Pose = {
         position: [pos.x, pos.y, pos.z] as [number, number, number],
-        quaternion: [quat.x, quat.y, quat.z, quat.w] as [number, number, number, number],
-        scale: [scale.x, scale.y, scale.z] as [number, number, number],
-        rotation: [
-          [matrix.elements[0], matrix.elements[1], matrix.elements[2]],
-          [matrix.elements[4], matrix.elements[5], matrix.elements[6]],
-          [matrix.elements[8], matrix.elements[9], matrix.elements[10]],
-        ] as number[][],
+        euler: rotationMatrixToEulerZYX(rotation),
+        rotation,
       };
       restorePivotQuaternions(currentArm, savedQuaternions);
       return snapshot;
     };
-    (window as any).__GLB_captureDebugStateForJoints = (angles: number[]) => {
-      const savedQuaternions = captureCurrentPivotQuaternions(currentArm);
-      applyJointAngles(currentArm, angles as JointAngles);
-      const snapshot = captureArmDebugState(currentArm);
-      restorePivotQuaternions(currentArm, savedQuaternions);
-      return {
-        jointsDeg: [...angles] as JointAngles,
-        ...snapshot,
-      };
+
+    const api: RobotPoseAPI = {
+      isAvailable: () => true,
+      getFlangeMatrix,
+      capturePoseForJoints,
     };
-    (window as any).__GLB_getCurrentDebugState = () => {
-      return captureArmDebugState(currentArm);
-    };
-    (window as any).__GLB_compareDhForJoints = (angles: number[]) => {
-      const jointsDeg = [...angles] as JointAngles;
-      const savedQuaternions = captureCurrentPivotQuaternions(currentArm);
-      applyJointAngles(currentArm, jointsDeg);
-      const debugState = captureArmDebugState(currentArm);
-      restorePivotQuaternions(currentArm, savedQuaternions);
-      const comparison = buildDhComparison(jointsDeg, debugState, getCalibrationReport());
-      const pivotResidualSuggestions = buildPivotResidualSuggestions(comparison);
-      return {
-        ...comparison,
-        pivotResidualSuggestions,
-        pivotOffsetModelSuggestions: buildPivotOffsetModelSuggestions(
-          debugState,
-          pivotResidualSuggestions
-          ),
-        };
-      };
-    (window as any).__GLB_compareDhForAxisOverride = (
-      jointName: string,
-      axisTuple: [number, number, number],
-      angles: number[]
-    ) => {
-      const jointsDeg = [...angles] as JointAngles;
-      const savedQuaternions = captureCurrentPivotQuaternions(currentArm);
-      const axisOverrides: Partial<Record<string, THREE.Vector3>> = {
-        [jointName]: new THREE.Vector3(axisTuple[0], axisTuple[1], axisTuple[2]).normalize(),
-      };
-      applyJointAngles(currentArm, jointsDeg, axisOverrides);
-      const debugState = captureArmDebugState(currentArm);
-      restorePivotQuaternions(currentArm, savedQuaternions);
-      return buildDhComparison(jointsDeg, debugState, getCalibrationReport());
-    };
-    (window as any).__GLB_scanSingleJoint = (
-      jointIndex: number,
-      samplesDeg: number[],
-      baseJoints?: number[]
-    ) => {
-      const seed = (baseJoints?.length === 6 ? [...baseJoints] : [0, 0, 0, 0, 0, 0]) as JointAngles;
-      return samplesDeg.map((sampleDeg) => {
-        const jointsDeg = [...seed] as JointAngles;
-        jointsDeg[jointIndex] = sampleDeg;
-        return (window as any).__GLB_compareDhForJoints(jointsDeg);
-      });
-    };
-    (window as any).__GLB_dumpCalibration = () => {
-      const report = getCalibrationReport();
-      (window as any).__GLB_CALIBRATION = report;
-      console.log('[GLBRobotArm] 手动导出标定报告:', report);
-      return report;
-    };
+
+    robotPoseBridge.setAPI(api);
     return () => {
-      delete (window as any).__GLB_ARM_MOUNTED;
-      delete (window as any).__GLB_getFlangeMatrix;
-      delete (window as any).__GLB_applyJoints;
-      delete (window as any).__GLB_capturePoseForJoints;
-      delete (window as any).__GLB_captureDebugStateForJoints;
-      delete (window as any).__GLB_getCurrentDebugState;
-      delete (window as any).__GLB_compareDhForJoints;
-      delete (window as any).__GLB_compareDhForAxisOverride;
-      delete (window as any).__GLB_scanSingleJoint;
-      delete (window as any).__GLB_dumpCalibration;
-      delete (window as any).__GLB_CALIBRATION;
+      robotPoseBridge.setAPI(null);
     };
   }, [arm]);
 

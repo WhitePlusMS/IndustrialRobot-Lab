@@ -1,9 +1,9 @@
 // src/components/operation/GraspOperations.tsx
 import { Box, Power, PowerOff, Play, Grip } from 'lucide-react';
-import type { OperationPanelProps } from './OperationPanel';
+import type { OperationPanelData } from './OperationPanel';
 import SequenceEditor from '@/components/sequence/SequenceEditor';
 
-export default function GraspOperations(props: OperationPanelProps) {
+export default function GraspOperations(props: OperationPanelData) {
   const stepId = props.currentStep.id;
   const isFree = props.mode === 'free';
 

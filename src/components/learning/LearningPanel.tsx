@@ -1,7 +1,8 @@
 // src/components/learning/LearningPanel.tsx
 import { ListOrdered, Lightbulb, BookOpen, ChevronLeft, ChevronRight } from 'lucide-react';
-import type { ModuleId, LearningSubTab } from '@/lib/course-config';
+import type { LearningSubTab } from '@/lib/course-config';
 import { getModuleById } from '@/lib/course-config';
+import { useLearning } from '@/contexts/LearningContext';
 import ModuleTabs from './ModuleTabs';
 import ProgressBar from './ProgressBar';
 import StepList from './StepList';
@@ -10,17 +11,8 @@ import TheoryPanel from './TheoryPanel';
 import LearningNav from './LearningNav';
 
 interface LearningPanelProps {
-  currentModule: ModuleId;
-  currentStep: number;
-  subTab: LearningSubTab;
-  completedSteps: Set<string>;
   collapsed: boolean;
   onCollapse: () => void;
-  onModuleChange: (module: ModuleId) => void;
-  onStepClick: (index: number) => void;
-  onSubTabChange: (tab: LearningSubTab) => void;
-  onPrev: () => void;
-  onNext: () => void;
 }
 
 const subTabs: { id: LearningSubTab; label: string; icon: typeof ListOrdered }[] = [
@@ -30,22 +22,24 @@ const subTabs: { id: LearningSubTab; label: string; icon: typeof ListOrdered }[]
 ];
 
 export default function LearningPanel({
-  currentModule,
-  currentStep,
-  subTab,
-  completedSteps,
   collapsed,
   onCollapse,
-  onModuleChange,
-  onStepClick,
-  onSubTabChange,
-  onPrev,
-  onNext,
 }: LearningPanelProps) {
+  const {
+    currentModule,
+    currentStepIndex: currentStep,
+    currentStep: step,
+    learningSubTab: subTab,
+    completedSteps,
+    setCurrentModule: onModuleChange,
+    setCurrentStepIndex: onStepClick,
+    setLearningSubTab: onSubTabChange,
+    goToPrevStep: onPrev,
+    goToNextStep: onNext,
+  } = useLearning();
+
   const module = getModuleById(currentModule);
   if (!module) return null;
-
-  const step = module.steps[currentStep];
 
   if (collapsed) {
     return (

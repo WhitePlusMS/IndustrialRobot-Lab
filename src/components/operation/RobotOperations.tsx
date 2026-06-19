@@ -1,13 +1,13 @@
 // src/components/operation/RobotOperations.tsx
 import { useState } from 'react';
 import { Bot, RotateCcw } from 'lucide-react';
-import type { OperationPanelProps } from './OperationPanel';
+import type { OperationPanelData } from './OperationPanel';
 import JointAngleCard from '@/components/JointAngleCard';
 import PoseControlCard from '@/components/PoseControlCard';
 import PositionTargetCard from '@/components/PositionTargetCard';
 import WaypointPanel from '@/components/WaypointPanel';
 
-export default function RobotOperations(props: OperationPanelProps) {
+export default function RobotOperations(props: OperationPanelData) {
   const stepId = props.currentStep.id;
   const isFree = props.mode === 'free';
 
@@ -196,6 +196,8 @@ export default function RobotOperations(props: OperationPanelProps) {
             jointStep={props.jointStep}
             onJointStepChange={props.onJointStepChange}
             onAdjustJoint={props.onAdjustJoint}
+            onSetJoint={props.onSetJoint}
+            sliderTargetRef={props.sliderTargetRef}
             onReset={props.onReset}
             onRandom={props.onRandom}
           />

@@ -17,6 +17,8 @@ import DemoPartsRenderer from '@/components/camera/DemoPartsRenderer';
 import type { DemoPart } from '@/hooks/useDemoParts';
 import type { BoxState } from '@/hooks/useSuckerControl';
 import type { BoxSpawnParams } from '@/types/sequence';
+import { SceneRendererProvider } from '@/contexts/SceneRendererContext';
+import { sceneRendererBridge } from '@/lib/scene-renderer-bridge';
 
 /** DH 坐标(mm) → Three.js GLB 场景坐标(m) 近似转换（DH与GLB坐标系不同，仅用于视觉近似） */
 export function dhPosToScene(pos: [number, number, number]): [number, number, number] {
@@ -34,6 +36,8 @@ interface RobotSceneProps {
   selectedTool?: string;
   onToolList?: (tools: string[]) => void;
   cameraState?: CameraState;
+  /** 滑块/输入框直接写入的目标关节 ref；3D 层每帧读取，避免 React 高频重绘 */
+  sliderTargetRef?: React.MutableRefObject<JointAngles>;
   // 箱子/吸盘
   boxPosition?: [number, number, number];
   boxState?: BoxState;
@@ -94,18 +98,22 @@ function TrajectoryLine({ points, visible }: { points: [number, number, number][
   return <primitive object={new THREE.Line(geometry, material)} />;
 }
 
-// 注入渲染器/场景到全局变量，供拍照引擎使用
-function CaptureInjector() {
+// 向 Context + bridge 同时提供 renderer/scene，供拍照引擎使用
+function SceneRendererBridge() {
   const { gl, scene } = useThree();
   useEffect(() => {
-    (window as any).__SCENE_CONTENT_MOUNTED = true;
-    (window as any).__R3F_CAPTURE = { renderer: gl, scene };
+    const api = { renderer: gl, scene };
+    sceneRendererBridge.setAPI(api);
     return () => {
-      delete (window as any).__SCENE_CONTENT_MOUNTED;
-      delete (window as any).__R3F_CAPTURE;
+      sceneRendererBridge.setAPI(null);
     };
   }, [gl, scene]);
   return null;
+}
+
+function SceneRendererProviderInner({ children }: { children: React.ReactNode }) {
+  const { gl, scene } = useThree();
+  return <SceneRendererProvider api={{ renderer: gl, scene }}>{children}</SceneRendererProvider>;
 }
 
 // 物理更新循环
@@ -146,6 +154,7 @@ function SceneContent({
   selectedTool,
   onToolList,
   cameraState,
+  sliderTargetRef,
   boxPosition,
   boxState,
   checkAttachment,
@@ -197,9 +206,9 @@ function SceneContent({
   }, [cameraPosition, camera, prefersReducedMotion]);
 
   return (
-    <>
+    <SceneRendererProviderInner>
       {/* 注入渲染器/场景到全局，供拍照引擎使用 */}
-      <CaptureInjector />
+      <SceneRendererBridge />
 
       <ambientLight intensity={0.6} />
       <directionalLight
@@ -229,7 +238,7 @@ function SceneContent({
 
       {/* GLB机械臂模型 */}
       <Suspense fallback={<LoadingPlaceholder />}>
-        <GLBRobotArm joints={joints} onTrajectoryPoint={onTrajectoryPoint} selectedTool={selectedTool} onToolList={onToolList} />
+        <GLBRobotArm joints={joints} sliderTargetRef={sliderTargetRef} onTrajectoryPoint={onTrajectoryPoint} selectedTool={selectedTool} onToolList={onToolList} />
       </Suspense>
 
       <TrajectoryLine points={trajectory} visible={showTrajectory} />
@@ -303,7 +312,7 @@ function SceneContent({
         maxDistance={20}
         target={[0, 1, 0]}
       />
-    </>
+    </SceneRendererProviderInner>
   );
 }
 

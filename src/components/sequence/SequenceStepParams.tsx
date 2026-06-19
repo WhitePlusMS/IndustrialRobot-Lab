@@ -1,6 +1,6 @@
 // src/components/sequence/SequenceStepParams.tsx
 import type { ActionStep } from '@/types/sequence';
-import type { Waypoint } from '@/hooks/useRobotKinematics';
+import type { Waypoint } from '@/hooks/useRobot';
 
 interface SequenceStepParamsProps {
   step: ActionStep | null;

@@ -2,7 +2,7 @@
 // 自由练习模式右侧面板：方案 5 落地
 // 保留原 ControlPanel 的 Tab + 可折叠卡片结构，换用当前项目的新视觉风格
 import { useState } from 'react';
-import type { OperationPanelProps } from './OperationPanel';
+import type { OperationPanelData } from './OperationPanel';
 import JointAngleCard from '@/components/JointAngleCard';
 import PoseControlCard from '@/components/PoseControlCard';
 import PositionTargetCard from '@/components/PositionTargetCard';
@@ -29,7 +29,7 @@ const boxStateText: Record<string, string> = {
   RESTING: '静止',
 };
 
-export default function FreeOperationPanel(props: OperationPanelProps) {
+export default function FreeOperationPanel(props: OperationPanelData) {
   const [activeTab, setActiveTab] = useState<FreeTab>('robot');
 
   return (
@@ -64,7 +64,7 @@ export default function FreeOperationPanel(props: OperationPanelProps) {
   );
 }
 
-function RobotTab(props: OperationPanelProps) {
+function RobotTab(props: OperationPanelData) {
   return (
     <div className="space-y-4">
       <StatusBar>
@@ -77,6 +77,8 @@ function RobotTab(props: OperationPanelProps) {
         jointStep={props.jointStep}
         onJointStepChange={props.onJointStepChange}
         onAdjustJoint={props.onAdjustJoint}
+        onSetJoint={props.onSetJoint}
+        sliderTargetRef={props.sliderTargetRef}
         onReset={props.onReset}
         onRandom={props.onRandom}
       />
@@ -102,7 +104,7 @@ function RobotTab(props: OperationPanelProps) {
   );
 }
 
-function CameraTab(props: OperationPanelProps) {
+function CameraTab(props: OperationPanelData) {
   return (
     <div className="space-y-4">
       <StatusBar>
@@ -137,7 +139,7 @@ function CameraTab(props: OperationPanelProps) {
   );
 }
 
-function SequenceTab(props: OperationPanelProps) {
+function SequenceTab(props: OperationPanelData) {
   return (
     <div className="space-y-4">
       <StatusBar>

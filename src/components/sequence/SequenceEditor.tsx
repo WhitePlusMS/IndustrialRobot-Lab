@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from 'react';
 import type { ActionStep, SequenceLog, SequenceStatus } from '@/types/sequence';
 import { createDefaultGraspSequence } from '@/types/sequence';
-import type { Waypoint } from '@/hooks/useRobotKinematics';
+import type { Waypoint } from '@/hooks/useRobot';
 import SequenceStepList from './SequenceStepList';
 import SequenceStepParams from './SequenceStepParams';
 

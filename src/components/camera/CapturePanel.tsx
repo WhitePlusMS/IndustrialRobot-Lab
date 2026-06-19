@@ -3,6 +3,7 @@ import { useCallback, useState, useEffect } from 'react';
 import * as THREE from 'three';
 import type { CameraState, CaptureResult } from '@/types/camera';
 import { captureColorPhoto, captureSegmentationPhoto, captureDepthPhoto, generateFileName, downloadImage } from '@/lib/capture-engine';
+import { useSceneRendererAPI } from '@/hooks/useSceneRendererAPI';
 
 interface CapturePanelProps {
   cameraState: CameraState;
@@ -14,6 +15,7 @@ interface CapturePanelProps {
 const MIN_LOADING_MS = 300;
 
 export default function CapturePanel({ cameraState, captureResult, onCapture, onResolutionChange }: CapturePanelProps) {
+  const sceneRendererApi = useSceneRendererAPI();
   const [isCapturing, setIsCapturing] = useState(false);
   const [viewerImage, setViewerImage] = useState<string | null>(null);
   const [viewerLabel, setViewerLabel] = useState('');
@@ -71,12 +73,11 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
   const handleCaptureColor = useCallback(() => {
     captureWithProgress(() => {
       try {
-        const captureInfo = (window as any).__R3F_CAPTURE;
-        if (!captureInfo) {
+        if (!sceneRendererApi) {
           console.error('无法获取 R3F 渲染器');
           return;
         }
-        const { renderer, scene } = captureInfo;
+        const { renderer, scene } = sceneRendererApi;
         const captureCamera = buildCaptureCamera();
         const photoScene = clonePhotoScene(scene);
         const dataURL = captureColorPhoto(renderer, photoScene, captureCamera, cameraState.resolution);
@@ -91,17 +92,16 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
         console.error('彩色拍照失败:', e);
       }
     });
-  }, [cameraState, captureResult, onCapture, buildCaptureCamera, clonePhotoScene, captureWithProgress]);
+  }, [cameraState, captureResult, onCapture, buildCaptureCamera, clonePhotoScene, captureWithProgress, sceneRendererApi]);
 
   const handleCaptureSegmentation = useCallback(() => {
     captureWithProgress(() => {
       try {
-        const captureInfo = (window as any).__R3F_CAPTURE;
-        if (!captureInfo) {
+        if (!sceneRendererApi) {
           console.error('无法获取 R3F 渲染器');
           return;
         }
-        const { renderer, scene } = captureInfo;
+        const { renderer, scene } = sceneRendererApi;
         const captureCamera = buildCaptureCamera();
         const photoScene = clonePhotoScene(scene);
         const { dataURL, colorMap } = captureSegmentationPhoto(renderer, photoScene, captureCamera, cameraState.resolution);
@@ -116,17 +116,16 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
         console.error('分割拍照失败:', e);
       }
     });
-  }, [cameraState, captureResult, onCapture, buildCaptureCamera, clonePhotoScene, captureWithProgress]);
+  }, [cameraState, captureResult, onCapture, buildCaptureCamera, clonePhotoScene, captureWithProgress, sceneRendererApi]);
 
   const handleCaptureDepth = useCallback(() => {
     captureWithProgress(() => {
       try {
-        const captureInfo = (window as any).__R3F_CAPTURE;
-        if (!captureInfo) {
+        if (!sceneRendererApi) {
           console.error('无法获取 R3F 渲染器');
           return;
         }
-        const { renderer, scene } = captureInfo;
+        const { renderer, scene } = sceneRendererApi;
         const captureCamera = buildCaptureCamera();
         const photoScene = clonePhotoScene(scene);
         const dataURL = captureDepthPhoto(
@@ -148,7 +147,7 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
         console.error('深度图拍摄失败:', e);
       }
     });
-  }, [cameraState, captureResult, onCapture, buildCaptureCamera, clonePhotoScene, captureWithProgress]);
+  }, [cameraState, captureResult, onCapture, buildCaptureCamera, clonePhotoScene, captureWithProgress, sceneRendererApi]);
 
   const handleDownloadColor = useCallback(() => {
     if (captureResult?.color) {

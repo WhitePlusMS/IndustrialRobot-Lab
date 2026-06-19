@@ -11,6 +11,8 @@ interface JointAngleCardProps {
   jointStep: number;
   onJointStepChange: (v: number) => void;
   onAdjustJoint: (index: number, delta: number, isContinuous?: boolean) => void;
+  onSetJoint?: (index: number, value: number) => void;
+  sliderTargetRef: React.MutableRefObject<JointAngles>;
   onReset: () => void;
   onRandom: () => void;
 }
@@ -21,6 +23,8 @@ export default function JointAngleCard({
   jointStep,
   onJointStepChange,
   onAdjustJoint,
+  onSetJoint,
+  sliderTargetRef,
   onReset,
   onRandom,
 }: JointAngleCardProps) {
@@ -40,12 +44,12 @@ export default function JointAngleCard({
     };
   }, []);
 
-  // 拖动结束时清掉本地 slider 覆盖，避免外部更新关节后显示仍被本地值覆盖
+  // 拖动结束时把 ref 里的最终值同步回 React state，供 UI 和其他逻辑使用
   useEffect(() => {
     if (Object.keys(sliderValues).length === 0) return;
 
     const handlePointerUp = () => {
-      // 先 flush 最后一帧的 pending 更新
+      // 先把 pending 的 rAF 回退路径 flush 掉
       if (pendingRef.current) {
         const pending = pendingRef.current;
         pendingRef.current = null;
@@ -56,27 +60,39 @@ export default function JointAngleCard({
         const base = joints[pending.index];
         onAdjustJoint(pending.index, pending.value - base, false);
       }
+
+      // 把 slider 拖动的关节同步回 React state
+      if (onSetJoint) {
+        Object.keys(sliderValues).forEach((idxStr) => {
+          const idx = Number(idxStr);
+          onSetJoint(idx, sliderTargetRef.current[idx]);
+        });
+      }
       setSliderValues({});
     };
 
     window.addEventListener('pointerup', handlePointerUp);
     return () => window.removeEventListener('pointerup', handlePointerUp);
-  }, [sliderValues, joints, onAdjustJoint]);
+  }, [sliderValues, joints, onAdjustJoint, onSetJoint, sliderTargetRef]);
 
-  // 实时提交，但通过 requestAnimationFrame 节流，避免 onChange 事件风暴导致卡顿
+  // 滑块拖动：只写 ref，不触发 React 渲染；3D 层 useFrame 读 ref 做插值
   const scheduleUpdate = (index: number, value: number) => {
     setSliderValues((prev) => ({ ...prev, [index]: value }));
-    pendingRef.current = { index, value };
+    sliderTargetRef.current[index] = value;
 
-    if (rafRef.current === null) {
-      rafRef.current = requestAnimationFrame(() => {
-        const pending = pendingRef.current;
-        rafRef.current = null;
-        pendingRef.current = null;
-        if (!pending) return;
-        const base = joints[pending.index];
-        onAdjustJoint(pending.index, pending.value - base, false);
-      });
+    if (!onSetJoint) {
+      // 无直连 setter 时回退到 rAF 节流，避免事件风暴
+      pendingRef.current = { index, value };
+      if (rafRef.current === null) {
+        rafRef.current = requestAnimationFrame(() => {
+          const pending = pendingRef.current;
+          rafRef.current = null;
+          pendingRef.current = null;
+          if (!pending) return;
+          const base = joints[pending.index];
+          onAdjustJoint(pending.index, pending.value - base, false);
+        });
+      }
     }
   };
 
@@ -85,7 +101,12 @@ export default function JointAngleCard({
     if (!editing || editing.index !== index) return;
     const v = parseFloat(editing.value);
     if (!Number.isNaN(v)) {
-      onAdjustJoint(index, v - joints[index], false);
+      sliderTargetRef.current[index] = v;
+      if (onSetJoint) {
+        onSetJoint(index, v);
+      } else {
+        onAdjustJoint(index, v - joints[index], false);
+      }
     }
     setEditing(null);
   };
