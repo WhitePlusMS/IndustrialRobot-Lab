@@ -14,6 +14,6 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["api/**/*.test.ts", "api/**/*.spec.ts", "src/lib/**/*.test.ts", "src/lib/**/*.spec.ts"],
+    include: ["src/lib/**/*.test.ts", "src/lib/**/*.spec.ts"],
   },
 });

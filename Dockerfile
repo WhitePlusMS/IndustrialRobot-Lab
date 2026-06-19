@@ -20,10 +20,9 @@ FROM deps AS build
 COPY . .
 RUN npm run build
 
-FROM node:20-alpine AS production
-COPY --from=deps /app/node_modules ./node_modules
+FROM deps AS production
 COPY --from=build /app/dist ./dist
 COPY package.json .env ./
 
 EXPOSE 3000
-CMD ["npm", "start"]
+CMD ["npx", "serve", "dist", "-l", "3000"]

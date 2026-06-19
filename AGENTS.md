@@ -1,19 +1,20 @@
+<!-- From: E:/项目demo/6frobot/AGENTS.md -->
 # AGENTS.md 项目约束
 
 ## 项目特定指令
 
 - 根据第一性原则进行思考，根据金字塔原则进行分析
-- 你在任何时候都不需要 npm run dev(前端)或 npm run start:dev(后端)，因为我一般都会保持着前后端的运行。
+- 你在任何时候都不需要 npm run dev，因为我一般会保持着前端的运行。
 - 你有权限执行所有 sudo 权限的命令。我的用户密码是xxx，在你需要 sudo 权限的时候，你可以使用这个密码。
-- 在开发任务结束前，一定要终止正在运行的服务，比如 npm run dev; npm run start:dev 等
+- 在开发任务结束前，一定要终止正在运行的服务，比如 npm run dev 等
 - 前端目录为当前工作目录
 - 所有修改务必遵循"最简原则"，即不必任何硬功能的冗余设计，仅对必要的多可能事件做冗余
 - 所有修改遵循代码健壮性，简洁性原则。所有模块必须遵循当前代码中已有的设计风格和命名风格，尽量复用已有模块
 - 注释丰富
-- 日志输出不用太多，但前后端关键地方都需要输出
+- 日志输出不用太多，但前端关键地方需要输出
 - 不要做任何的旧代码兼容，不要做向后兼容，这样能让问题暴露出来
 - 中文回答我的问题
-- 所有接口使用 tRPC 调用，无需额外的 DTO 包装，tRPC 自动处理类型推导和序列化
+- 教学演示类数据（记忆点等）使用浏览器 localStorage 存储，不再使用后端
 - **重要**：当遇到问题时，优先考虑编译错误而不是缓存问题。TypeScript 编译错误必须立即修复。
 - **重要**：每次进行操作后，需要更新一次更新说明文档。更新说明文档必须只写简要的信息。更新文档必须写入markdown格式本地文件中。
 
@@ -40,17 +41,11 @@
 - 联网信息获取优先使用你的搜索工具。如果搜索结果不全，可以把搜到的链接使用浏览器工具进一步打开检索。
 - **重要**：使用浏览器工具时，必须设置大分辨率窗口（如 1920x1080 或更大），以确保能够看到完整的网页内容和详细信息，避免因窗口过小导致重要信息被隐藏或截断。
 
-### 数据库操作规范
+### 本地存储规范
 
-- 本项目使用 Drizzle ORM + SQLite (better-sqlite3)，开启 synchronize 模式，无需手动执行 migration
-- 数据库表定义在 `db/schema.ts`，查询在 `api/queries/` 目录下
-- 路径别名：`@db/` → `db/`
-
-### 鉴权信息
-
-- 本项目使用 Kimi OAuth 登录，JWT Cookie 维持会话
-- 需要认证的 tRPC 路由使用 `authedQuery`，公开查询使用 `publicQuery`
-- 管理员角色根据 `OWNER_UNION_ID` 环境变量自动分配
+- 本项目为纯前端教学演示应用，数据使用浏览器 localStorage 持久化
+- 记忆点相关 API 位于 `src/lib/waypoint-storage.ts`，Hook 封装位于 `src/hooks/useWaypoints.ts`
+- 路径别名：`@/` → `src/`
 
 ## 项目技术栈参考
 
@@ -59,12 +54,8 @@
 | 前端框架 | React 19 + Vite 7 + TypeScript 5 |
 | UI | Tailwind CSS 3 + shadcn/ui (新纽约风格) |
 | 3D 渲染 | Three.js + @react-three/fiber |
-| 后端框架 | Hono + @hono/node-server |
-| RPC | tRPC v11 (superjson) |
-| 数据库 | SQLite (better-sqlite3) + Drizzle ORM |
-| 认证 | Kimi OAuth + JWT (jose) |
-| 路径别名 | `@/` → `src/`, `@contracts/` → `contracts/`, `@db/` → `db/` |
+| 本地存储 | localStorage |
+| 路径别名 | `@/` → `src/`, `@contracts/` → `contracts/` |
 | 关键文件 | 机器人核心: `src/lib/` (kinematics.ts, ik-solver.ts, matrix4x4.ts, motion-smoothing.ts) |
 | 关键文件 | DH 参数: `src/lib/robot-config.ts` |
-| 关键文件 | tRPC 路由: `api/router.ts`, `api/auth-router.ts`, `api/robot-router.ts` |
-| 关键文件 | 数据库 schema: `db/schema.ts` |
+| 关键文件 | 记忆点存储: `src/lib/waypoint-storage.ts`, `src/hooks/useWaypoints.ts` |

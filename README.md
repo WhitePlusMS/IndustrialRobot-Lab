@@ -1,28 +1,19 @@
 # 六轴机械臂正逆运动学 3D 仿真系统
 
-本项目是一套基于浏览器的六轴机械臂运动学仿真平台，支持正运动学实时计算、Jacobian 阻尼最小二乘逆运动学求解、以及完整的 3D 可视化交互。系统采用前后端分离架构，前端提供工业级的 3D 操作界面，后端提供记忆点持久化存储能力。
+本项目是一套基于浏览器的六轴机械臂运动学仿真平台，支持正运动学实时计算、Jacobian 阻尼最小二乘逆运动学求解、以及完整的 3D 可视化交互。系统为纯前端应用，记忆点等教学数据通过浏览器 localStorage 持久化。
 
 ---
 
 ## 系统架构
 
-整体采用前后端分离的三层架构：
+本项目为纯前端应用，无需后端服务：
 
 **前端层（React + TypeScript + Three.js）**
 - 声明式 3D 渲染管线，基于 React Three Fiber 构建
 - 自定义数学库处理 4x4 齐次变换矩阵运算
 - 工业风格的用户界面面板，支持实时关节调节与位姿控制
 - 运动平滑引擎，提供单击缓动动画与长按连续触发两种交互模式
-
-**API 层（tRPC + Hono）**
-- 端到端类型安全的远程过程调用
-- 统一的路由管理和中间件处理
-- 前后端共享类型定义（Contracts 层）
-
-**数据层（Drizzle ORM + MySQL）**
-- 类型安全的数据库访问
-- 记忆点（关节配置快照）的持久化存储
-- 支持保存、加载、删除和回放操作
+- 记忆点通过浏览器 localStorage 本地持久化
 
 ---
 
@@ -91,7 +82,7 @@
 - 将当前六轴关节配置保存为命名记忆点
 - 一键回退到已保存的关节状态（带平滑过渡动画）
 - 支持设置/返回原点功能
-- 记忆点数据通过 tRPC API 持久化到后端 MySQL 数据库
+- 记忆点数据保存在浏览器 localStorage 中
 
 ### 状态与数据面板
 
@@ -121,10 +112,7 @@
 | 3D 渲染 | Three.js + React Three Fiber + Drei |
 | UI 组件 | Tailwind CSS + shadcn/ui |
 | 状态管理 | React Hooks（useState / useCallback / useRef） |
-| API 通信 | tRPC 11.x + Hono |
-| ORM | Drizzle ORM |
-| 数据库 | MySQL |
-| 认证 | OAuth 2.0（可选） |
+| 本地存储 | localStorage |
 
 ---
 
@@ -134,7 +122,7 @@
 # 安装依赖
 npm install
 
-# 启动开发服务器（含后端 API）
+# 启动开发服务器
 npm run dev
 
 # 类型检查
@@ -142,12 +130,9 @@ npm run check
 
 # 构建生产包
 npm run build
-
-# 数据库 schema 同步
-npm run db:push
 ```
 
-开发服务器默认启动在 http://localhost:3000。
+开发服务器默认启动在 http://localhost:18081。
 
 ---
 
@@ -161,7 +146,6 @@ src/
     PoseControlCard.tsx# 位姿控制面板
     DirectionButton.tsx# 方向按钮（支持长按）
     LongPressButton.tsx# 通用长按按钮
-    Toolbar.tsx        # 顶部工具栏
     StatusBar.tsx      # 底部状态栏
     DataOverlay.tsx    # 实时数据浮窗
     ViewportHUD.tsx    # 3D 视口 HUD
@@ -169,23 +153,17 @@ src/
     DHParamOverlay.tsx # DH 参数浮层
   hooks/
     useRobotKinematics.ts  # 核心运动学状态管理 Hook
+    useWaypoints.ts        # 记忆点本地存储 Hook
   lib/
     matrix4x4.ts       # 4x4 齐次变换矩阵运算库
     kinematics.ts      # 正运动学模块
     ik-solver.ts       # 逆运动学求解器（Jacobian DLS）
     robot-config.ts    # 机械臂 DH 参数配置
     motion-smoothing.ts# 运动平滑插值引擎
+    waypoint-storage.ts# 记忆点 localStorage 存储
   types/
     robot.ts           # 运动学相关类型定义
   App.tsx              # 主页面布局
-
-api/
-  robot-router.ts      # tRPC 路由（记忆点 CRUD）
-  router.ts            # 路由注册中心
-
-contracts/             # 前后端共享类型
-db/
-  schema.ts            # 数据库表定义
 ```
 
 ---
@@ -205,4 +183,4 @@ db/
 
 - 逆运动学求解属于数值迭代方法，在奇异构型附近可能出现收敛缓慢或无法收敛的情况，此时系统会自动降级为位置-only 模式
 - 3D 渲染依赖 WebGL，请确保浏览器已启用硬件加速
-- 记忆点功能需要后端数据库服务正常运行
+- 记忆点数据保存在浏览器本地，清除浏览器数据会丢失
