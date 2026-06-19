@@ -11,8 +11,12 @@ import type {
 } from '@/types/sequence';
 import { createDefaultContext, createDefaultStep } from '@/types/sequence';
 import { captureColorPhoto, captureSegmentationPhoto } from '@/lib/capture-engine';
+import type { RobotPoseAPI } from '@/lib/robot-pose-bridge';
+import type { SceneRendererAPI } from '@/contexts/SceneRendererContext';
+import { useRobotPoseAPI } from './useRobotPoseAPI';
+import { useSceneRendererAPI } from './useSceneRendererAPI';
 import type { CameraState } from '@/types/camera';
-import type { Waypoint } from '@/hooks/useRobotKinematics';
+import type { Waypoint } from '@/hooks/useRobot';
 
 const SUCKER_LENGTH = 25;
 const BOX_HALF_SIZE = 40;
@@ -77,13 +81,15 @@ export interface StepExecutorAPI {
   onStepStatusChange: (index: number, status: ActionStep['execStatus'], message?: string) => void;
   stepIndex: number;
   onCaptureSave: (result: { color?: string; segmentation?: string; depth?: string }) => void;
+  robotPoseApi: RobotPoseAPI;
+  sceneRendererApi: SceneRendererAPI | null;
 }
 
 /** 返回 true=成功, false=失败(应停止序列) */
 async function executeStep(step: ActionStep, api: StepExecutorAPI): Promise<boolean> {
   const {
     log, robot, ctxRef, setCtx, cameraState, onSuckerOn, onSuckerOff, onForceAttachBox, onResetBox,
-    abortRef, waypoints, onStepStatusChange, stepIndex, onCaptureSave,
+    abortRef, waypoints, onStepStatusChange, stepIndex, onCaptureSave, robotPoseApi, sceneRendererApi,
   } = api;
 
   if (abortRef.current) return false;
@@ -152,11 +158,10 @@ async function executeStep(step: ActionStep, api: StepExecutorAPI): Promise<bool
 
     case '拍照': {
       log('info', '执行拍照...');
-      const captureInfo = (window as any).__R3F_CAPTURE;
-      if (!captureInfo) {
+      if (!sceneRendererApi) {
         return fail('渲染器未就绪，无法拍照');
       }
-      const { renderer, scene } = captureInfo;
+      const { renderer, scene } = sceneRendererApi;
       const captureCamera = new THREE.PerspectiveCamera(
         cameraState.fov,
         cameraState.resolution[0] / cameraState.resolution[1],
@@ -262,8 +267,7 @@ async function executeStep(step: ActionStep, api: StepExecutorAPI): Promise<bool
 
     case '抬升': {
       log('info', '抬升中...');
-      const getMat = (window as any).__GLB_getFlangeMatrix;
-      const glbResult = getMat?.();
+      const glbResult = robotPoseApi.getFlangeMatrix();
       if (!glbResult) return fail('无法读取 GLB 法兰位置');
       const liftH = step.params.liftHeight ?? 100;
       if (!robot.goToPosition(
@@ -340,6 +344,9 @@ export function useActionSequence(
   const [logs, setLogs] = useState<SequenceLog[]>([]);
   const [ctx, setCtx] = useState<SeqContext>(createDefaultContext());
   const [captureImages, setCaptureImages] = useState<{ color?: string; segmentation?: string; depth?: string }>({});
+
+  const robotPoseApi = useRobotPoseAPI();
+  const sceneRendererApi = useSceneRendererAPI();
 
   const abortRef = useRef(false);
   const ctxRef = useRef<SeqContext>(ctx);
@@ -419,6 +426,8 @@ export function useActionSequence(
         onStepStatusChange,
         stepIndex: i,
         onCaptureSave,
+        robotPoseApi,
+        sceneRendererApi,
       });
 
       if (!success) {
@@ -446,7 +455,7 @@ export function useActionSequence(
     if (!failed) {
       setStatus('idle');
     }
-  }, [steps, status, robotAPI, cameraState, onSuckerOn, onSuckerOff, onForceAttachBox, onSpawnBox, onResetBox, waitForAnimation, log, ctxRef, waypoints, onStepStatusChange, onCaptureSave, resetStepStatuses]);
+  }, [steps, status, robotAPI, cameraState, onSuckerOn, onSuckerOff, onForceAttachBox, onSpawnBox, onResetBox, waitForAnimation, log, ctxRef, waypoints, onStepStatusChange, onCaptureSave, resetStepStatuses, robotPoseApi, sceneRendererApi]);
 
   // ========== 单步执行 ==========
   const runSingleStep = useCallback(async () => {
@@ -484,6 +493,8 @@ export function useActionSequence(
       onStepStatusChange,
       stepIndex: idx,
       onCaptureSave,
+      robotPoseApi,
+      sceneRendererApi,
     });
 
     if (!success) {
@@ -500,7 +511,7 @@ export function useActionSequence(
     } else {
       setStatus('paused');
     }
-  }, [steps, status, robotAPI, cameraState, onSuckerOn, onSuckerOff, onForceAttachBox, onSpawnBox, onResetBox, waitForAnimation, log, ctxRef, waypoints, onStepStatusChange, onCaptureSave, resetStepStatuses]);
+  }, [steps, status, robotAPI, cameraState, onSuckerOn, onSuckerOff, onForceAttachBox, onSpawnBox, onResetBox, waitForAnimation, log, ctxRef, waypoints, onStepStatusChange, onCaptureSave, resetStepStatuses, robotPoseApi, sceneRendererApi]);
 
   const stopSequence = useCallback(() => {
     abortRef.current = true;
@@ -570,5 +581,6 @@ export function useActionSequence(
     resetSequence,
     clearLogs,
     log,
+    waypoints,
   };
 }

@@ -1,5 +1,6 @@
-// src/hooks/useCameraControl.ts
-import { useState, useCallback, useRef } from 'react';
+// src/hooks/useVirtualCamera.ts
+// 虚拟工业相机状态管理（拍照/视锥体/相机模型参数）
+import { useState, useCallback } from 'react';
 import type { CameraState, CaptureResult } from '@/types/camera';
 
 const DEFAULT_CAMERA_STATE: CameraState = {
@@ -13,28 +14,27 @@ const DEFAULT_CAMERA_STATE: CameraState = {
   resolution: [640, 480],
 };
 
-export function useCameraControl() {
+export function useVirtualCamera() {
   const [cameraState, setCameraState] = useState<CameraState>(DEFAULT_CAMERA_STATE);
   const [captureResult, setCaptureResult] = useState<CaptureResult | null>(null);
   const [posStep, setPosStep] = useState(0.05);  // m
   const [rotStep, setRotStep] = useState(5);
   const [fovStep, setFovStep] = useState(5);
 
-  const stateRef = useRef(cameraState);
-  stateRef.current = cameraState;
-
   const setPositionAxis = useCallback((axis: 0 | 1 | 2, value: number) => {
-    const current = stateRef.current;
-    const newPos: [number, number, number] = [...current.position] as [number, number, number];
-    newPos[axis] = Math.round(value * 1000) / 1000;
-    setCameraState((s) => ({ ...s, position: newPos }));
+    setCameraState((s) => {
+      const newPos: [number, number, number] = [...s.position] as [number, number, number];
+      newPos[axis] = Math.round(value * 1000) / 1000;
+      return { ...s, position: newPos };
+    });
   }, []);
 
   const setRotationAxis = useCallback((axis: 0 | 1 | 2, value: number) => {
-    const current = stateRef.current;
-    const newRot: [number, number, number] = [...current.rotation] as [number, number, number];
-    newRot[axis] = Math.round(value * 10) / 10;
-    setCameraState((s) => ({ ...s, rotation: newRot }));
+    setCameraState((s) => {
+      const newRot: [number, number, number] = [...s.rotation] as [number, number, number];
+      newRot[axis] = Math.round(value * 10) / 10;
+      return { ...s, rotation: newRot };
+    });
   }, []);
 
   const setFov = useCallback((value: number) => {

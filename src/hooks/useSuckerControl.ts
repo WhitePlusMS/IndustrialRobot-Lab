@@ -2,6 +2,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { forwardKinematics } from '@/lib/kinematics';
 import { Matrix4x4 } from '@/lib/matrix4x4';
+import { useRobotPoseAPI } from './useRobotPoseAPI';
 import type { RobotConfig, JointAngles } from '@/types/robot';
 
 export const SUCKER_LENGTH = 25;
@@ -85,15 +86,12 @@ export function useSuckerControl({ joints, config, initialBoxPosition }: UseSuck
   );
 
   // 箱子跟随（ATTACHED）— 使用 GLB 法兰矩阵获取真实视觉位置
+  const poseApi = useRobotPoseAPI();
   const updateBoxFollow = useCallback(() => {
     if (boxStateRef.current !== 'ATTACHED') return;
 
     // 优先使用 GLB 法兰矩阵（场景米坐标，视觉精确）
-    const getMat = (window as any).__GLB_getFlangeMatrix as (() => {
-      position: [number, number, number];
-      rotation: number[][];
-    }) | undefined;
-    const glb = getMat?.();
+    const glb = poseApi.getFlangeMatrix();
     if (glb?.position && glb?.rotation) {
       const [fx, fy, fz] = glb.position;
       // rotation 现在为真实旋转矩阵（行主序），工具 Z 轴为世界坐标系下的第三列
@@ -110,7 +108,7 @@ export function useSuckerControl({ joints, config, initialBoxPosition }: UseSuck
         sy + tz[1] * (BOX_HALF_SIZE / 1000),
         sz + tz[2] * (BOX_HALF_SIZE / 1000),
       ];
-      // ×1000 转为 "DH mm" 格式（dhPosToScene 除1000→场景米）
+      // ×1000 转为内部 mm 格式（场景渲染时除1000→场景米）
       const boxMM: [number, number, number] = [
         Math.round(boxScene[0] * 1000),
         Math.round(boxScene[1] * 1000),
@@ -121,7 +119,7 @@ export function useSuckerControl({ joints, config, initialBoxPosition }: UseSuck
       return;
     }
 
-    // 降级 DH FK
+    // 降级 DH FK（GLB 未就绪时）
     const pose = getEndEffectorPose();
     const suckerTip = getSuckerTipPosition(pose.position, pose.rotation);
     const toolZ: [number, number, number] = [
@@ -136,7 +134,7 @@ export function useSuckerControl({ joints, config, initialBoxPosition }: UseSuck
     ];
     setBoxPosition(boxCenterMM);
     boxPosRef.current = boxCenterMM;
-  }, [getEndEffectorPose]);
+  }, [getEndEffectorPose, poseApi]);
 
   // 自由落体（FALLING 状态）
   const applyGravity = useCallback((deltaTime: number) => {
