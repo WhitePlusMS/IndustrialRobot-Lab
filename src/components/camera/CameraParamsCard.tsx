@@ -152,7 +152,21 @@ function SliderRow({
 
 export default function CameraParamsCard(props: CameraParamsCardProps) {
   const { cameraState, posStep, rotStep, fovStep } = props;
+  const {
+    setPositionAxis,
+    setRotationAxis,
+    setFov,
+    setNear,
+    setFar,
+  } = props;
   const camera = useVirtualCameraContext();
+
+  // 根据 FOV 与分辨率近似计算内参矩阵（假设正方形像素、主点在图像中心）
+  const [width, height] = cameraState.resolution;
+  const fx = (width / 2) / Math.tan((cameraState.fov * Math.PI) / 360);
+  const fy = fx;
+  const cx = width / 2;
+  const cy = height / 2;
 
   /**
    * 拖动中的本地覆盖值。
@@ -161,6 +175,26 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
   const [sliderValues, setSliderValues] = useState<Record<string, number>>({});
   const rafRef = useRef<number | null>(null);
   const pendingRef = useRef<{ key: string; value: number } | null>(null);
+
+  // 将 slider 最终值同步回 React state 的辅助函数
+  const flushSliderValue = useCallback(
+    (key: string, value: number) => {
+      if (key.startsWith('pos')) {
+        const axis = Number(key.slice(3)) as 0 | 1 | 2;
+        setPositionAxis(axis, value);
+      } else if (key.startsWith('rot')) {
+        const axis = Number(key.slice(3)) as 0 | 1 | 2;
+        setRotationAxis(axis, value);
+      } else if (key === 'fov') {
+        setFov(value);
+      } else if (key === 'near') {
+        setNear(value);
+      } else if (key === 'far') {
+        setFar(value);
+      }
+    },
+    [setPositionAxis, setRotationAxis, setFov, setNear, setFar]
+  );
 
   // 组件卸载时取消未执行的 rAF
   useEffect(() => {
@@ -196,26 +230,7 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
 
     window.addEventListener('pointerup', handlePointerUp);
     return () => window.removeEventListener('pointerup', handlePointerUp);
-  }, [sliderValues]);
-
-  const flushSliderValue = useCallback(
-    (key: string, value: number) => {
-      if (key.startsWith('pos')) {
-        const axis = Number(key.slice(3)) as 0 | 1 | 2;
-        props.setPositionAxis(axis, value);
-      } else if (key.startsWith('rot')) {
-        const axis = Number(key.slice(3)) as 0 | 1 | 2;
-        props.setRotationAxis(axis, value);
-      } else if (key === 'fov') {
-        props.setFov(value);
-      } else if (key === 'near') {
-        props.setNear(value);
-      } else if (key === 'far') {
-        props.setFar(value);
-      }
-    },
-    [props]
-  );
+  }, [sliderValues, flushSliderValue]);
 
   /**
    * 滑块拖动：只写 ref 和本地覆盖，不触发 React 渲染。
@@ -271,8 +286,35 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
       </div>
 
       <div className="p-4 space-y-4">
-        {/* 位置控制 */}
+        {/* 内参矩阵只读展示 */}
+        <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+          <div className="text-[11px] font-semibold text-slate-500 mb-1">内参矩阵 K</div>
+          <p className="text-[10px] text-slate-400 mb-2 leading-relaxed">
+            内参反映相机自身特性，由 FOV 和分辨率决定，本区域只读。
+          </p>
+          <div className="grid grid-cols-3 gap-x-4 gap-y-1 text-[11px] font-mono text-slate-700">
+            <span>{fx.toFixed(1)}</span>
+            <span>0</span>
+            <span>{cx.toFixed(1)}</span>
+            <span>0</span>
+            <span>{fy.toFixed(1)}</span>
+            <span>{cy.toFixed(1)}</span>
+            <span>0</span>
+            <span>0</span>
+            <span>1</span>
+          </div>
+          <div className="mt-2 text-[10px] text-slate-400">
+            由 FOV {cameraState.fov.toFixed(1)}° 与分辨率 {width}×{height} 近似计算
+          </div>
+        </div>
+
+        {/* 外参：位置与朝向 */}
         <div>
+          <div className="text-[11px] font-semibold text-slate-700 mb-1">外参（相机在世界坐标系中的位姿）</div>
+          <p className="text-[10px] text-slate-400 mb-2 leading-relaxed">
+            外参对应旋转矩阵和平移向量，调节这些参数会改变相机看到的内容。
+          </p>
+
           <div className="text-[11px] font-semibold text-slate-500 mb-2">位置 (m)</div>
           <div className="space-y-3">
             {axisLabels.map((label, i) => {

@@ -1,7 +1,7 @@
 // src/hooks/useVirtualCamera.ts
 // 虚拟工业相机状态管理（拍照/视锥体/相机模型参数）
 import { useState, useCallback, useRef } from 'react';
-import type { CameraState } from '@/types/camera';
+import type { CameraState, CaptureResult } from '@/types/camera';
 
 const DEFAULT_CAMERA_STATE: CameraState = {
   position: [-1.135, 3.0, 0.056], // m — 工业相机垂直向下，位于机械臂零点法兰正上方

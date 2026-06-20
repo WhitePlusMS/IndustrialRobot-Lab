@@ -3,6 +3,7 @@ import { useCallback, useState, useEffect } from 'react';
 import * as THREE from 'three';
 import type { CameraState, CaptureResult } from '@/types/camera';
 import { captureColorPhoto, captureSegmentationPhoto, captureDepthPhoto, generateFileName, downloadImage } from '@/lib/capture-engine';
+import { CAMERA_RESOLUTIONS } from '@/lib/camera-config';
 import { useSceneRendererAPI } from '@/hooks/useSceneRendererAPI';
 
 interface CapturePanelProps {
@@ -204,11 +205,7 @@ export default function CapturePanel({ cameraState, captureResult, onCapture, on
           {/* 分辨率选择 */}
           <div className="flex items-center gap-1">
             <span className="text-[10px] text-slate-500 shrink-0">分辨率:</span>
-            {[
-              [320, 240],
-              [640, 480],
-              [1280, 720],
-            ].map(([w, h]) => (
+            {CAMERA_RESOLUTIONS.map(([w, h]) => (
               <button
                 type="button"
                 key={`${w}x${h}`}
