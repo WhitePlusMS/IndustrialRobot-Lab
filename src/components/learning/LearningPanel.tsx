@@ -1,5 +1,5 @@
 // src/components/learning/LearningPanel.tsx
-import { ListOrdered, Lightbulb, BookOpen, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ListOrdered, Lightbulb, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { LearningSubTab } from '@/lib/course-config';
 import { getModuleById } from '@/lib/course-config';
 import { useLearning } from '@/contexts/LearningContext';
@@ -7,7 +7,6 @@ import ModuleTabs from './ModuleTabs';
 import ProgressBar from './ProgressBar';
 import StepList from './StepList';
 import StepExplanation from './StepExplanation';
-import TheoryPanel from './TheoryPanel';
 import LearningNav from './LearningNav';
 
 interface LearningPanelProps {
@@ -18,7 +17,6 @@ interface LearningPanelProps {
 const subTabs: { id: LearningSubTab; label: string; icon: typeof ListOrdered }[] = [
   { id: 'steps', label: '学习步骤', icon: ListOrdered },
   { id: 'explain', label: '步骤讲解', icon: Lightbulb },
-  { id: 'knowledge', label: '相关知识', icon: BookOpen },
 ];
 
 export default function LearningPanel({
@@ -118,13 +116,7 @@ export default function LearningPanel({
 
         {subTab === 'explain' && step && (
           <div className="absolute inset-0 overflow-y-auto p-5">
-            <StepExplanation step={step} />
-          </div>
-        )}
-
-        {subTab === 'knowledge' && (
-          <div className="absolute inset-0 overflow-y-auto p-5">
-            <TheoryPanel items={module.theory} currentStep={step} />
+            <StepExplanation step={step} theoryItems={module.theory} />
           </div>
         )}
       </div>

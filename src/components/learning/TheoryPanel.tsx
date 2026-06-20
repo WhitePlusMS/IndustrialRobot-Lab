@@ -1,7 +1,7 @@
 // src/components/learning/TheoryPanel.tsx
 // 相关知识面板：按当前步骤关联关系展示知识点
 
-import { BookOpen, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import type { CourseStep, TheoryItem } from '@/lib/course-config';
 
 interface TheoryPanelProps {
