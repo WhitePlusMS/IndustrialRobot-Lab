@@ -133,11 +133,21 @@ export default function SequenceEditor({
         />
 
         {/* 播放控制 */}
+        {/* 如果存在未选择记忆点的"移动到目标位姿"步骤，给出红色提示 */}
+        {steps.some((s) => s.type === '移动到目标位姿' && !s.params.memoryPointName) && (
+          <div className="flex items-start gap-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            <span>请为所有"移动到目标位姿"步骤选择记忆点</span>
+          </div>
+        )}
         <div className="grid grid-cols-4 gap-1">
           <button
             type="button"
             onClick={runSequence}
-            disabled={status === 'running' || steps.length === 0}
+            disabled={
+              status === 'running' ||
+              steps.length === 0 ||
+              steps.some((s) => s.type === '移动到目标位姿' && !s.params.memoryPointName)
+            }
             className="h-8 bg-green-600 text-white text-[10px] font-medium rounded-sm hover:bg-green-700 disabled:opacity-40 transition-colors flex items-center justify-center gap-1"
           >
             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>

@@ -181,7 +181,7 @@ async function executeStep(step: ActionStep, api: StepExecutorAPI): Promise<bool
       captureCamera.updateMatrixWorld();
 
       const photoScene = scene.clone();
-      photoScene.traverse((obj: any) => {
+      photoScene.traverse((obj: THREE.Object3D) => {
         if (obj.userData?.isCameraModel) obj.visible = false;
       });
 
@@ -190,8 +190,9 @@ async function executeStep(step: ActionStep, api: StepExecutorAPI): Promise<bool
         const segResult = captureSegmentationPhoto(renderer, photoScene, captureCamera, cameraState.resolution);
         onCaptureSave({ color: colorURL, segmentation: segResult.dataURL });
         log('success', '拍照完成（彩色+分割）');
-      } catch (e: any) {
-        return fail(`拍照失败: ${e.message || e}`);
+      } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : String(e);
+        return fail(`拍照失败: ${message}`);
       }
       onStepStatusChange(stepIndex, 'success');
       return true;
@@ -397,6 +398,17 @@ export function useActionSequence(
   // ========== 运行全部序列 ==========
   const runSequence = useCallback(async () => {
     if (status === 'running') return;
+
+    // 前置校验：所有"移动到目标位姿"步骤必须已选择记忆点
+    const missingMemoryPoint = steps.some(
+      (s) => s.type === '移动到目标位姿' && !s.params.memoryPointName
+    );
+    if (missingMemoryPoint) {
+      log('error', '存在未选择记忆点的"移动到目标位姿"步骤，序列未执行');
+      setStatus('error');
+      return;
+    }
+
     resetStepStatuses();
     setStatus('running');
     setCurrentStepIndex(0);
