@@ -124,7 +124,7 @@ export default function LearningPanel({
 
         {subTab === 'knowledge' && (
           <div className="absolute inset-0 overflow-y-auto p-5">
-            <TheoryPanel items={module.theory} />
+            <TheoryPanel items={module.theory} currentStep={step} />
           </div>
         )}
       </div>

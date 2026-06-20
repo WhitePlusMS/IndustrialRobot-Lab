@@ -1,27 +1,16 @@
 // src/components/operation/RobotOperations.tsx
-import { useState } from 'react';
-import { Bot, RotateCcw } from 'lucide-react';
 import type { OperationPanelData } from './OperationPanel';
 import JointAngleCard from '@/components/JointAngleCard';
 import PoseControlCard from '@/components/PoseControlCard';
 import PositionTargetCard from '@/components/PositionTargetCard';
 import WaypointPanel from '@/components/WaypointPanel';
+import { useSceneViewport } from '@/contexts/SceneViewportContext';
+import { Eye, EyeOff, Globe, Anchor } from 'lucide-react';
 
 export default function RobotOperations(props: OperationPanelData) {
   const stepId = props.currentStep.id;
   const isFree = props.mode === 'free';
-
-  // J1 single joint control state
-  const [j1Value, setJ1Value] = useState(props.joints[0]);
-
-  const handleJ1Change = (value: number) => {
-    const clamped = Math.max(-180, Math.min(180, value));
-    setJ1Value(clamped);
-    const delta = clamped - props.joints[0];
-    if (Math.abs(delta) > 0.01) {
-      props.onAdjustJoint(0, delta, false);
-    }
-  };
+  const viewport = useSceneViewport();
 
   const isStructureStep = stepId === 'robot-structure' || isFree;
   const isCoordinateStep = stepId === 'robot-coordinate' || isFree;
@@ -29,153 +18,111 @@ export default function RobotOperations(props: OperationPanelData) {
   const isMultiJointStep = stepId === 'robot-multi-joint' || isFree;
   const isCartesianStep = stepId === 'robot-cartesian' || isFree;
 
+  const jointCards = [
+    { j: 'J1', name: '底座旋转', index: 0, nodeName: '转台' },
+    { j: 'J2', name: '肩部俯仰', index: 1, nodeName: '大臂' },
+    { j: 'J3', name: '肘部俯仰', index: 2, nodeName: '小臂' },
+    { j: 'J4', name: '腕部旋转', index: 3, nodeName: '回转机构' },
+    { j: 'J5', name: '腕部俯仰', index: 4, nodeName: '末端关节' },
+    { j: 'J6', name: '末端旋转', index: 5, nodeName: '快拆机器人端口' },
+  ];
+
+  const handleJointCardClick = (index: number) => {
+    props.setHighlightedJoint(props.highlightedJoint === index ? null : index);
+  };
+
   return (
     <div className="space-y-4">
-      {/* 当前任务 */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 border-l-4 border-l-blue-500 shadow-sm">
-        <p className="text-[11px] font-bold text-blue-600 uppercase tracking-wider mb-1">当前任务</p>
-        <p className="text-[15px] font-bold text-slate-800">{props.currentStep.title}</p>
-      </div>
+      {/* 坐标系显示与模式切换：机器臂模块通用 */}
+      {!isFree && (
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-bold text-slate-800">坐标系可视化</p>
+            <button
+              type="button"
+              onClick={viewport.toggleCoordinateSystems}
+              className={`text-xs font-semibold px-2.5 py-1.5 rounded-lg border flex items-center gap-1.5 transition-colors ${
+                viewport.showCoordinateSystems
+                  ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+                  : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+              }`}
+            >
+              {viewport.showCoordinateSystems ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+              {viewport.showCoordinateSystems ? '隐藏坐标系' : '显示坐标系'}
+            </button>
+          </div>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            开启后，3D 场景中同时显示底座处的基坐标系（World）和末端法兰处的工具坐标系（Tool），便于观察两者之间的区别。
+          </p>
+
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { value: 'World' as const, title: 'World', desc: '基坐标系', icon: Globe },
+              { value: 'Tool' as const, title: 'Tool', desc: '工具坐标系', icon: Anchor },
+            ].map((opt) => {
+              const Icon = opt.icon;
+              const active = props.coordinateSystem === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => props.onCoordinateChange(opt.value)}
+                  className={`flex items-center gap-2 p-3 rounded-xl border text-left transition-colors ${
+                    active
+                      ? 'bg-blue-50 border-blue-400 text-blue-700'
+                      : 'bg-white border-slate-200 text-slate-700 hover:border-blue-300 hover:bg-blue-50'
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 ${active ? 'text-blue-600' : 'text-slate-400'}`} />
+                  <div>
+                    <p className="text-[13px] font-semibold">{opt.title}</p>
+                    <p className="text-[11px] text-slate-500">{opt.desc}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* 关节认识卡片 */}
       {isStructureStep && (
         <div className="grid grid-cols-2 gap-2">
-          {[
-            { j: 'J1', name: '底座旋转' },
-            { j: 'J2', name: '肩部俯仰' },
-            { j: 'J3', name: '肘部俯仰' },
-            { j: 'J4', name: '腕部旋转' },
-            { j: 'J5', name: '腕部俯仰' },
-            { j: 'J6', name: '末端旋转' },
-          ].map(({ j, name }) => (
-            <button
-              key={j}
-              type="button"
-              className="text-left px-3 py-3 rounded-xl text-xs font-semibold text-slate-700 flex flex-col gap-1 bg-white border border-slate-200 shadow-sm hover:border-blue-300 hover:bg-blue-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-            >
-              <span className="text-blue-600 text-sm">{j}</span>
-              <span className="text-slate-500 font-normal">{name}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* 坐标系切换 */}
-      {isCoordinateStep && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
-          {[
-            { value: 'World' as const, title: '基坐标系', desc: '固定在机械臂底座' },
-            { value: 'Tool' as const, title: '工具坐标系', desc: '固定在末端执行器' },
-          ].map((opt) => (
-            <label
-              key={opt.value}
-              className="flex items-center gap-3 p-4 rounded-xl cursor-pointer border border-slate-200 hover:border-blue-300 transition-colors bg-white"
-            >
-              <input
-                type="radio"
-                name="coord-system"
-                value={opt.value}
-                checked={props.coordinateSystem === opt.value}
-                onChange={() => props.onCoordinateChange(opt.value)}
-                className="w-4 h-4 text-blue-600 accent-blue-600"
-              />
-              <div>
-                <p className="text-[13px] font-semibold text-slate-700">{opt.title}</p>
-                <p className="text-[11px] text-slate-500">{opt.desc}</p>
-              </div>
-            </label>
-          ))}
-        </div>
-      )}
-
-      {/* J1 单关节控制 */}
-      {(isSingleJointStep || isFree) && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <label className="text-[13px] font-semibold text-slate-700">J1 关节角度</label>
-            <span className="font-mono text-lg font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-lg">
-              {props.joints[0].toFixed(1)}°
-            </span>
-          </div>
-          <input
-            type="range"
-            min={-180}
-            max={180}
-            step={0.1}
-            value={j1Value}
-            onChange={(e) => handleJ1Change(parseFloat(e.target.value))}
-            className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-500 mb-4"
-          />
-          <div className="flex items-center justify-between text-[11px] text-slate-400 mb-4">
-            <span>-180°</span>
-            <span>0°</span>
-            <span>180°</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <button
-              type="button"
-              onClick={() => handleJ1Change(j1Value - 5)}
-              className="w-10 h-10 flex items-center justify-center rounded-lg text-lg font-bold text-slate-600 bg-white border border-slate-200 shadow-sm hover:bg-slate-50 active:bg-slate-100"
-            >
-              −
-            </button>
-            <button
-              type="button"
-              onClick={() => handleJ1Change(0)}
-              className="px-4 h-10 text-xs font-medium text-slate-600 rounded-lg bg-white border border-slate-200 shadow-sm hover:bg-slate-50"
-            >
-              归零
-            </button>
-            <button
-              type="button"
-              onClick={() => handleJ1Change(j1Value + 5)}
-              className="w-10 h-10 flex items-center justify-center rounded-lg text-lg font-bold text-slate-600 bg-white border border-slate-200 shadow-sm hover:bg-slate-50 active:bg-slate-100"
-            >
-              +
-            </button>
-          </div>
-          <div className="grid grid-cols-3 gap-2 mt-4">
-            {[-30, 0, 30, 60, 90, 180].map((deg) => (
+          {jointCards.map(({ j, name, index }) => {
+            const active = props.highlightedJoint === index;
+            return (
               <button
-                key={deg}
+                key={j}
                 type="button"
-                onClick={() => handleJ1Change(deg)}
-                className={`py-2 text-xs font-medium rounded-lg border transition-colors ${
-                  Math.abs(j1Value - deg) < 0.1
-                    ? 'bg-blue-500 text-white border-blue-500'
-                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                onClick={() => handleJointCardClick(index)}
+                className={`text-left px-3 py-3 rounded-xl text-xs font-semibold flex flex-col gap-1 border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                  active
+                    ? 'bg-blue-50 border-blue-400 text-blue-700'
+                    : 'bg-white border-slate-200 text-slate-700 hover:border-blue-300 hover:bg-blue-50'
                 }`}
               >
-                {deg}°
+                <span className={`text-sm ${active ? 'text-blue-700' : 'text-blue-600'}`}>{j}</span>
+                <span className="text-slate-500 font-normal">{name}</span>
               </button>
-            ))}
-          </div>
+            );
+          })}
         </div>
       )}
 
-      {/* 多关节联动 J2/J3 */}
-      {(isMultiJointStep || isFree) && (
-        <div className="space-y-3">
-          {[1, 2].map((idx) => (
-            <div key={idx} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-[13px] font-semibold text-slate-700">J{idx + 1} 关节角度</label>
-                <span className="font-mono text-sm font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
-                  {props.joints[idx].toFixed(1)}°
-                </span>
-              </div>
-              <input
-                type="range"
-                min={-90}
-                max={90}
-                step={0.1}
-                value={props.joints[idx]}
-                onChange={(e) => props.onAdjustJoint(idx, parseFloat(e.target.value) - props.joints[idx], false)}
-                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
-              />
-            </div>
-          ))}
-        </div>
+      {/* 单关节 / 多关节步骤：显示全部 J1~J6 滑块，复用 JointAngleCard 不卡顿逻辑 */}
+      {(isSingleJointStep || isMultiJointStep) && !isFree && (
+        <JointAngleCard
+          joints={props.joints}
+          config={props.config}
+          jointStep={props.jointStep}
+          onJointStepChange={props.onJointStepChange}
+          onAdjustJoint={props.onAdjustJoint}
+          onSetJoint={props.onSetJoint}
+          sliderTargetRef={props.sliderTargetRef}
+          onReset={props.onReset}
+          onRandom={props.onRandom}
+          collapsible={false}
+        />
       )}
 
       {/* 末端位置控制 */}
@@ -231,31 +178,6 @@ export default function RobotOperations(props: OperationPanelData) {
         </button>
       )}
 
-      {/* 认识完成按钮 */}
-      {stepId === 'robot-structure' && (
-        <button
-          type="button"
-          className="w-full py-3 text-[13px] font-semibold rounded-xl text-white bg-gradient-to-r from-green-500 to-green-600 border border-green-600 shadow-sm hover:from-green-600 hover:to-green-700 flex items-center justify-center gap-2"
-        >
-          <Bot className="w-4 h-4" />
-          我已认识所有关节
-        </button>
-      )}
-
-      {/* 坐标系理解按钮 */}
-      {stepId === 'robot-coordinate' && (
-        <button
-          type="button"
-          onClick={() => {
-            props.onCoordinateChange('World');
-            alert('✅ 已重置为基坐标系显示。');
-          }}
-          className="w-full py-3 text-[13px] font-semibold rounded-xl text-white bg-gradient-to-r from-green-500 to-green-600 border border-green-600 shadow-sm hover:from-green-600 hover:to-green-700 flex items-center justify-center gap-2"
-        >
-          <RotateCcw className="w-4 h-4" />
-          我理解了坐标系
-        </button>
-      )}
     </div>
   );
 }

@@ -17,6 +17,7 @@ import RobotOperations from './RobotOperations';
 import CameraOperations from './CameraOperations';
 import GraspOperations from './GraspOperations';
 import FreeOperationPanel from './FreeOperationPanel';
+import TeachingGuidePanel from './TeachingGuidePanel';
 
 export interface OperationPanelProps {
   collapsed: boolean;
@@ -51,6 +52,10 @@ export interface OperationPanelData {
   onGoToPosition: (x: number, y: number, z: number) => boolean;
   currentGLBPosition: [number, number, number] | null;
   status: StatusType;
+  highlightedJoint: number | null;
+  setHighlightedJoint: (index: number | null) => void;
+  selectedTool: string;
+  setSelectedTool: (tool: string) => void;
   // Virtual camera
   cameraState: CameraState;
   captureResult: CaptureResult | null;
@@ -93,6 +98,7 @@ export interface OperationPanelData {
   captureImages: { color?: string; segmentation?: string; depth?: string };
   suckerOn: boolean;
   boxState: string;
+  boxPosition: [number, number, number];
   // Demo parts / grasp
   onSpawnParts: (count: number, size: number) => void;
   onClearParts: () => void;
@@ -145,6 +151,10 @@ function useOperationPanelData(props: OperationPanelProps): OperationPanelData {
     onGoToPosition: robot.goToPosition,
     currentGLBPosition: robot.glbPosition,
     status: robot.status,
+    highlightedJoint: robot.highlightedJoint,
+    setHighlightedJoint: robot.setHighlightedJoint,
+    selectedTool: robot.selectedTool,
+    setSelectedTool: robot.setSelectedTool,
     // Virtual camera
     cameraState: camera.cameraState,
     captureResult: camera.captureResult,
@@ -187,6 +197,7 @@ function useOperationPanelData(props: OperationPanelProps): OperationPanelData {
     captureImages: sequence.captureImages,
     suckerOn: sucker.suckerOn,
     boxState: sucker.boxState,
+    boxPosition: sucker.boxPosition,
     // Demo parts / grasp
     onSpawnParts: (n, s) =>
       demoParts.spawnParts(n, s, {
@@ -241,17 +252,12 @@ export default function OperationPanel(props: OperationPanelProps) {
         </button>
       </div>
 
-      <div className="p-5 border-b border-slate-100">
-        <h2 className="text-sm font-bold text-slate-700">操作区</h2>
-        <p className="text-[11px] text-slate-500 mt-0.5">
-          {data.mode === 'guided' ? data.currentStep.subtitle : '自由练习模式：所有控件可用'}
-        </p>
-      </div>
       <div className="flex-1 overflow-hidden">
         {data.mode === 'free' ? (
           <FreeOperationPanel {...data} />
         ) : (
-          <div className="h-full overflow-y-auto p-5">
+          <div className="h-full overflow-y-auto p-5 space-y-4">
+            <TeachingGuidePanel step={data.currentStep} />
             {data.currentModule === 'robot' && <RobotOperations {...data} />}
             {data.currentModule === 'camera' && <CameraOperations {...data} />}
             {data.currentModule === 'grasp' && <GraspOperations {...data} />}
