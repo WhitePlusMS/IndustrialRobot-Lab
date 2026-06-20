@@ -10,7 +10,8 @@ export const BOX_SIZE = 80;
 export const BOX_HALF_SIZE = BOX_SIZE / 2;
 export const ATTACH_THRESHOLD = 15;
 export const APPROACH_HEIGHT = 50;
-export const INITIAL_BOX_POSITION: [number, number, number] = [-1135, 40, 56];
+// 默认箱子位置：机械臂前方可达区域（X 正方向 400mm，高度 120mm，Z 方向 250mm）
+export const INITIAL_BOX_POSITION: [number, number, number] = [400, 120, 250];
 
 /** 箱子状态 */
 export type BoxState = 'NONE' | 'FREE' | 'FALLING' | 'ATTACHED' | 'PLACED' | 'RESTING';

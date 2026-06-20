@@ -10,7 +10,8 @@ import WaypointPanel from '@/components/WaypointPanel';
 import CameraParamsCard from '@/components/camera/CameraParamsCard';
 import CapturePanel from '@/components/camera/CapturePanel';
 import SequenceEditor from '@/components/sequence/SequenceEditor';
-import { Box, Power, PowerOff, Play, Grip } from 'lucide-react';
+import { useSceneViewport } from '@/contexts/SceneViewportContext';
+import { Box, Power, PowerOff, Play, Grip, Eye, EyeOff } from 'lucide-react';
 
 type FreeTab = 'robot' | 'camera' | 'sequence';
 
@@ -65,11 +66,31 @@ export default function FreeOperationPanel(props: OperationPanelData) {
 }
 
 function RobotTab(props: OperationPanelData) {
+  const viewport = useSceneViewport();
   return (
     <div className="space-y-4">
       <StatusBar>
         坐标系：{props.coordinateSystem} · 吸盘：{props.suckerOn ? '开启' : '关闭'}
       </StatusBar>
+
+      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center justify-between">
+        <div>
+          <p className="text-sm font-semibold text-slate-800">坐标系可视化</p>
+          <p className="text-xs text-slate-500">控制基坐标系和工具坐标系显隐</p>
+        </div>
+        <button
+          type="button"
+          onClick={viewport.toggleCoordinateSystems}
+          className={`text-xs font-semibold px-3 py-2 rounded-lg border flex items-center gap-1.5 transition-colors ${
+            viewport.showCoordinateSystems
+              ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100'
+              : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+          }`}
+        >
+          {viewport.showCoordinateSystems ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+          {viewport.showCoordinateSystems ? '隐藏坐标系' : '显示坐标系'}
+        </button>
+      </div>
 
       <JointAngleCard
         joints={props.joints}
@@ -151,7 +172,7 @@ function SequenceTab(props: OperationPanelData) {
         <div className="space-y-3">
           <button
             type="button"
-            onClick={() => props.spawnBox([-1135, 400, 56], 40)}
+            onClick={() => props.spawnBox([400, 200, 250], 50)}
             className="w-full py-2.5 text-xs font-semibold rounded-lg text-slate-700 bg-white border border-slate-200 shadow-sm hover:bg-slate-50 active:bg-slate-100 flex items-center justify-center gap-2 transition-colors"
           >
             <Box className="w-3.5 h-3.5" />
@@ -180,7 +201,7 @@ function SequenceTab(props: OperationPanelData) {
           <button
             type="button"
             onClick={() => {
-              props.spawnBox([-1135, 400, 56], 40);
+              props.spawnBox([400, 200, 250], 50);
               props.turnSuckerOn();
             }}
             className="w-full py-2.5 text-xs font-semibold rounded-lg text-white bg-gradient-to-r from-blue-500 to-blue-600 border border-blue-600 shadow-sm hover:from-blue-600 hover:to-blue-700 flex items-center justify-center gap-2 transition-colors"
