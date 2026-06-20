@@ -2,8 +2,7 @@
 // 教学课程内容配置 - 静态 JSON，后续可迁移到数据库/CMS
 
 export type ModuleId = 'robot' | 'camera' | 'grasp';
-export type ValidationType = 'joint-value' | 'camera-value' | 'manual';
-export type LearningSubTab = 'steps' | 'explain' | 'knowledge';
+export type LearningSubTab = 'steps' | 'explain';
 export type LearningMode = 'guided' | 'free';
 
 /** 右侧教学引导内容 */
@@ -48,10 +47,6 @@ export interface CourseStep {
   relatedTheoryIds?: string[];
   /** 步骤与 3D 场景的交互配置 */
   sceneInteraction?: SceneInteraction;
-  validation?: {
-    type: ValidationType;
-    params?: Record<string, unknown>;
-  };
 }
 
 export interface TheoryItem {
@@ -117,6 +112,14 @@ export const courseModules: CourseModule[] = [
         whyNow:
           '当关节接近极限位置或机械臂完全伸直时，可能出现奇异状态。本模块需要认识这种状态并避免长时间停留在奇异点。',
       },
+      {
+        id: 'inverse-kinematics',
+        title: '逆运动学',
+        description:
+          '逆运动学是指：已知末端执行器要达到的目标位姿，自动计算出各关节应该转动到什么角度。它是笛卡尔空间控制的数学基础。',
+        whyNow:
+          '在“末端位置控制”步骤中输入 X、Y、Z 后，系统需要调用逆运动学自动求解 J1~J6。理解逆运动学有助于判断“目标不可达”的原因。',
+      },
     ],
     steps: [
       {
@@ -168,9 +171,9 @@ export const courseModules: CourseModule[] = [
           <p>同一移动指令在不同坐标系下会产生不同的实际运动。后续控制机械臂时，需要根据任务选择合适的坐标系。</p>
         `,
         goal: '能够在 3D 视口中区分基坐标系和工具坐标系，并理解同一移动指令在不同坐标系下的差异。',
-        warning: '切换坐标系后，底部状态栏的位置数值含义不变，但方向键控制的移动方向会发生变化。',
+        warning: '切换坐标系后，底部状态栏的位置数值含义不变，但位姿控制方向键控制的移动方向会发生变化。',
         hint: '在右侧切换坐标系显示方式，观察 3D 视口中的坐标轴变化。',
-        relatedTheoryIds: ['forward-kinematics'],
+        relatedTheoryIds: ['dh-params', 'forward-kinematics'],
         teachingGuide: {
           task: '理解基坐标系和工具坐标系的区别，并在 3D 场景中观察两种坐标系。',
           operationSteps: [
@@ -208,10 +211,6 @@ export const courseModules: CourseModule[] = [
         warning: '旋转角度不要超过 ±180°，超出范围可能导致机械臂进入限位或奇异状态。',
         hint: '拖动右侧 J1 滑块，或在输入框中将 J1 设为 30°。',
         relatedTheoryIds: ['joint-space', 'forward-kinematics'],
-        validation: {
-          type: 'joint-value',
-          params: { jointIndex: 0, target: 30, tolerance: 0.5 },
-        },
         teachingGuide: {
           task: '单独调节 J1 关节，使 J1 达到 30°，并观察末端的水平移动。',
           operationSteps: [
@@ -238,26 +237,30 @@ export const courseModules: CourseModule[] = [
         subtitle: '协调控制多个关节',
         explanation: `
           <p class="mb-2">实际任务通常需要多个关节同时运动。本步骤练习同时调整 J2 和 J3，理解多个关节如何协同改变末端的高度和前后距离。</p>
-          <p class="mb-2">J2 控制大臂俯仰，J3 控制小臂俯仰。J2 和 J3 同时变化时，末端高度和水平距离都会改变。单独调节一个关节往往无法到达目标位置，需要两个关节配合。</p>
-          <p>本步骤的目的是建立"多关节协同"的直觉，为后续学习逆运动学做准备。</p>
+          <p class="mb-2">J2 控制大臂俯仰，J3 控制小臂俯仰。J2 和 J3 同时变化时，末端高度和水平距离都会改变。单独调节一个关节往往无法得到理想的末端位姿，需要两个关节配合。</p>
+          <p>本步骤的重点是建立"关节耦合"直觉：J2 和 J3 共同决定末端的高度与距离，理解这种耦合关系是后续学习逆运动学的基础。</p>
         `,
-        goal: '能够同时调整 J2 和 J3，使机械臂末端到达指定高度和距离。',
+        goal: '通过同时调整 J2 和 J3，理解关节耦合关系，并观察末端高度和前后距离的变化。',
         warning: 'J2 和 J3 都会影响末端位置，调节时需要同时观察两个关节的变化，避免只调一个关节导致末端偏离目标。',
-        hint: '同时调整 J2 和 J3，使末端到达目标位置。',
+        hint: '分别单独调节 J2 和 J3，再同时调节两者，比较末端运动差异。',
         relatedTheoryIds: ['forward-kinematics', 'workspace'],
         teachingGuide: {
-          task: '同时调节 J2 和 J3，让末端到达 3D 场景中标记的目标位置。',
+          task: '通过同时调整 J2 和 J3，理解关节耦合对末端位姿的影响。',
           operationSteps: [
-            '观察 3D 场景中的目标位置标记。',
             '先单独拖动 J2，观察末端高度和前后距离的变化。',
             '再单独拖动 J3，观察末端运动的差异。',
-            '同时调整 J2 和 J3，使末端靠近目标位置。',
+            '同时调整 J2 和 J3，体会两者对高度和距离的共同影响。',
+            '尝试用不同的 J2/J3 组合得到相似的末端高度或距离。',
           ],
-          checkItems: ['已尝试单独调节 J2 和 J3。', '末端位置与目标位置的偏差明显减小。'],
+          checkItems: [
+            '已单独调节 J2 并观察末端变化。',
+            '已单独调节 J3 并观察末端变化。',
+            '已同时调节 J2 和 J3，理解两者对高度和距离的共同影响。',
+          ],
           observe: [
             'J2 主要改变大臂角度，对末端高度影响较大。',
             'J3 主要改变小臂角度，对末端前后距离影响较大。',
-            'J2 和 J3 配合才能同时控制高度和距离。',
+            'J2 和 J3 配合才能同时控制高度和距离，这种协同关系称为关节耦合。',
           ],
           keyTerms: [
             { term: '关节耦合', definition: '多个关节同时影响末端同一方向位置的现象。' },
@@ -275,17 +278,17 @@ export const courseModules: CourseModule[] = [
           <p>如果目标点位于机械臂工作空间之外，系统会提示"目标不可达"。此时需要更换目标点或调整机械臂姿态。</p>
         `,
         goal: '给定目标 X、Y、Z 坐标，让机械臂末端自动移动到指定位置。',
-        warning: '目标点必须在工作空间内。如果提示不可达，请减小目标距离或选择更靠近机械臂的位置。',
-        hint: '在右侧输入目标 X/Y/Z 坐标，点击"移动到目标点"。',
-        relatedTheoryIds: ['forward-kinematics', 'workspace', 'singularity'],
+        warning: '目标点必须在工作空间内。如果提示不可达，请减小目标距离或选择更靠近机械臂的位置。姿态输入留空时，将保持当前姿态不变。',
+        hint: '在右侧输入目标 X/Y/Z 坐标（可选输入 Rx/Ry/Rz 姿态），点击"移动到目标点"。',
+        relatedTheoryIds: ['forward-kinematics', 'workspace', 'singularity', 'inverse-kinematics'],
         teachingGuide: {
           task: '输入目标点的 X、Y、Z 坐标，使用自动运动功能让末端到达该点。',
           operationSteps: [
-            '在右侧操作区找到 X、Y、Z 输入框。',
+            '在右侧操作区找到 X、Y、Z 输入框（可选填写 Rx、Ry、Rz 姿态）。',
             '输入一个位于机械臂前方的目标坐标。',
             '点击"移动到目标点"按钮。',
             '观察机械臂自动调整各关节并靠近目标。',
-            '如果提示不可达，更换坐标后重试。',
+            '如果提示不可达，更换坐标或姿态后重试。',
           ],
           checkItems: ['已输入目标坐标。', '机械臂自动完成关节调整。', '末端到达目标点或收到明确不可达提示。'],
           observe: [
@@ -497,12 +500,12 @@ export const courseModules: CourseModule[] = [
         goal: '能够拍摄彩色图像，并理解标定的基本流程和必要性。',
         warning: '标定板需要清晰完整地出现在图像中，避免过曝、过暗或倾斜角度过大，否则标定结果会不准确。',
         hint: '点击拍摄按钮，查看捕获的图像。',
-        relatedTheoryIds: ['camera-calibration', 'extrinsics'],
+        relatedTheoryIds: ['camera-calibration', 'intrinsics', 'extrinsics'],
         teachingGuide: {
           task: '使用当前相机参数拍摄一张彩色图像，并理解标定对坐标转换的作用。',
           operationSteps: [
             '确认相机位姿和 FOV 已调整到合适状态。',
-            '在右侧操作区点击"拍摄彩色图像"按钮。',
+            '在右侧操作区点击"彩色"拍摄按钮。',
             '查看拍摄结果，确认图像中包含机械臂和工作台。',
             '阅读标定说明，理解标定板与内外参的关系。',
           ],
@@ -565,6 +568,22 @@ export const courseModules: CourseModule[] = [
           '机器人操作需要控制移动速度，避免碰撞；吸取前确保吸盘与物体表面充分接触；搬运过程中保持稳定的姿态，防止物体脱落。',
         whyNow:
           '本模块涉及机械臂运动与物体交互，安全操作规范可以避免碰撞和抓取失败。',
+      },
+      {
+        id: 'workspace',
+        title: '工作空间',
+        description:
+          '工作空间是机械臂末端能够到达的所有位置集合。工作空间的大小和形状由机械臂的连杆长度、关节范围以及构型决定。',
+        whyNow:
+          '生成物体后需要判断它是否在机械臂可达范围内，否则后续抓取会提示“目标不可达”。',
+      },
+      {
+        id: 'waypoint',
+        title: '记忆点',
+        description:
+          '记忆点是保存下来的机械臂位姿（一组关节角度）。后续可以让机械臂直接回到该位置，也可以被动作序列引用作为放置目标。',
+        whyNow:
+          '动作序列中的“移动到目标位姿”步骤需要选择一个记忆点。理解记忆点的作用才能正确运行完整抓取流程。',
       },
     ],
     steps: [
@@ -668,7 +687,6 @@ export const courseModules: CourseModule[] = [
           observe: [
             '点击按钮后，机械臂多个关节会协同转动。',
             '末端最终停在箱子正上方，吸盘中心与箱子中心垂直对齐。',
-            '吸盘平面大致平行于箱子顶面。',
           ],
           keyTerms: [
             { term: '接近', definition: '抓取前将末端移动到物体附近的预备动作。' },
@@ -681,15 +699,15 @@ export const courseModules: CourseModule[] = [
         title: '吸取与释放',
         subtitle: '开启/关闭吸盘完成抓取',
         explanation: `
-          <p class="mb-2">本步骤学习吸盘的开启和关闭。当吸盘已经位于箱子正上方并贴近箱面时，点击"开启吸盘"，吸盘内部形成负压，箱子就会被吸住。</p>
+          <p class="mb-2">本步骤学习吸盘的开启和关闭，并练习把吸取到的箱子搬运到放置区。当吸盘已经位于箱子正上方并贴近箱面时，点击"开启吸盘"，吸盘内部形成负压，箱子就会被吸住。</p>
           <p class="mb-2">吸取成功的关键是<strong>吸盘与箱面充分接触</strong>。如果吸盘歪斜、没有贴紧，或者箱面不平整漏气，就形不成足够的负压，箱子会脱落。</p>
-          <p class="mb-2">吸取成功后，你可以移动机械臂把箱子搬到别的地方，然后点击"关闭吸盘"释放箱子。关闭吸盘后，箱子会受重力作用落到放置区。</p>
-          <p>本步骤只练习开启和关闭两个动作。完整的"生成 → 接近 → 吸取 → 搬运 → 释放"流程会在下一步"动作序列"中自动执行。</p>
+          <p class="mb-2">吸取成功后，使用右侧的位姿控制或目标坐标把机械臂移动到放置区上方，然后点击"关闭吸盘"释放箱子。关闭吸盘后，箱子会受重力作用落到放置区。</p>
+          <p>完整的"生成 → 接近 → 吸取 → 搬运 → 释放"流程也可以在下一步"动作序列"中自动执行。</p>
         `,
-        goal: '掌握吸盘开启和关闭的时机，观察箱子被吸住和释放的过程。',
+        goal: '掌握吸盘开启和关闭的时机，能把吸取到的箱子搬运到放置区并释放。',
         warning: '开启吸盘前必须确认吸盘已经贴近箱面。如果吸盘离箱子太远就开启，箱子不会被吸住。',
         hint: '确认吸盘贴近箱面后，点击"开启吸盘"；需要释放时点击"关闭吸盘"。',
-        relatedTheoryIds: ['vacuum-principle', 'motion-planning'],
+        relatedTheoryIds: ['vacuum-principle', 'motion-planning', 'safety-operation'],
         teachingGuide: {
           task: '在吸盘贴近箱面的状态下开启吸盘吸取箱子，再关闭吸盘释放箱子。',
           operationSteps: [
@@ -699,10 +717,9 @@ export const courseModules: CourseModule[] = [
             '移动机械臂到放置区上方（可用位姿控制或目标坐标）。',
             '点击"关闭吸盘"按钮，观察箱子释放并下落。',
           ],
-          checkItems: ['吸盘成功吸取箱子。', '箱子随吸盘一起移动。', '关闭吸盘后箱子落到放置区。'],
+          checkItems: ['吸盘成功吸取箱子。', '关闭吸盘后箱子落到放置区。'],
           observe: [
             '开启吸盘后，箱子会紧贴吸盘并随末端移动。',
-            '搬运过程中箱子保持稳定、不脱落。',
             '关闭吸盘后，箱子在重力作用下落到放置区。',
           ],
           keyTerms: [
@@ -729,12 +746,12 @@ export const courseModules: CourseModule[] = [
             <li>归位</li>
           </ol>
           <p class="mb-2">进入本步骤后，右侧会自动加载一个默认的完整抓取序列。你只需要检查步骤是否完整，然后点击"运行"即可。</p>
-          <p>注意：序列中的"移动到目标位姿"需要一个<strong>记忆点</strong>。如果你还没有保存过记忆点，请先到"末端位置控制"步骤，把机械臂移动到放置位置，然后在"记忆点管理"中保存一个点。</p>
+          <p>注意：序列中的"移动到目标位姿"需要一个<strong>记忆点</strong>。如果你还没有保存过记忆点，请先到机械臂模块的"末端位置控制"步骤，把机械臂移动到放置位置并保存一个记忆点，再返回本步骤运行序列。</p>
         `,
         goal: '理解动作序列的作用，能运行一个完整的抓取流程并把箱子从初始位置搬运到放置区。',
         warning: '运行序列前必须先生成箱子，并且确保"移动到目标位姿"步骤已经选择了一个有效的记忆点。',
         hint: '进入本步骤后，右侧会自动加载默认序列。检查步骤参数后点击"运行序列"。',
-        relatedTheoryIds: ['motion-planning', 'safety-operation'],
+        relatedTheoryIds: ['motion-planning', 'safety-operation', 'waypoint'],
         teachingGuide: {
           task: '运行默认抓取序列，完成从生成箱子到释放箱子的完整搬运。',
           operationSteps: [
