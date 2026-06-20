@@ -11,7 +11,8 @@ import CameraParamsCard from '@/components/camera/CameraParamsCard';
 import CapturePanel from '@/components/camera/CapturePanel';
 import SequenceEditor from '@/components/sequence/SequenceEditor';
 import { useSceneViewport } from '@/contexts/SceneViewportContext';
-import { Box, Power, PowerOff, Play, Grip, Eye, EyeOff } from 'lucide-react';
+import { BOX_HALF_SIZE, SUCKER_LENGTH, APPROACH_HEIGHT } from '@/hooks/useSuckerControl';
+import { Box, Power, PowerOff, Play, Grip, Eye, EyeOff, MoveUp } from 'lucide-react';
 
 type FreeTab = 'robot' | 'camera' | 'sequence';
 
@@ -161,6 +162,19 @@ function CameraTab(props: OperationPanelData) {
 }
 
 function SequenceTab(props: OperationPanelData) {
+  const isSuckerVisible = props.selectedTool === '吸盘';
+  const handleToggleSucker = () => {
+    props.setSelectedTool(isSuckerVisible ? '无' : '吸盘');
+  };
+
+  // 一键移动到箱子上方（与 GraspOperations 中逻辑一致）
+  const handleApproachBox = () => {
+    if (props.boxState === 'NONE') return;
+    const [bx, by, bz] = props.boxPosition;
+    const targetY = by + BOX_HALF_SIZE + SUCKER_LENGTH + APPROACH_HEIGHT;
+    props.onGoToPosition(bx / 1000, targetY / 1000, bz / 1000);
+  };
+
   return (
     <div className="space-y-4">
       <StatusBar>
@@ -172,11 +186,32 @@ function SequenceTab(props: OperationPanelData) {
         <div className="space-y-3">
           <button
             type="button"
+            onClick={handleToggleSucker}
+            className={`w-full py-2.5 text-xs font-semibold rounded-lg border shadow-sm flex items-center justify-center gap-2 transition-colors ${
+              isSuckerVisible
+                ? 'bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100'
+                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            {isSuckerVisible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+            {isSuckerVisible ? '隐藏吸盘' : '在 3D 场景中显示吸盘'}
+          </button>
+          <button
+            type="button"
             onClick={() => props.spawnBox([400, 200, 250], 50)}
             className="w-full py-2.5 text-xs font-semibold rounded-lg text-slate-700 bg-white border border-slate-200 shadow-sm hover:bg-slate-50 active:bg-slate-100 flex items-center justify-center gap-2 transition-colors"
           >
             <Box className="w-3.5 h-3.5" />
             生成物体
+          </button>
+          <button
+            type="button"
+            onClick={handleApproachBox}
+            disabled={props.boxState === 'NONE' || props.boxState === 'FALLING' || props.status === 'moving'}
+            className="w-full py-2.5 text-xs font-semibold rounded-lg text-white bg-gradient-to-r from-blue-500 to-blue-600 border border-blue-600 shadow-sm hover:from-blue-600 hover:to-blue-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
+          >
+            <MoveUp className="w-3.5 h-3.5" />
+            移动到箱子上方
           </button>
           <div className="grid grid-cols-2 gap-3">
             <button
@@ -207,7 +242,7 @@ function SequenceTab(props: OperationPanelData) {
             className="w-full py-2.5 text-xs font-semibold rounded-lg text-white bg-gradient-to-r from-blue-500 to-blue-600 border border-blue-600 shadow-sm hover:from-blue-600 hover:to-blue-700 flex items-center justify-center gap-2 transition-colors"
           >
             <Play className="w-3.5 h-3.5" />
-            执行完整抓取
+            生成物体并开启吸盘
           </button>
         </div>
       </OperationCard>

@@ -4,6 +4,8 @@ import { useEffect } from 'react';
 import { Box, Power, PowerOff, Grip, MoveUp, AlertCircle } from 'lucide-react';
 import type { OperationPanelData } from './OperationPanel';
 import SequenceEditor from '@/components/sequence/SequenceEditor';
+import PoseControlCard from '@/components/PoseControlCard';
+import PositionTargetCard from '@/components/PositionTargetCard';
 import { BOX_HALF_SIZE, SUCKER_LENGTH, APPROACH_HEIGHT } from '@/hooks/useSuckerControl';
 import { createDefaultGraspSequence } from '@/types/sequence';
 
@@ -18,7 +20,7 @@ const boxStateText: Record<string, string> = {
 
 export default function GraspOperations(props: OperationPanelData) {
   const stepId = props.currentStep.id;
-  const isFree = props.mode === 'free';
+  const { sequenceSteps, setSequenceSteps, waypoints } = props;
 
   const isSuckerVisible = props.selectedTool === '吸盘';
   const handleToggleSucker = () => {
@@ -30,33 +32,33 @@ export default function GraspOperations(props: OperationPanelData) {
     if (stepId !== 'grasp-sequence') return;
 
     // 如果还没有序列，加载默认序列，并默认选中第一个记忆点
-    if (props.sequenceSteps.length === 0) {
+    if (sequenceSteps.length === 0) {
       const defaultSteps = createDefaultGraspSequence();
-      if (props.waypoints.length > 0) {
-        const firstWaypoint = props.waypoints[0];
+      if (waypoints.length > 0) {
+        const firstWaypoint = waypoints[0];
         defaultSteps.forEach((s) => {
           if (s.type === '移动到目标位姿') {
             s.params.memoryPointName = firstWaypoint.name;
           }
         });
       }
-      props.setSequenceSteps(defaultSteps);
+      setSequenceSteps(defaultSteps);
       return;
     }
 
     // 如果记忆点发生变化，确保"移动到目标位姿"步骤仍然指向有效记忆点
-    if (props.waypoints.length > 0) {
-      const validNames = new Set(props.waypoints.map((wp) => wp.name));
-      const needsUpdate = props.sequenceSteps.some(
+    if (waypoints.length > 0) {
+      const validNames = new Set(waypoints.map((wp) => wp.name));
+      const needsUpdate = sequenceSteps.some(
         (s) =>
           s.type === '移动到目标位姿' &&
           s.params.memoryPointName &&
           !validNames.has(s.params.memoryPointName)
       );
       if (needsUpdate) {
-        const firstName = props.waypoints[0].name;
-        props.setSequenceSteps(
-          props.sequenceSteps.map((s) =>
+        const firstName = waypoints[0].name;
+        setSequenceSteps(
+          sequenceSteps.map((s) =>
             s.type === '移动到目标位姿' && s.params.memoryPointName && !validNames.has(s.params.memoryPointName)
               ? { ...s, params: { ...s.params, memoryPointName: firstName } }
               : s
@@ -64,7 +66,7 @@ export default function GraspOperations(props: OperationPanelData) {
         );
       }
     }
-  }, [stepId, props.sequenceSteps, props.sequenceSteps.length, props.setSequenceSteps, props.waypoints]);
+  }, [stepId, sequenceSteps, sequenceSteps.length, setSequenceSteps, waypoints]);
 
   // 一键移动到箱子上方（grasp-approach 步骤使用）
   const handleApproachBox = () => {
@@ -78,7 +80,7 @@ export default function GraspOperations(props: OperationPanelData) {
   return (
     <div className="space-y-4">
       {/* 认识吸盘：显示/隐藏吸盘 */}
-      {(stepId === 'grasp-sucker' || isFree) && (
+      {stepId === 'grasp-sucker' && (
         <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
@@ -92,41 +94,51 @@ export default function GraspOperations(props: OperationPanelData) {
           <p className="text-xs text-slate-600 leading-relaxed">
             吸盘内部被抽成低压后，外部大气压会把物体压在吸盘上。只要吸盘与物体表面贴合、不漏气，就能产生稳定吸附力。
           </p>
-          {!isFree && (
-            <button
-              type="button"
-              onClick={handleToggleSucker}
-              className={`w-full py-2.5 text-[13px] font-semibold rounded-xl border shadow-sm flex items-center justify-center gap-2 transition-colors ${
-                isSuckerVisible
-                  ? 'bg-amber-50 text-amber-700 border-amber-300'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              {isSuckerVisible ? '隐藏吸盘' : '在 3D 场景中显示吸盘'}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={handleToggleSucker}
+            className={`w-full py-2.5 text-[13px] font-semibold rounded-xl border shadow-sm flex items-center justify-center gap-2 transition-colors ${
+              isSuckerVisible
+                ? 'bg-amber-50 text-amber-700 border-amber-300'
+                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            {isSuckerVisible ? '隐藏吸盘' : '在 3D 场景中显示吸盘'}
+          </button>
         </div>
       )}
 
       {/* 生成物体 */}
-      {(stepId === 'grasp-spawn' || isFree) && (
-        <button
-          type="button"
-          onClick={() => props.spawnBox([400, 200, 250], 50)}
-          className="w-full py-3 text-[13px] font-semibold rounded-xl text-slate-700 bg-white border border-slate-200 shadow-sm hover:bg-slate-50 active:bg-slate-100 flex items-center justify-center gap-2"
-        >
-          <Box className="w-4 h-4" />
-          生成物体
-        </button>
+      {stepId === 'grasp-spawn' && (
+        <div className="space-y-3">
+          <button
+            type="button"
+            onClick={() => props.spawnBox([400, 200, 250], 50)}
+            className="w-full py-3 text-[13px] font-semibold rounded-xl text-slate-700 bg-white border border-slate-200 shadow-sm hover:bg-slate-50 active:bg-slate-100 flex items-center justify-center gap-2"
+          >
+            <Box className="w-4 h-4" />
+            固定位置生成
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              props.spawnBox([300 + Math.random() * 200, 200, 200 + Math.random() * 200], 50)
+            }
+            className="w-full py-3 text-[13px] font-semibold rounded-xl text-slate-700 bg-white border border-slate-200 shadow-sm hover:bg-slate-50 active:bg-slate-100 flex items-center justify-center gap-2"
+          >
+            <Box className="w-4 h-4" />
+            随机位置生成
+          </button>
+        </div>
       )}
 
       {/* 接近物体：一键移动到箱子上方 */}
-      {(stepId === 'grasp-approach' || isFree) && (
+      {stepId === 'grasp-approach' && (
         <div className="space-y-3">
           <button
             type="button"
             onClick={handleApproachBox}
-            disabled={props.boxState === 'NONE' || props.status === 'moving'}
+            disabled={props.boxState === 'NONE' || props.boxState === 'FALLING' || props.status === 'moving'}
             className="w-full py-3 text-[13px] font-semibold rounded-xl text-white bg-gradient-to-r from-blue-500 to-blue-600 border border-blue-600 shadow-sm hover:from-blue-600 hover:to-blue-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <MoveUp className="w-4 h-4" />
@@ -138,21 +150,72 @@ export default function GraspOperations(props: OperationPanelData) {
               <span>请先在"生成物体"步骤中生成一个箱子。</span>
             </div>
           )}
+          {/* 手动微调位姿与目标坐标 */}
+          <PoseControlCard
+            coordinateSystem={props.coordinateSystem}
+            onCoordinateChange={props.onCoordinateChange}
+            posStep={props.posStep}
+            onPosStepChange={props.onPosStepChange}
+            rotStep={props.rotStep}
+            onRotStepChange={props.onRotStepChange}
+            onMoveDirection={props.onMoveDirection}
+            disabled={props.status === 'moving'}
+          />
+          <PositionTargetCard
+            currentGLBPosition={props.currentGLBPosition}
+            onGoToPosition={props.onGoToPosition}
+            disabled={props.status === 'moving'}
+          />
         </div>
       )}
 
       {/* 吸取/释放 */}
-      {(stepId === 'grasp-attach' || isFree) && (
+      {stepId === 'grasp-attach' && (
         <div className="space-y-3">
+          {/* 放置区参考：提供预设放置坐标与一键到达 */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
+            <p className="text-sm font-bold text-slate-800">放置区参考</p>
+            <p className="text-xs text-slate-500">
+              预设放置坐标：[-0.4, 0.3, 0.25] m
+            </p>
+            <button
+              type="button"
+              onClick={() => props.onGoToPosition(-0.4, 0.3, 0.25)}
+              disabled={props.status === 'moving'}
+              className="w-full py-2.5 text-[13px] font-semibold rounded-xl text-white bg-gradient-to-r from-emerald-500 to-emerald-600 border border-emerald-600 shadow-sm hover:from-emerald-600 hover:to-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              <MoveUp className="w-4 h-4" />
+              移动到放置区
+            </button>
+          </div>
+
           <button
             type="button"
             onClick={props.turnSuckerOn}
-            disabled={props.suckerOn}
+            disabled={
+              props.suckerOn ||
+              props.boxState === 'NONE' ||
+              props.boxState === 'FALLING' ||
+              props.boxState === 'FREE' ||
+              props.boxState === 'RESTING'
+            }
             className="w-full py-3 text-[13px] font-semibold rounded-xl text-white bg-gradient-to-r from-blue-500 to-blue-600 border border-blue-600 shadow-sm hover:from-blue-600 hover:to-blue-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <Power className="w-4 h-4" />
             开启吸盘
           </button>
+          {(props.boxState === 'NONE' || props.boxState === 'FALLING') && (
+            <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>请先生成箱子并接近箱面。</span>
+            </div>
+          )}
+          {(props.boxState === 'FREE' || props.boxState === 'RESTING') && (
+            <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>请先移动到箱子上方让吸盘贴近箱面。</span>
+            </div>
+          )}
           <button
             type="button"
             onClick={props.turnSuckerOff}
@@ -162,6 +225,23 @@ export default function GraspOperations(props: OperationPanelData) {
             <PowerOff className="w-4 h-4" />
             关闭吸盘
           </button>
+
+          {/* 搬运控制：位姿方向键 + 目标坐标，用于把箱子移动到放置区 */}
+          <PoseControlCard
+            coordinateSystem={props.coordinateSystem}
+            onCoordinateChange={props.onCoordinateChange}
+            posStep={props.posStep}
+            onPosStepChange={props.onPosStepChange}
+            rotStep={props.rotStep}
+            onRotStepChange={props.onRotStepChange}
+            onMoveDirection={props.onMoveDirection}
+            disabled={props.status === 'moving'}
+          />
+          <PositionTargetCard
+            currentGLBPosition={props.currentGLBPosition}
+            onGoToPosition={props.onGoToPosition}
+            disabled={props.status === 'moving'}
+          />
         </div>
       )}
 
@@ -183,7 +263,7 @@ export default function GraspOperations(props: OperationPanelData) {
       )}
 
       {/* 动作序列： grasp-sequence 步骤显示，并在顶部给出记忆点引导 */}
-      {(stepId === 'grasp-sequence' || isFree) && (
+      {stepId === 'grasp-sequence' && (
         <div className="space-y-3">
           {stepId === 'grasp-sequence' && props.waypoints.length === 0 && (
             <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">

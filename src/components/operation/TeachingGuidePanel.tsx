@@ -1,7 +1,7 @@
 // src/components/operation/TeachingGuidePanel.tsx
 // 右侧教学引导卡片：与操作控件同处一个滚动区域，聚焦“怎么做”
 
-import { ListOrdered, CheckCircle2, Eye, ArrowRight, Target } from 'lucide-react';
+import { ListOrdered, CheckCircle2, Eye, ArrowRight, AlertTriangle } from 'lucide-react';
 import type { CourseStep } from '@/lib/course-config';
 
 interface TeachingGuidePanelProps {
@@ -68,7 +68,7 @@ export default function TeachingGuidePanel({ step }: TeachingGuidePanelProps) {
           <p className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">重点观察</p>
         </div>
         <ul className="space-y-1.5">
-          {teachingGuide.observe.slice(0, 3).map((item, index) => (
+          {teachingGuide.observe.map((item, index) => (
             <li key={index} className="flex items-start gap-2">
               <ArrowRight className="w-3 h-3 text-amber-500 shrink-0 mt-0.5" />
               <p className="text-[12px] text-slate-600 leading-relaxed">{item}</p>
@@ -77,14 +77,16 @@ export default function TeachingGuidePanel({ step }: TeachingGuidePanelProps) {
         </ul>
       </div>
 
-      {/* 目标提示 */}
-      <div className="flex items-start gap-2 pt-3 border-t border-slate-100">
-        <Target className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" />
-        <p className="text-[11px] text-blue-700 leading-relaxed">
-          <span className="font-semibold">本步目标：</span>
-          {step.goal}
-        </p>
-      </div>
+      {/* 注意事项 */}
+      {step.warning && (
+        <div className="flex items-start gap-2 pt-3 border-t border-slate-100">
+          <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+          <p className="text-[11px] text-amber-700 leading-relaxed">
+            <span className="font-semibold">注意事项：</span>
+            {step.warning}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

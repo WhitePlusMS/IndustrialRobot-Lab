@@ -49,7 +49,7 @@ export interface OperationPanelData {
   onRotStepChange: (v: number) => void;
   onMoveDirection: (axis: 'x' | 'y' | 'z' | 'rx' | 'ry' | 'rz', sign: 1 | -1, isLongPress: boolean) => void;
   onGotoWaypoint: (joints: JointAngles) => void;
-  onGoToPosition: (x: number, y: number, z: number) => boolean;
+  onGoToPosition: (x: number, y: number, z: number, rx?: number, ry?: number, rz?: number) => boolean;
   currentGLBPosition: [number, number, number] | null;
   status: StatusType;
   highlightedJoint: number | null;
