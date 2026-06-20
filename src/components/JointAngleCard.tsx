@@ -17,6 +17,10 @@ interface JointAngleCardProps {
   onRandom: () => void;
   /** 是否允许折叠，教学模式可设为 false 以默认展开 */
   collapsible?: boolean;
+  /** 允许操作的关节索引列表；未传入时所有关节均可操作 */
+  enabledJoints?: number[];
+  /** 全局禁用所有关节调节 */
+  disabled?: boolean;
 }
 
 export default function JointAngleCard({
@@ -30,6 +34,8 @@ export default function JointAngleCard({
   onReset,
   onRandom,
   collapsible = true,
+  enabledJoints,
+  disabled = false,
 }: JointAngleCardProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [editing, setEditing] = useState<{ index: number; value: string } | null>(null);
@@ -37,6 +43,8 @@ export default function JointAngleCard({
   const rafRef = useRef<number | null>(null);
   const pendingRef = useRef<{ index: number; value: number } | null>(null);
   const dhValues = Object.values(config.dhParams);
+  // 是否启用了关节过滤（教学模式限定部分关节）
+  const hasEnabledFilter = enabledJoints !== undefined;
 
   // 组件卸载时取消未执行的 rAF
   useEffect(() => {
@@ -78,8 +86,15 @@ export default function JointAngleCard({
     return () => window.removeEventListener('pointerup', handlePointerUp);
   }, [sliderValues, joints, onAdjustJoint, onSetJoint, sliderTargetRef]);
 
+  // 判断指定关节是否可操作
+  const isJointEnabled = (index: number) => {
+    if (!enabledJoints) return true;
+    return enabledJoints.includes(index);
+  };
+
   // 滑块拖动：只写 ref，不触发 React 渲染；3D 层 useFrame 读 ref 做插值
   const scheduleUpdate = (index: number, value: number) => {
+    if (!isJointEnabled(index)) return;
     setSliderValues((prev) => ({ ...prev, [index]: value }));
     sliderTargetRef.current[index] = value;
 
@@ -103,7 +118,7 @@ export default function JointAngleCard({
   const applyManualValue = (index: number) => {
     if (!editing || editing.index !== index) return;
     const v = parseFloat(editing.value);
-    if (!Number.isNaN(v)) {
+    if (!Number.isNaN(v) && isJointEnabled(index)) {
       sliderTargetRef.current[index] = v;
       if (onSetJoint) {
         onSetJoint(index, v);
@@ -133,15 +148,17 @@ export default function JointAngleCard({
             const range = dhValues[i].thetaRange;
             const displayAngle = i in sliderValues ? sliderValues[i] : angle;
             const isOutOfRange = displayAngle < range[0] - 0.01 || displayAngle > range[1] + 0.01;
+            const enabled = isJointEnabled(i);
             return (
-              <div key={i} className="space-y-1.5">
+              <div key={i} className={`space-y-1.5 ${!enabled ? 'opacity-60' : ''}`}>
                 {/* 按钮 + 数值 + 范围 */}
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-medium text-slate-500 w-8">J{i + 1}</span>
+                  <span className={`text-xs font-medium w-8 ${enabled ? 'text-slate-500' : 'text-slate-400'}`}>J{i + 1}</span>
                   <LongPressButton
                     aria-label={`减小 J${i + 1} 角度`}
                     onClick={(isContinuous) => onAdjustJoint(i, -1, isContinuous)}
-                    className="w-7 h-7 flex items-center justify-center bg-slate-100 border border-slate-200 rounded-sm text-slate-700 hover:bg-slate-200 active:bg-blue-600 active:text-white active:border-blue-600 transition-colors"
+                    disabled={!enabled || disabled}
+                    className="w-7 h-7 flex items-center justify-center bg-slate-100 border border-slate-200 rounded-sm text-slate-700 hover:bg-slate-200 active:bg-blue-600 active:text-white active:border-blue-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <span className="pointer-events-none">−</span>
                   </LongPressButton>
@@ -161,13 +178,14 @@ export default function JointAngleCard({
                           }
                         }}
                         autoFocus
-                        className={`w-12 text-sm font-mono tabular-nums font-medium text-center bg-white border-b-2 focus:outline-none ${
+                        disabled={!enabled || disabled}
+                        className={`w-12 text-sm font-mono tabular-nums font-medium text-center bg-white border-b-2 focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed ${
                           isOutOfRange ? 'text-red-500 border-red-400' : 'text-slate-800 border-blue-500'
                         }`}
                       />
                       <span className={`text-sm ${isOutOfRange ? 'text-red-500' : 'text-slate-800'}`}>°</span>
                     </div>
-                  ) : (
+                  ) : enabled ? (
                     <button
                       type="button"
                       onClick={() => setEditing({ index: i, value: angle.toFixed(1) })}
@@ -178,11 +196,16 @@ export default function JointAngleCard({
                     >
                       {displayAngle.toFixed(1)}°
                     </button>
+                  ) : (
+                    <span className="text-sm font-mono tabular-nums font-medium w-14 text-center text-slate-400">
+                      {displayAngle.toFixed(1)}°
+                    </span>
                   )}
                   <LongPressButton
                     aria-label={`增大 J${i + 1} 角度`}
                     onClick={(isContinuous) => onAdjustJoint(i, 1, isContinuous)}
-                    className="w-7 h-7 flex items-center justify-center bg-slate-100 border border-slate-200 rounded-sm text-slate-700 hover:bg-slate-200 active:bg-blue-600 active:text-white active:border-blue-600 transition-colors"
+                    disabled={!enabled || disabled}
+                    className="w-7 h-7 flex items-center justify-center bg-slate-100 border border-slate-200 rounded-sm text-slate-700 hover:bg-slate-200 active:bg-blue-600 active:text-white active:border-blue-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <span className="pointer-events-none">+</span>
                   </LongPressButton>
@@ -198,7 +221,8 @@ export default function JointAngleCard({
                   step={0.1}
                   value={displayAngle}
                   onChange={(e) => scheduleUpdate(i, parseFloat(e.target.value))}
-                  className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                  disabled={!enabled || disabled}
+                  className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600 disabled:opacity-40 disabled:cursor-not-allowed"
                   aria-label={`J${i + 1} 角度滑块`}
                 />
               </div>
@@ -214,7 +238,8 @@ export default function JointAngleCard({
             <button
               type="button"
               onClick={onReset}
-              className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 border border-slate-200 rounded-sm hover:bg-slate-200 transition-colors"
+              disabled={hasEnabledFilter || disabled}
+              className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 border border-slate-200 rounded-sm hover:bg-slate-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <RotateCcw className="w-3 h-3" />
               重置
@@ -222,7 +247,8 @@ export default function JointAngleCard({
             <button
               type="button"
               onClick={onRandom}
-              className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 border border-slate-200 rounded-sm hover:bg-slate-200 transition-colors"
+              disabled={hasEnabledFilter || disabled}
+              className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 border border-slate-200 rounded-sm hover:bg-slate-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Shuffle className="w-3 h-3" />
               随机

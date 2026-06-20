@@ -13,6 +13,8 @@ interface PoseControlCardProps {
   rotStep: number;
   onRotStepChange: (v: number) => void;
   onMoveDirection: (axis: 'x' | 'y' | 'z' | 'rx' | 'ry' | 'rz', sign: 1 | -1, isLongPress: boolean) => void;
+  /** 全局禁用所有方向按钮 */
+  disabled?: boolean;
 }
 
 export default function PoseControlCard({
@@ -23,6 +25,7 @@ export default function PoseControlCard({
   rotStep,
   onRotStepChange,
   onMoveDirection,
+  disabled = false,
 }: PoseControlCardProps) {
   const [collapsed, setCollapsed] = useState(false);
   const longPressAxis = useRef<string | null>(null);
@@ -104,6 +107,7 @@ export default function PoseControlCard({
                   onClick={() => handleDirectionClick('z', 1)}
                   onLongPressStart={() => handleLongPressStart('z', 1)}
                   onLongPressEnd={handleLongPressEnd}
+                  disabled={disabled}
                 />
                 <div />
                 <DirectionButton
@@ -111,6 +115,7 @@ export default function PoseControlCard({
                   onClick={() => handleDirectionClick('y', 1)}
                   onLongPressStart={() => handleLongPressStart('y', 1)}
                   onLongPressEnd={handleLongPressEnd}
+                  disabled={disabled}
                 />
                 <div className="w-12 h-12 flex items-center justify-center">
                   <div className="w-2 h-2 bg-slate-400 rounded-full" />
@@ -120,6 +125,7 @@ export default function PoseControlCard({
                   onClick={() => handleDirectionClick('y', -1)}
                   onLongPressStart={() => handleLongPressStart('y', -1)}
                   onLongPressEnd={handleLongPressEnd}
+                  disabled={disabled}
                 />
                 <div />
                 <DirectionButton
@@ -127,6 +133,7 @@ export default function PoseControlCard({
                   onClick={() => handleDirectionClick('z', -1)}
                   onLongPressStart={() => handleLongPressStart('z', -1)}
                   onLongPressEnd={handleLongPressEnd}
+                  disabled={disabled}
                 />
                 <div />
                 <DirectionButton
@@ -134,6 +141,7 @@ export default function PoseControlCard({
                   onClick={() => handleDirectionClick('x', -1)}
                   onLongPressStart={() => handleLongPressStart('x', -1)}
                   onLongPressEnd={handleLongPressEnd}
+                  disabled={disabled}
                 />
                 <div />
                 <DirectionButton
@@ -141,6 +149,7 @@ export default function PoseControlCard({
                   onClick={() => handleDirectionClick('x', 1)}
                   onLongPressStart={() => handleLongPressStart('x', 1)}
                   onLongPressEnd={handleLongPressEnd}
+                  disabled={disabled}
                 />
               </div>
             </div>
@@ -155,6 +164,7 @@ export default function PoseControlCard({
                   onClick={() => handleDirectionClick('rz', 1)}
                   onLongPressStart={() => handleLongPressStart('rz', 1)}
                   onLongPressEnd={handleLongPressEnd}
+                  disabled={disabled}
                 />
                 <div />
                 <DirectionButton
@@ -162,6 +172,7 @@ export default function PoseControlCard({
                   onClick={() => handleDirectionClick('ry', 1)}
                   onLongPressStart={() => handleLongPressStart('ry', 1)}
                   onLongPressEnd={handleLongPressEnd}
+                  disabled={disabled}
                 />
                 <div className="w-12 h-12 flex items-center justify-center">
                   <div className="w-2 h-2 bg-slate-400 rounded-full" />
@@ -171,6 +182,7 @@ export default function PoseControlCard({
                   onClick={() => handleDirectionClick('ry', -1)}
                   onLongPressStart={() => handleLongPressStart('ry', -1)}
                   onLongPressEnd={handleLongPressEnd}
+                  disabled={disabled}
                 />
                 <div />
                 <DirectionButton
@@ -178,6 +190,7 @@ export default function PoseControlCard({
                   onClick={() => handleDirectionClick('rz', -1)}
                   onLongPressStart={() => handleLongPressStart('rz', -1)}
                   onLongPressEnd={handleLongPressEnd}
+                  disabled={disabled}
                 />
                 <div />
                 <DirectionButton
@@ -185,6 +198,7 @@ export default function PoseControlCard({
                   onClick={() => handleDirectionClick('rx', -1)}
                   onLongPressStart={() => handleLongPressStart('rx', -1)}
                   onLongPressEnd={handleLongPressEnd}
+                  disabled={disabled}
                 />
                 <div />
                 <DirectionButton
@@ -192,6 +206,7 @@ export default function PoseControlCard({
                   onClick={() => handleDirectionClick('rx', 1)}
                   onLongPressStart={() => handleLongPressStart('rx', 1)}
                   onLongPressEnd={handleLongPressEnd}
+                  disabled={disabled}
                 />
               </div>
             </div>
