@@ -394,7 +394,7 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
 
   // ===== 绝对定位（GLB 视觉 IK，输入为场景坐标米）=====
   const goToPosition = useCallback(
-    (x: number, y: number, z: number): boolean => {
+    (x: number, y: number, z: number, rx?: number, ry?: number, rz?: number): boolean => {
       const targetPos: [number, number, number] = [x * 1000, y * 1000, z * 1000];
       if (!isReachable(targetPos, model)) {
         setStatus('unreachable');
@@ -410,11 +410,20 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
         return false;
       }
 
-      // 保持当前姿态，仅移动到目标位置
+      // 若提供了姿态，则使用目标姿态；否则保持当前姿态
+      const targetEuler: [number, number, number] =
+        rx !== undefined && ry !== undefined && rz !== undefined
+          ? [degToRad(rx), degToRad(ry), degToRad(rz)]
+          : currentPose.euler;
+      const targetRot =
+        rx !== undefined && ry !== undefined && rz !== undefined
+          ? buildRotationFromEuler(targetEuler)
+          : currentPose.rotation;
+
       const targetPose: Pose = {
         position: targetPos,
-        euler: currentPose.euler,
-        rotation: currentPose.rotation,
+        euler: targetEuler,
+        rotation: targetRot,
       };
 
       const solved = solveIK(
@@ -440,7 +449,7 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
 
       startCartesianAnimation(targetPose, {
         duration: DEFAULT_MOTION_CONFIG.ikAnimDuration,
-        positionOnly: true,
+        positionOnly: false,
       });
       return true;
     },
