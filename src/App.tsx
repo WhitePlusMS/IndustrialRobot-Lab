@@ -1,6 +1,6 @@
 // src/App.tsx
 // 根组件：组合各领域 Provider；AppContent 只负责读取 Context 并渲染页面骨架
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { LearningProvider, useLearning } from '@/contexts/LearningContext';
 import { SceneViewportProvider, useSceneViewport } from '@/contexts/SceneViewportContext';
 import { RobotProvider, useRobotContext } from '@/contexts/RobotContext';
@@ -49,6 +49,15 @@ function AppContent() {
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
 
+  // 切换步骤时，自动清除不属于当前步骤的 3D 高亮与临时工具显示
+  useEffect(() => {
+    const stepId = learning.currentStep?.id;
+    if (stepId !== 'robot-structure') {
+      robot.setHighlightedJoint(null);
+    }
+
+  }, [learning.currentStep?.id, robot]);
+
   if (!learning.currentStep) {
     return <div className="h-screen w-screen flex items-center justify-center">课程加载失败</div>;
   }
@@ -76,6 +85,7 @@ function AppContent() {
             selectedTool={robot.selectedTool}
             onToolList={robot.setToolList}
             cameraState={camera.cameraState}
+            cameraSliderTargetRef={camera.cameraSliderTargetRef}
             // 箱子/吸盘
             boxPosition={sucker.boxPosition}
             boxState={sucker.boxState}

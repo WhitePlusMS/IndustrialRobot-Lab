@@ -3,7 +3,7 @@
 // 根据GLB节点名称自动识别关节位置和层级，所有参数动态计算
 import { useEffect, useMemo, useRef } from 'react';
 import { useGLTF } from '@react-three/drei';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { Matrix, SingularValueDecomposition } from 'ml-matrix';
 import type { JointAngles } from '@/types/robot';
@@ -22,6 +22,10 @@ interface GLBRobotArmProps {
   onToolList?: (tools: string[]) => void;
   /** 滑块/输入框直接写入的目标关节 ref；存在时 useFrame 直接读 ref，跳过 React 渲染链路 */
   sliderTargetRef?: React.MutableRefObject<JointAngles>;
+  /** 要高亮的关节索引（0~5），null 表示不高亮 */
+  highlightedJoint?: number | null;
+  /** 是否显示末端工具坐标系 */
+  showToolAxes?: boolean;
 }
 
 // 关节名称列表（KUKA标准六轴）
@@ -846,17 +850,245 @@ function applyJointAngles(
   });
 }
 
+/** 收集每个关节对应连杆的 Mesh。
+ * 只取 Pivot 的直接子节点（关节 node 本身）及其直接子节点中的 Mesh，
+ * 避免把整个后续机械臂都高亮。
+ * 对于最后一个关节（快拆机器人端口 / J6），需要递归收集法兰本体 mesh，
+ * 但跳过名为 "吸盘" 的工具子树，避免把末端工具也当作 J6 连杆高亮。 */
+function collectJointMeshes(root: THREE.Group): THREE.Mesh[][] {
+  return JOINT_NAMES.map((name, index) => {
+    const pivot = findNode(root, `Pivot_${name}`);
+    if (!pivot) return [];
+    const meshes: THREE.Mesh[] = [];
+    const isLastJoint = index === JOINT_NAMES.length - 1;
+
+    const collect = (node: THREE.Object3D) => {
+      if (isLastJoint && node.name === '吸盘') return; // 跳过末端工具子树
+      if (node instanceof THREE.Mesh) meshes.push(node);
+      node.children.forEach(collect);
+    };
+
+    pivot.children.forEach((child) => {
+      // 关节 node 本身
+      if (child instanceof THREE.Mesh) meshes.push(child);
+      // 直接挂在关节 node 下的零件
+      child.children.forEach((grandChild) => {
+        if (isLastJoint && grandChild.name === '吸盘') return;
+        collect(grandChild);
+      });
+    });
+
+    return meshes;
+  });
+}
+
+/** 金色描边材质：背面渲染，明显放大，形成醒目的外轮廓 */
+const OUTLINE_COLOR = new THREE.Color('#FBBF24');
+const OUTLINE_MATERIAL = new THREE.MeshBasicMaterial({
+  color: OUTLINE_COLOR,
+  side: THREE.BackSide,
+  depthTest: true,
+  transparent: false,
+  opacity: 1.0,
+});
+
+/** 为指定 Mesh 创建金色背面放大描边，作为该 Mesh 的子节点 */
+function createOutline(mesh: THREE.Mesh, name: string): THREE.Mesh {
+  const geometry = mesh.geometry.clone();
+  const outline = new THREE.Mesh(geometry, OUTLINE_MATERIAL.clone());
+  outline.name = name;
+  outline.scale.setScalar(1.06);
+  outline.renderOrder = 999;
+  return outline;
+}
+
+/** 判断材质是否支持自发光 */
+function isEmissiveMaterial(
+  material: THREE.Material
+): material is THREE.MeshStandardMaterial | THREE.MeshPhysicalMaterial {
+  return 'emissive' in material && material.emissive instanceof THREE.Color;
+}
+
+/** 判断材质是否支持直接修改基础颜色 */
+function isColorMaterial(
+  material: THREE.Material
+): material is THREE.MeshBasicMaterial | THREE.MeshLambertMaterial | THREE.MeshPhongMaterial {
+  return 'color' in material && material.color instanceof THREE.Color;
+}
+
+/** 坐标系样式配置 */
+interface AxesConfig {
+  length: number;
+  radius: number;
+  headRadius: number;
+  headHeight: number;
+  originRadius: number;
+}
+
+/** 工具坐标系配置：长度 25cm，较细，适合末端 */
+const TOOL_AXES_CONFIG: AxesConfig = {
+  length: 0.25,
+  radius: 0.03,
+  headRadius: 0.08,
+  headHeight: 0.15,
+  originRadius: 0.04,
+};
+
+/** 基坐标系配置：长度 1m，较细箭头，适合底座 */
+const BASE_AXES_CONFIG: AxesConfig = {
+  length: 1.0,
+  radius: 0.012,
+  headRadius: 0.035,
+  headHeight: 0.09,
+  originRadius: 0.035,
+};
+
+/** 创建自定义的粗壮 Mesh 坐标系（圆柱 + 箭头），使用 MeshBasicMaterial 且关闭深度测试，保证可见 */
+function createAxes(name: string, config: AxesConfig): THREE.Group {
+  const group = new THREE.Group();
+  group.name = name;
+  group.renderOrder = 1000;
+
+  const { length, radius, headRadius, headHeight, originRadius } = config;
+  const up = new THREE.Vector3(0, 1, 0);
+
+  const axes = [
+    { dir: new THREE.Vector3(1, 0, 0), color: 0xff0000 }, // X 红
+    { dir: new THREE.Vector3(0, 1, 0), color: 0x00ff00 }, // Y 绿
+    { dir: new THREE.Vector3(0, 0, 1), color: 0x0000ff }, // Z 蓝
+  ];
+
+  axes.forEach(({ dir, color }) => {
+    const axisGroup = new THREE.Group();
+
+    // 轴身
+    const shaftGeo = new THREE.CylinderGeometry(radius, radius, length, 16);
+    shaftGeo.translate(0, length / 2, 0);
+    const shaftMat = new THREE.MeshBasicMaterial({ color, depthTest: false, toneMapped: false });
+    const shaft = new THREE.Mesh(shaftGeo, shaftMat);
+
+    // 箭头
+    const headGeo = new THREE.ConeGeometry(headRadius, headHeight, 16);
+    headGeo.translate(0, length + headHeight / 2, 0);
+    const head = new THREE.Mesh(headGeo, shaftMat);
+
+    axisGroup.add(shaft);
+    axisGroup.add(head);
+
+    // 旋转到指定方向
+    const q = new THREE.Quaternion().setFromUnitVectors(up, dir);
+    axisGroup.setRotationFromQuaternion(q);
+
+    group.add(axisGroup);
+  });
+
+  // 中心加一个发光小球体作为原点标记
+  const originGeo = new THREE.SphereGeometry(originRadius, 16, 16);
+  const originMat = new THREE.MeshBasicMaterial({ color: 0xffff00, depthTest: false, toneMapped: false });
+  const origin = new THREE.Mesh(originGeo, originMat);
+  group.add(origin);
+
+  return group;
+}
+
+/** 导出基坐标系创建函数，供 RobotScene 使用 */
+export function createBaseAxes(): THREE.Group {
+  return createAxes('BaseAxesHelper', BASE_AXES_CONFIG);
+}
+
+
+
+/**
+ * 高亮指定 Mesh：
+ * 1. 先清理该 Mesh 上已有的同类型高亮，避免状态错乱；
+ * 2. 克隆原材质，对 PBR 材质增强金色自发光，对无光照材质直接改颜色；
+ * 3. 添加背面放大描边作为子节点。
+ * 原材质保存在 mesh.userData.originalMaterial 中，便于恢复。
+ */
+function highlightMesh(mesh: THREE.Mesh, outlineName: string) {
+  // 先取消再重新高亮，保证同一 Mesh 上不会残留多个 outline 或材质错误
+  unhighlightMesh(mesh, outlineName);
+
+  // 保存原材质
+  const originalMaterial = mesh.material;
+  mesh.userData.originalMaterial = originalMaterial;
+
+  // 克隆材质并设置金色高亮
+  const clonedMaterial: THREE.Material | THREE.Material[] = Array.isArray(originalMaterial)
+    ? originalMaterial.map((m) => m.clone())
+    : originalMaterial.clone();
+
+  const applyHighlight = (material: THREE.Material) => {
+    if (isEmissiveMaterial(material)) {
+      // PBR 材质：同时改变基础颜色和自发光，确保在各种光照下都足够醒目
+      material.color.set(OUTLINE_COLOR);
+      material.emissive.set(OUTLINE_COLOR);
+      material.emissiveIntensity = (material.emissiveIntensity || 0) + 2.5;
+    } else if (isColorMaterial(material)) {
+      material.color.set(OUTLINE_COLOR);
+    }
+  };
+
+  if (Array.isArray(clonedMaterial)) {
+    clonedMaterial.forEach(applyHighlight);
+  } else {
+    applyHighlight(clonedMaterial);
+  }
+
+  mesh.material = clonedMaterial;
+
+  // 添加描边
+  const outline = createOutline(mesh, outlineName);
+  mesh.add(outline);
+
+  mesh.userData.isHighlighted = true;
+}
+
+/**
+ * 取消 Mesh 高亮：
+ * 1. 移除所有同名描边子节点；
+ * 2. 恢复原材质。
+ * 不依赖 userData.isHighlighted，只要调用就执行清理，避免状态不同步导致残留。
+ */
+function unhighlightMesh(mesh: THREE.Mesh, outlineName: string) {
+  // 一次性移除所有同名 outline
+  const outlines = mesh.children.filter((child) => child.name === outlineName);
+  outlines.forEach((outline) => {
+    mesh.remove(outline);
+    if (outline instanceof THREE.Mesh) {
+      outline.geometry.dispose();
+      if (outline.material instanceof THREE.Material) {
+        outline.material.dispose();
+      } else if (Array.isArray(outline.material)) {
+        outline.material.forEach((m) => m.dispose());
+      }
+    }
+  });
+
+  // 恢复材质
+  if (mesh.userData.originalMaterial !== undefined) {
+    mesh.material = mesh.userData.originalMaterial;
+    mesh.userData.originalMaterial = undefined;
+  }
+
+  mesh.userData.isHighlighted = false;
+}
+
 export default function GLBRobotArm({
   joints,
   onTrajectoryPoint,
   selectedTool = '无',
   onToolList,
   sliderTargetRef,
+  highlightedJoint = null,
+  showToolAxes = false,
 }: GLBRobotArmProps) {
   const { scene } = useGLTF('/models/KUKA_V1.glb');
 
   // 在渲染路径内一次性构建 Three.js 层级，保证对象在首帧即可挂载到 R3F 场景。
   // useMemo 只依赖 scene，避免 joints 变化时重复构建；初始角度由 buildArticulated 应用一次即可。
+  const { scene: r3fScene } = useThree();
+
   const arm = useMemo(() => {
     if (!scene) return null;
     console.log('[GLBRobotArm] 构建关节层级...');
@@ -880,6 +1112,77 @@ export default function GLBRobotArm({
   const currentJointsRef = useRef<JointAngles>([...joints]);
   const targetJointsRef = useRef<JointAngles>([...joints]);
   const lastTrajectoryTimeRef = useRef<number>(0);
+
+  // 关节高亮相关引用
+  const jointPivotsRef = useRef<(THREE.Group | null)[]>([]);
+  const jointMeshesRef = useRef<THREE.Mesh[][]>([]);
+  // 工具坐标系引用
+  const toolAxesRef = useRef<THREE.Group | null>(null);
+
+  // arm 构建完成后收集关节 Pivot、Mesh
+  useEffect(() => {
+    if (!arm) return;
+    const jointPivots = JOINT_NAMES.map((name) => findNode(arm, `Pivot_${name}`) as THREE.Group | null);
+    jointPivotsRef.current = jointPivots;
+    jointMeshesRef.current = collectJointMeshes(arm);
+  }, [arm]);
+
+  // 根据 highlightedJoint 应用/恢复高亮（金色自发光 + 背面放大描边）
+  useEffect(() => {
+    // 关节高亮
+    jointPivotsRef.current.forEach((pivot, jointIndex) => {
+      if (!pivot) return;
+      const shouldHighlight = highlightedJoint !== null && jointIndex === highlightedJoint;
+      const meshes = jointMeshesRef.current[jointIndex] ?? [];
+
+      meshes.forEach((mesh) => {
+        if (shouldHighlight) {
+          highlightMesh(mesh, 'HighlightOutline');
+        } else {
+          unhighlightMesh(mesh, 'HighlightOutline');
+        }
+      });
+    });
+  }, [highlightedJoint, arm]);
+
+  // 工具坐标系：添加到 R3F 场景根节点下，每帧同步 pivot 的世界位姿，保持固定世界尺寸
+  useEffect(() => {
+    if (!r3fScene) return;
+
+    // 清理可能残留的旧的 ToolAxesHelper
+    const existingHelpers: THREE.Object3D[] = [];
+    r3fScene.traverse((child) => {
+      if (child.name === 'ToolAxesHelper') existingHelpers.push(child);
+    });
+    existingHelpers.forEach((h) => {
+      if (h.parent) h.parent.remove(h);
+    });
+
+    let toolAxes: THREE.Group | undefined;
+    if (showToolAxes) {
+      toolAxes = createAxes('ToolAxesHelper', TOOL_AXES_CONFIG);
+      r3fScene.add(toolAxes);
+      toolAxesRef.current = toolAxes;
+    } else {
+      toolAxesRef.current = null;
+    }
+  }, [r3fScene, showToolAxes]);
+
+  // 每帧将工具坐标系同步到 J6 pivot 的世界位姿，使其不受模型缩放影响
+  useFrame(() => {
+    if (!arm || !toolAxesRef.current) return;
+    const pivot = findNode(arm, 'Pivot_快拆机器人端口');
+    if (!pivot) return;
+
+    const worldPos = new THREE.Vector3();
+    const worldQuat = new THREE.Quaternion();
+    pivot.getWorldPosition(worldPos);
+    pivot.getWorldQuaternion(worldQuat);
+
+    toolAxesRef.current.position.copy(worldPos);
+    toolAxesRef.current.quaternion.copy(worldQuat);
+    toolAxesRef.current.scale.setScalar(1);
+  });
 
   // ===== DH 标定：归零后测量 GLB 模型各关节世界坐标（仅日志输出，不再注入 window） =====
   const calibratedRef = useRef(false);

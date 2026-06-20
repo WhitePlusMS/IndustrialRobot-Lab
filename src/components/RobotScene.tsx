@@ -7,6 +7,9 @@ import { OrbitControls, Grid } from '@react-three/drei';
 import * as THREE from 'three';
 import type { JointAngles } from '@/types/robot';
 import type { CameraState } from '@/types/camera';
+import { useRobotContext } from '@/contexts/RobotContext';
+import { useSceneViewport } from '@/contexts/SceneViewportContext';
+import { createBaseAxes } from '@/components/GLBRobotArm';
 import GLBRobotArm from './GLBRobotArm';
 import CameraModel from '@/components/camera/CameraModel';
 import CameraGroundProjection from '@/components/camera/CameraGroundProjection';
@@ -19,6 +22,18 @@ import type { BoxState } from '@/hooks/useSuckerControl';
 import type { BoxSpawnParams } from '@/types/sequence';
 import { SceneRendererProvider } from '@/contexts/SceneRendererContext';
 import { sceneRendererBridge } from '@/lib/scene-renderer-bridge';
+
+// 与 useVirtualCamera.ts 中一致的默认相机状态，用于 3D 层初始化回退
+const DEFAULT_CAMERA_STATE: CameraState = {
+  position: [-1.135, 3.0, 0.056],
+  rotation: [-90, 0, 0],
+  fov: 60,
+  near: 0.1,
+  far: 10,
+  showFrustum: true,
+  showModel: true,
+  resolution: [640, 480],
+};
 
 /** DH 坐标(mm) → Three.js GLB 场景坐标(m) 近似转换（DH与GLB坐标系不同，仅用于视觉近似） */
 export function dhPosToScene(pos: [number, number, number]): [number, number, number] {
@@ -36,8 +51,14 @@ interface RobotSceneProps {
   selectedTool?: string;
   onToolList?: (tools: string[]) => void;
   cameraState?: CameraState;
+  /** 滑块/输入框直接写入的目标相机状态 ref；3D 层每帧读取，避免 React 高频重绘 */
+  cameraSliderTargetRef?: React.MutableRefObject<CameraState>;
   /** 滑块/输入框直接写入的目标关节 ref；3D 层每帧读取，避免 React 高频重绘 */
   sliderTargetRef?: React.MutableRefObject<JointAngles>;
+  /** 要高亮的关节索引 */
+  highlightedJoint?: number | null;
+  /** 是否显示坐标系（基坐标系 + 末端工具坐标系） */
+  showCoordinateSystems?: boolean;
   // 箱子/吸盘
   boxPosition?: [number, number, number];
   boxState?: BoxState;
@@ -154,7 +175,10 @@ function SceneContent({
   selectedTool,
   onToolList,
   cameraState,
+  cameraSliderTargetRef,
   sliderTargetRef,
+  highlightedJoint,
+  showCoordinateSystems,
   boxPosition,
   boxState,
   checkAttachment,
@@ -205,6 +229,100 @@ function SceneContent({
     return () => cancelAnimationFrame(animRef.current);
   }, [cameraPosition, camera, prefersReducedMotion]);
 
+  // 虚拟工业相机状态：3D 层使用 ref 做插值，避免滑块拖动时 React 高频重绘导致瞬移
+  const currentCameraRef = useRef<CameraState>(
+    cameraState ? { ...cameraState } : { ...DEFAULT_CAMERA_STATE }
+  );
+  const displayCameraRef = useRef<CameraState>(currentCameraRef.current);
+
+  // cameraState 变化时同步当前 ref（如按钮点击、手动输入、reset）
+  useEffect(() => {
+    if (cameraState) {
+      currentCameraRef.current = { ...cameraState };
+      displayCameraRef.current = { ...cameraState };
+    }
+  }, [cameraState]);
+
+  // 每帧把 currentCameraRef 向 slider target ref 插值，直接操作 Three.js 对象绕过 React
+  useFrame((_, delta) => {
+    if (!cameraSliderTargetRef?.current) return;
+
+    const target = cameraSliderTargetRef.current;
+    const current = currentCameraRef.current;
+    const factor = Math.min(delta * 60, 1); // 高密度目标更新下几乎即时追上，同时保留一帧级平滑
+
+    let changed = false;
+
+    // 位置线性插值
+    const nextPos: [number, number, number] = [...current.position];
+    for (let i = 0; i < 3; i++) {
+      const diff = target.position[i] - current.position[i];
+      if (Math.abs(diff) > 0.0001) {
+        nextPos[i] = current.position[i] + diff * factor;
+        changed = true;
+      } else {
+        nextPos[i] = target.position[i];
+      }
+    }
+
+    // 朝向按最短路径插值
+    const nextRot: [number, number, number] = [...current.rotation];
+    for (let i = 0; i < 3; i++) {
+      let diff = target.rotation[i] - current.rotation[i];
+      while (diff > 180) diff -= 360;
+      while (diff < -180) diff += 360;
+      if (Math.abs(diff) > 0.01) {
+        nextRot[i] = current.rotation[i] + diff * factor;
+        changed = true;
+      } else {
+        nextRot[i] = target.rotation[i];
+      }
+    }
+
+    // FOV / near / far 线性插值
+    let nextFov = current.fov;
+    const fovDiff = target.fov - current.fov;
+    if (Math.abs(fovDiff) > 0.01) {
+      nextFov = current.fov + fovDiff * factor;
+      changed = true;
+    } else {
+      nextFov = target.fov;
+    }
+
+    let nextNear = current.near;
+    const nearDiff = target.near - current.near;
+    if (Math.abs(nearDiff) > 0.001) {
+      nextNear = current.near + nearDiff * factor;
+      changed = true;
+    } else {
+      nextNear = target.near;
+    }
+
+    let nextFar = current.far;
+    const farDiff = target.far - current.far;
+    if (Math.abs(farDiff) > 0.01) {
+      nextFar = current.far + farDiff * factor;
+      changed = true;
+    } else {
+      nextFar = target.far;
+    }
+
+    if (changed) {
+      const next: CameraState = {
+        ...current,
+        position: nextPos,
+        rotation: nextRot,
+        fov: nextFov,
+        near: nextNear,
+        far: nextFar,
+      };
+      currentCameraRef.current = next;
+      displayCameraRef.current = next;
+    }
+  });
+
+  const displayCameraState = cameraSliderTargetRef ? displayCameraRef.current : cameraState;
+
   return (
     <SceneRendererProviderInner>
       {/* 注入渲染器/场景到全局，供拍照引擎使用 */}
@@ -234,11 +352,21 @@ function SceneContent({
         />
       )}
 
-      {showAxes && <primitive object={new THREE.AxesHelper(1.5)} position={[0, 0, 0]} />}
+      {showCoordinateSystems && (
+        <primitive object={createBaseAxes()} position={[0, 0.05, 0]} />
+      )}
 
       {/* GLB机械臂模型 */}
       <Suspense fallback={<LoadingPlaceholder />}>
-        <GLBRobotArm joints={joints} sliderTargetRef={sliderTargetRef} onTrajectoryPoint={onTrajectoryPoint} selectedTool={selectedTool} onToolList={onToolList} />
+        <GLBRobotArm
+          joints={joints}
+          sliderTargetRef={sliderTargetRef}
+          onTrajectoryPoint={onTrajectoryPoint}
+          selectedTool={selectedTool}
+          onToolList={onToolList}
+          highlightedJoint={highlightedJoint}
+          showToolAxes={showCoordinateSystems}
+        />
       </Suspense>
 
       <TrajectoryLine points={trajectory} visible={showTrajectory} />
@@ -278,28 +406,28 @@ function SceneContent({
       <DemoPartsRenderer parts={demoParts ?? []} />
 
       {/* 外部相机模型 */}
-      {cameraState && (
+      {displayCameraState && (
         <group userData={{ isCameraModel: true }}>
           <CameraModel
-            position={cameraState.position}
-            rotation={cameraState.rotation}
-            fov={cameraState.fov}
-            near={cameraState.near}
-            far={cameraState.far}
-            showFrustum={cameraState.showFrustum}
-            showModel={cameraState.showModel}
+            position={displayCameraState.position}
+            rotation={displayCameraState.rotation}
+            fov={displayCameraState.fov}
+            near={displayCameraState.near}
+            far={displayCameraState.far}
+            showFrustum={displayCameraState.showFrustum}
+            showModel={displayCameraState.showModel}
           />
         </group>
       )}
 
       {/* 相机视锥体地面投影虚线框 */}
-      {cameraState && cameraState.showFrustum && (
+      {displayCameraState && displayCameraState.showFrustum && (
         <CameraGroundProjection
-          position={cameraState.position}
-          rotation={cameraState.rotation}
-          fov={cameraState.fov}
-          near={cameraState.near}
-          far={cameraState.far}
+          position={displayCameraState.position}
+          rotation={displayCameraState.rotation}
+          fov={displayCameraState.fov}
+          near={displayCameraState.near}
+          far={displayCameraState.far}
         />
       )}
 
@@ -317,6 +445,9 @@ function SceneContent({
 }
 
 export default function RobotScene(props: RobotSceneProps) {
+  const { highlightedJoint } = useRobotContext();
+  const { showCoordinateSystems } = useSceneViewport();
+
   return (
     <div className="w-full h-full" style={{ touchAction: 'manipulation' }}>
       <Canvas
@@ -325,7 +456,11 @@ export default function RobotScene(props: RobotSceneProps) {
         gl={{ antialias: true }}
         style={{ background: '#E8E8E8', width: '100%', height: '100%', touchAction: 'manipulation' }}
       >
-        <SceneContent {...props} />
+        <SceneContent
+          {...props}
+          highlightedJoint={highlightedJoint}
+          showCoordinateSystems={showCoordinateSystems}
+        />
       </Canvas>
     </div>
   );

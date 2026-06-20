@@ -12,11 +12,13 @@ interface SceneViewportContextValue {
   showTrajectory: boolean;
   showDH: boolean;
   showDataOverlay: boolean;
+  showCoordinateSystems: boolean;
   toggleGrid: () => void;
   toggleAxes: () => void;
   toggleTrajectory: () => void;
   toggleDH: () => void;
   toggleDataOverlay: () => void;
+  toggleCoordinateSystems: () => void;
   cameraPosition: [number, number, number];
   setCameraPosition: (pos: [number, number, number]) => void;
   setCameraPositionAxis: (axis: 0 | 1 | 2, value: number) => void;
@@ -32,6 +34,7 @@ export function SceneViewportProvider({ children }: { children: ReactNode }) {
   const [showTrajectory, setShowTrajectory] = useState(true);
   const [showDH, setShowDH] = useState(false);
   const [showDataOverlay, setShowDataOverlay] = useState(true);
+  const [showCoordinateSystems, setShowCoordinateSystems] = useState(true);
   const [cameraPosition, setCameraPosition] = useState<[number, number, number]>(DEFAULT_SCENE_CAMERA_POSITION);
 
   const toggleGrid = useCallback(() => setShowGrid((v) => !v), []);
@@ -39,6 +42,7 @@ export function SceneViewportProvider({ children }: { children: ReactNode }) {
   const toggleTrajectory = useCallback(() => setShowTrajectory((v) => !v), []);
   const toggleDH = useCallback(() => setShowDH((v) => !v), []);
   const toggleDataOverlay = useCallback(() => setShowDataOverlay((v) => !v), []);
+  const toggleCoordinateSystems = useCallback(() => setShowCoordinateSystems((v) => !v), []);
 
   const setCameraPositionAxis = useCallback((axis: 0 | 1 | 2, value: number) => {
     setCameraPosition((prev) => {
@@ -78,11 +82,13 @@ export function SceneViewportProvider({ children }: { children: ReactNode }) {
         showTrajectory,
         showDH,
         showDataOverlay,
+        showCoordinateSystems,
         toggleGrid,
         toggleAxes,
         toggleTrajectory,
         toggleDH,
         toggleDataOverlay,
+        toggleCoordinateSystems,
         cameraPosition,
         setCameraPosition,
         setCameraPositionAxis,
