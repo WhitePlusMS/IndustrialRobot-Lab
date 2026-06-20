@@ -24,8 +24,10 @@ interface GLBRobotArmProps {
   sliderTargetRef?: React.MutableRefObject<JointAngles>;
   /** 要高亮的关节索引（0~5），null 表示不高亮 */
   highlightedJoint?: number | null;
-  /** 是否显示末端工具坐标系 */
+  /** 是否显示坐标系 */
   showToolAxes?: boolean;
+  /** 当前位姿控制坐标系，用于高亮对应坐标系 */
+  coordinateSystem?: 'World' | 'Tool';
 }
 
 // 关节名称列表（KUKA标准六轴）
@@ -917,84 +919,7 @@ function isColorMaterial(
 }
 
 /** 坐标系样式配置 */
-interface AxesConfig {
-  length: number;
-  radius: number;
-  headRadius: number;
-  headHeight: number;
-  originRadius: number;
-}
 
-/** 工具坐标系配置：长度 25cm，较细，适合末端 */
-const TOOL_AXES_CONFIG: AxesConfig = {
-  length: 0.25,
-  radius: 0.03,
-  headRadius: 0.08,
-  headHeight: 0.15,
-  originRadius: 0.04,
-};
-
-/** 基坐标系配置：长度 1m，较细箭头，适合底座 */
-const BASE_AXES_CONFIG: AxesConfig = {
-  length: 1.0,
-  radius: 0.012,
-  headRadius: 0.035,
-  headHeight: 0.09,
-  originRadius: 0.035,
-};
-
-/** 创建自定义的粗壮 Mesh 坐标系（圆柱 + 箭头），使用 MeshBasicMaterial 且关闭深度测试，保证可见 */
-function createAxes(name: string, config: AxesConfig): THREE.Group {
-  const group = new THREE.Group();
-  group.name = name;
-  group.renderOrder = 1000;
-
-  const { length, radius, headRadius, headHeight, originRadius } = config;
-  const up = new THREE.Vector3(0, 1, 0);
-
-  const axes = [
-    { dir: new THREE.Vector3(1, 0, 0), color: 0xff0000 }, // X 红
-    { dir: new THREE.Vector3(0, 1, 0), color: 0x00ff00 }, // Y 绿
-    { dir: new THREE.Vector3(0, 0, 1), color: 0x0000ff }, // Z 蓝
-  ];
-
-  axes.forEach(({ dir, color }) => {
-    const axisGroup = new THREE.Group();
-
-    // 轴身
-    const shaftGeo = new THREE.CylinderGeometry(radius, radius, length, 16);
-    shaftGeo.translate(0, length / 2, 0);
-    const shaftMat = new THREE.MeshBasicMaterial({ color, depthTest: false, toneMapped: false });
-    const shaft = new THREE.Mesh(shaftGeo, shaftMat);
-
-    // 箭头
-    const headGeo = new THREE.ConeGeometry(headRadius, headHeight, 16);
-    headGeo.translate(0, length + headHeight / 2, 0);
-    const head = new THREE.Mesh(headGeo, shaftMat);
-
-    axisGroup.add(shaft);
-    axisGroup.add(head);
-
-    // 旋转到指定方向
-    const q = new THREE.Quaternion().setFromUnitVectors(up, dir);
-    axisGroup.setRotationFromQuaternion(q);
-
-    group.add(axisGroup);
-  });
-
-  // 中心加一个发光小球体作为原点标记
-  const originGeo = new THREE.SphereGeometry(originRadius, 16, 16);
-  const originMat = new THREE.MeshBasicMaterial({ color: 0xffff00, depthTest: false, toneMapped: false });
-  const origin = new THREE.Mesh(originGeo, originMat);
-  group.add(origin);
-
-  return group;
-}
-
-/** 导出基坐标系创建函数，供 RobotScene 使用 */
-export function createBaseAxes(): THREE.Group {
-  return createAxes('BaseAxesHelper', BASE_AXES_CONFIG);
-}
 
 
 
@@ -1082,6 +1007,7 @@ export default function GLBRobotArm({
   sliderTargetRef,
   highlightedJoint = null,
   showToolAxes = false,
+  coordinateSystem = 'World',
 }: GLBRobotArmProps) {
   const { scene } = useGLTF('/models/KUKA_V1.glb');
 
@@ -1168,19 +1094,25 @@ export default function GLBRobotArm({
     }
   }, [r3fScene, showToolAxes]);
 
-  // 每帧将工具坐标系同步到 J6 pivot 的世界位姿，使其不受模型缩放影响
+  // 每帧将工具坐标系同步到 J6 pivot 的世界位置。
+  // World 模式下工具坐标系保持与世界坐标系同向（Y 朝上，XOZ 水平），
+  // Tool 模式下跟随末端法兰实际旋转，直观反映当前控制参考系。
   useFrame(() => {
     if (!arm || !toolAxesRef.current) return;
     const pivot = findNode(arm, 'Pivot_快拆机器人端口');
     if (!pivot) return;
 
     const worldPos = new THREE.Vector3();
-    const worldQuat = new THREE.Quaternion();
     pivot.getWorldPosition(worldPos);
-    pivot.getWorldQuaternion(worldQuat);
-
     toolAxesRef.current.position.copy(worldPos);
-    toolAxesRef.current.quaternion.copy(worldQuat);
+
+    if (coordinateSystem === 'World') {
+      toolAxesRef.current.quaternion.identity();
+    } else {
+      const worldQuat = new THREE.Quaternion();
+      pivot.getWorldQuaternion(worldQuat);
+      toolAxesRef.current.quaternion.copy(worldQuat);
+    }
     toolAxesRef.current.scale.setScalar(1);
   });
 
@@ -1328,4 +1260,83 @@ export default function GLBRobotArm({
   if (!arm) return null;
 
   return <primitive object={arm} />;
+}
+/** 坐标系样式配置 */
+interface AxesConfig {
+  length: number;
+  radius: number;
+  headRadius: number;
+  headHeight: number;
+  originRadius: number;
+}
+
+/** 工具坐标系配置：长度 25cm，与基坐标系同粗细，适合末端 */
+const TOOL_AXES_CONFIG: AxesConfig = {
+  length: 0.25,
+  radius: 0.012,
+  headRadius: 0.035,
+  headHeight: 0.09,
+  originRadius: 0.035,
+};
+
+/** 基坐标系配置：长度 1m，较细箭头，适合底座 */
+const BASE_AXES_CONFIG: AxesConfig = {
+  length: 1.0,
+  radius: 0.012,
+  headRadius: 0.035,
+  headHeight: 0.09,
+  originRadius: 0.035,
+};
+
+/** 创建自定义的粗壮 Mesh 坐标系（圆柱 + 箭头），使用 MeshBasicMaterial 且关闭深度测试，保证可见 */
+function createAxes(name: string, config: AxesConfig): THREE.Group {
+  const group = new THREE.Group();
+  group.name = name;
+  group.renderOrder = 1000;
+
+  const { length, radius, headRadius, headHeight, originRadius } = config;
+  const up = new THREE.Vector3(0, 1, 0);
+
+  const axes = [
+    { dir: new THREE.Vector3(1, 0, 0), color: 0xff0000 }, // X 红
+    { dir: new THREE.Vector3(0, 1, 0), color: 0x00ff00 }, // Y 绿
+    { dir: new THREE.Vector3(0, 0, 1), color: 0x0000ff }, // Z 蓝
+  ];
+
+  axes.forEach(({ dir, color }) => {
+    const axisGroup = new THREE.Group();
+
+    // 轴身
+    const shaftGeo = new THREE.CylinderGeometry(radius, radius, length, 16);
+    shaftGeo.translate(0, length / 2, 0);
+    const shaftMat = new THREE.MeshBasicMaterial({ color, depthTest: false, toneMapped: false });
+    const shaft = new THREE.Mesh(shaftGeo, shaftMat);
+
+    // 箭头
+    const headGeo = new THREE.ConeGeometry(headRadius, headHeight, 16);
+    headGeo.translate(0, length + headHeight / 2, 0);
+    const head = new THREE.Mesh(headGeo, shaftMat);
+
+    axisGroup.add(shaft);
+    axisGroup.add(head);
+
+    // 旋转到指定方向
+    const q = new THREE.Quaternion().setFromUnitVectors(up, dir);
+    axisGroup.setRotationFromQuaternion(q);
+
+    group.add(axisGroup);
+  });
+
+  // 中心加一个发光小球体作为原点标记
+  const originGeo = new THREE.SphereGeometry(originRadius, 16, 16);
+  const originMat = new THREE.MeshBasicMaterial({ color: 0xffff00, depthTest: false, toneMapped: false });
+  const origin = new THREE.Mesh(originGeo, originMat);
+  group.add(origin);
+
+  return group;
+}
+
+/** 导出基坐标系创建函数，供 RobotScene 使用 */
+export function createBaseAxes(): THREE.Group {
+  return createAxes('BaseAxesHelper', BASE_AXES_CONFIG);
 }

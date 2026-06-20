@@ -17,12 +17,12 @@ export default function ViewportHUD({
 }: ViewportHUDProps) {
   const {
     showGrid,
-    showAxes,
+    showCoordinateSystems,
     showTrajectory,
     showDH,
     showDataOverlay,
     toggleGrid,
-    toggleAxes,
+    toggleCoordinateSystems,
     toggleTrajectory,
     toggleDH,
     toggleDataOverlay,
@@ -37,7 +37,7 @@ export default function ViewportHUD({
 
   const toggleButtons = [
     { label: '网格', icon: Grid3X3, active: showGrid, onClick: toggleGrid },
-    { label: '坐标系', icon: Eye, active: showAxes, onClick: toggleAxes },
+    { label: '坐标系', icon: Eye, active: showCoordinateSystems, onClick: toggleCoordinateSystems },
     { label: '轨迹', icon: Route, active: showTrajectory, onClick: toggleTrajectory },
     { label: 'DH表', icon: Table, active: showDH, onClick: toggleDH },
     { label: '位置', icon: MapPin, active: showDataOverlay, onClick: toggleDataOverlay },

@@ -36,7 +36,7 @@ const DEFAULT_CAMERA_STATE: CameraState = {
 };
 
 /** DH 坐标(mm) → Three.js GLB 场景坐标(m) 近似转换（DH与GLB坐标系不同，仅用于视觉近似） */
-export function dhPosToScene(pos: [number, number, number]): [number, number, number] {
+function dhPosToScene(pos: [number, number, number]): [number, number, number] {
   return [pos[0] / 1000, pos[1] / 1000, pos[2] / 1000];
 }
 
@@ -44,7 +44,6 @@ interface RobotSceneProps {
   joints: JointAngles;
   trajectory: [number, number, number][];
   showGrid: boolean;
-  showAxes: boolean;
   showTrajectory: boolean;
   cameraPosition: [number, number, number];
   onTrajectoryPoint?: (pos: [number, number, number]) => void;
@@ -59,6 +58,8 @@ interface RobotSceneProps {
   highlightedJoint?: number | null;
   /** 是否显示坐标系（基坐标系 + 末端工具坐标系） */
   showCoordinateSystems?: boolean;
+  /** 当前位姿控制坐标系，用于高亮对应坐标系 */
+  coordinateSystem?: 'World' | 'Tool';
   // 箱子/吸盘
   boxPosition?: [number, number, number];
   boxState?: BoxState;
@@ -168,7 +169,6 @@ function SceneContent({
   joints,
   trajectory,
   showGrid,
-  showAxes,
   showTrajectory,
   onTrajectoryPoint,
   cameraPosition,
@@ -179,6 +179,7 @@ function SceneContent({
   sliderTargetRef,
   highlightedJoint,
   showCoordinateSystems,
+  coordinateSystem = 'World',
   boxPosition,
   boxState,
   checkAttachment,
@@ -233,7 +234,9 @@ function SceneContent({
   const currentCameraRef = useRef<CameraState>(
     cameraState ? { ...cameraState } : { ...DEFAULT_CAMERA_STATE }
   );
-  const displayCameraRef = useRef<CameraState>(currentCameraRef.current);
+  const displayCameraRef = useRef<CameraState>(
+    cameraState ? { ...cameraState } : { ...DEFAULT_CAMERA_STATE }
+  );
 
   // cameraState 变化时同步当前 ref（如按钮点击、手动输入、reset）
   useEffect(() => {
@@ -321,6 +324,9 @@ function SceneContent({
     }
   });
 
+  // 为避免滑块拖动时 React 每帧重绘导致瞬移，相机状态在 useFrame 中通过 ref 插值更新。
+  // 此处读取 ref 仅用于向 UI 展示当前相机参数，属于有意为之的性能优化。
+  // eslint-disable-next-line react-hooks/refs
   const displayCameraState = cameraSliderTargetRef ? displayCameraRef.current : cameraState;
 
   return (
@@ -366,6 +372,7 @@ function SceneContent({
           onToolList={onToolList}
           highlightedJoint={highlightedJoint}
           showToolAxes={showCoordinateSystems}
+          coordinateSystem={coordinateSystem}
         />
       </Suspense>
 

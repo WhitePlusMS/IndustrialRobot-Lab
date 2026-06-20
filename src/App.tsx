@@ -78,7 +78,6 @@ function AppContent() {
             sliderTargetRef={robot.sliderTargetRef}
             trajectory={robot.trajectory}
             showGrid={viewport.showGrid}
-            showAxes={viewport.showAxes}
             showTrajectory={viewport.showTrajectory}
             cameraPosition={viewport.cameraPosition}
             onTrajectoryPoint={robot.addTrajectoryPoint}
@@ -86,6 +85,7 @@ function AppContent() {
             onToolList={robot.setToolList}
             cameraState={camera.cameraState}
             cameraSliderTargetRef={camera.cameraSliderTargetRef}
+            coordinateSystem={robot.coordinateSystem}
             // 箱子/吸盘
             boxPosition={sucker.boxPosition}
             boxState={sucker.boxState}
