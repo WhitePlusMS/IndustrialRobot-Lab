@@ -1,7 +1,8 @@
 // src/components/camera/CameraParamsCard.tsx
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CameraState } from '@/types/camera';
 import LongPressButton from '@/components/LongPressButton';
+import { useVirtualCameraContext } from '@/contexts/VirtualCameraContext';
 
 interface CameraParamsCardProps {
   cameraState: CameraState;
@@ -24,47 +25,237 @@ interface CameraParamsCardProps {
 const axisLabels = ['X', 'Y', 'Z'];
 const rotLabels = ['Rx', 'Ry', 'Rz'];
 
+interface SliderRowProps {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  unit: string;
+  decimals: number;
+  onChange: (value: number, commit: boolean) => void;
+  ariaLabelPrefix: string;
+  labelWidthClass?: string;
+}
+
+/**
+ * 通用滑动条参数行
+ * 参考 JointAngleCard 的交互：+/- 按钮、可点击编辑数值、range 滑块、范围提示
+ * commit=false 表示拖动中，只更新本地显示；commit=true 表示最终同步到 React state
+ */
+function SliderRow({
+  label,
+  value,
+  min,
+  max,
+  step,
+  unit,
+  decimals,
+  onChange,
+  ariaLabelPrefix,
+  labelWidthClass = 'w-8',
+}: SliderRowProps) {
+  const [editing, setEditing] = useState<{ value: string } | null>(null);
+
+  const clamp = useCallback((v: number) => Math.max(min, Math.min(max, v)), [min, max]);
+
+  const applyValue = useCallback(
+    (raw: string) => {
+      const n = parseFloat(raw);
+      if (!Number.isNaN(n)) {
+        onChange(clamp(n), true);
+      }
+      setEditing(null);
+    },
+    [clamp, onChange]
+  );
+
+  const adjust = useCallback(
+    (delta: number) => {
+      // 按当前 step 规整后加减，避免浮点误差
+      const next = Math.round((value + delta * step) / step) * step;
+      onChange(clamp(next), true);
+    },
+    [clamp, onChange, step, value]
+  );
+
+  const displayValue = value.toFixed(decimals);
+
+  return (
+    <div className="space-y-1.5">
+      {/* 按钮 + 数值 + 范围 */}
+      <div className="flex items-center justify-between gap-2">
+        <span className={`text-xs font-medium text-slate-500 ${labelWidthClass}`}>{label}</span>
+        <LongPressButton
+          aria-label={`减小 ${ariaLabelPrefix}`}
+          onClick={(isContinuous) => adjust(isContinuous ? -1 : -1)}
+          className="w-7 h-7 flex items-center justify-center bg-slate-100 border border-slate-200 rounded-sm text-slate-700 hover:bg-slate-200 active:bg-blue-600 active:text-white active:border-blue-600 transition-colors"
+        >
+          <span className="pointer-events-none">−</span>
+        </LongPressButton>
+        {editing ? (
+          <div className="w-14 flex items-center justify-center">
+            <input
+              type="number"
+              step={step}
+              value={editing.value}
+              onChange={(e) => setEditing({ value: e.target.value })}
+              onBlur={() => applyValue(editing.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  applyValue(editing.value);
+                } else if (e.key === 'Escape') {
+                  setEditing(null);
+                }
+              }}
+              autoFocus
+              className="w-12 text-sm font-mono tabular-nums font-medium text-center bg-white border-b-2 border-blue-500 text-slate-800 focus:outline-none"
+            />
+            <span className="text-sm text-slate-800">{unit}</span>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setEditing({ value: displayValue })}
+            className="text-sm font-mono tabular-nums font-medium w-14 text-center rounded px-1 py-0.5 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 text-slate-800"
+            aria-label={`编辑 ${ariaLabelPrefix}`}
+          >
+            {displayValue}
+            {unit}
+          </button>
+        )}
+        <LongPressButton
+          aria-label={`增大 ${ariaLabelPrefix}`}
+          onClick={(isContinuous) => adjust(isContinuous ? 1 : 1)}
+          className="w-7 h-7 flex items-center justify-center bg-slate-100 border border-slate-200 rounded-sm text-slate-700 hover:bg-slate-200 active:bg-blue-600 active:text-white active:border-blue-600 transition-colors"
+        >
+          <span className="pointer-events-none">+</span>
+        </LongPressButton>
+        <span className="text-[10px] text-slate-400 w-20 text-right truncate">
+          {min}~{max}
+        </span>
+      </div>
+      {/* 滑块：拖动中只提交本地显示，不触发 React state */}
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(clamp(parseFloat(e.target.value)), false)}
+        className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+        aria-label={`${ariaLabelPrefix} 滑块`}
+      />
+    </div>
+  );
+}
+
 export default function CameraParamsCard(props: CameraParamsCardProps) {
   const { cameraState, posStep, rotStep, fovStep } = props;
+  const camera = useVirtualCameraContext();
 
-  const handlePosChange = useCallback(
-    (axis: 0 | 1 | 2, val: string) => {
-      const n = parseFloat(val);
-      if (!isNaN(n)) props.setPositionAxis(axis, n);
+  /**
+   * 拖动中的本地覆盖值。
+   * key: 'pos0' | 'pos1' | 'pos2' | 'rot0' | 'rot1' | 'rot2' | 'fov' | 'near' | 'far'
+   */
+  const [sliderValues, setSliderValues] = useState<Record<string, number>>({});
+  const rafRef = useRef<number | null>(null);
+  const pendingRef = useRef<{ key: string; value: number } | null>(null);
+
+  // 组件卸载时取消未执行的 rAF
+  useEffect(() => {
+    return () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    };
+  }, []);
+
+  // 拖动结束时把 ref 里的最终值同步回 React state，供 UI 和其他逻辑使用
+  useEffect(() => {
+    if (Object.keys(sliderValues).length === 0) return;
+
+    const handlePointerUp = () => {
+      // flush 未执行的 rAF 回退路径
+      if (pendingRef.current) {
+        const pending = pendingRef.current;
+        pendingRef.current = null;
+        if (rafRef.current !== null) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+        }
+        flushSliderValue(pending.key, pending.value);
+      }
+
+      // 把 slider 拖动的最终值同步回 React state
+      Object.keys(sliderValues).forEach((key) => {
+        flushSliderValue(key, sliderValues[key]);
+      });
+      setSliderValues({});
+    };
+
+    window.addEventListener('pointerup', handlePointerUp);
+    return () => window.removeEventListener('pointerup', handlePointerUp);
+  }, [sliderValues]);
+
+  const flushSliderValue = useCallback(
+    (key: string, value: number) => {
+      if (key.startsWith('pos')) {
+        const axis = Number(key.slice(3)) as 0 | 1 | 2;
+        props.setPositionAxis(axis, value);
+      } else if (key.startsWith('rot')) {
+        const axis = Number(key.slice(3)) as 0 | 1 | 2;
+        props.setRotationAxis(axis, value);
+      } else if (key === 'fov') {
+        props.setFov(value);
+      } else if (key === 'near') {
+        props.setNear(value);
+      } else if (key === 'far') {
+        props.setFar(value);
+      }
     },
     [props]
   );
 
-  const handleRotChange = useCallback(
-    (axis: 0 | 1 | 2, val: string) => {
-      const n = parseFloat(val);
-      if (!isNaN(n)) props.setRotationAxis(axis, n);
+  /**
+   * 滑块拖动：只写 ref 和本地覆盖，不触发 React 渲染。
+   * 3D 层 useFrame 读 ref 做插值；CameraParamsCard 本地显示读 sliderValues。
+   */
+  const scheduleUpdate = useCallback(
+    (key: string, value: number) => {
+      setSliderValues((prev) => ({ ...prev, [key]: value }));
+
+      // 写 slider target ref
+      if (key.startsWith('pos')) {
+        camera.setPositionAxisTarget(Number(key.slice(3)) as 0 | 1 | 2, value);
+      } else if (key.startsWith('rot')) {
+        camera.setRotationAxisTarget(Number(key.slice(3)) as 0 | 1 | 2, value);
+      } else if (key === 'fov') {
+        camera.setFovTarget(value);
+      } else if (key === 'near') {
+        camera.setNearTarget(value);
+      } else if (key === 'far') {
+        camera.setFarTarget(value);
+      }
+
+      // 无直连 target setter 时回退到 rAF 节流，避免事件风暴
+      pendingRef.current = { key, value };
+      if (rafRef.current === null) {
+        rafRef.current = requestAnimationFrame(() => {
+          const pending = pendingRef.current;
+          rafRef.current = null;
+          pendingRef.current = null;
+          if (!pending) return;
+          flushSliderValue(pending.key, pending.value);
+        });
+      }
     },
-    [props]
+    [camera, flushSliderValue]
   );
 
-  const adjustPos = useCallback(
-    (axis: 0 | 1 | 2, delta: number) => {
-      const current = cameraState.position[axis];
-      props.setPositionAxis(axis, current + delta * posStep);
-    },
-    [cameraState, posStep, props]
-  );
-
-  const adjustRot = useCallback(
-    (axis: 0 | 1 | 2, delta: number) => {
-      const current = cameraState.rotation[axis];
-      props.setRotationAxis(axis, current + delta * rotStep);
-    },
-    [cameraState, rotStep, props]
-  );
-
-  const adjustFov = useCallback(
-    (delta: number) => {
-      props.setFov(cameraState.fov + delta * fovStep);
-    },
-    [cameraState, fovStep, props]
-  );
+  // 获取显示值：拖动中优先用 sliderValues，否则用 cameraState
+  const getDisplayValue = (key: string, stateValue: number) =>
+    key in sliderValues ? sliderValues[key] : stateValue;
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
@@ -79,45 +270,39 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
         </button>
       </div>
 
-      <div className="p-4 space-y-3">
+      <div className="p-4 space-y-4">
         {/* 位置控制 */}
         <div>
-          <div className="text-[11px] font-semibold text-slate-500 mb-1.5">位置 (m)</div>
-          <div className="space-y-1.5">
-            {axisLabels.map((label, i) => (
-              <div key={label} className="flex items-center gap-1.5">
-                <span className="text-[11px] font-mono text-slate-700 w-4">{label}</span>
-                <LongPressButton
-                  aria-label={`减小相机位置 ${label}`}
-                  onClick={() => adjustPos(i as 0 | 1 | 2, -1)}
-                  className="w-6 h-6 flex items-center justify-center bg-slate-100 border border-slate-200 rounded-sm text-slate-700 hover:bg-slate-200 active:bg-blue-600 active:text-white text-xs"
-                >
-                  <span className="pointer-events-none">−</span>
-                </LongPressButton>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  autoComplete="off"
-                  value={cameraState.position[i].toFixed(3)}
-                  onChange={(e) => handlePosChange(i as 0 | 1 | 2, e.target.value)}
-                  className="flex-1 min-w-0 h-6 px-1.5 text-xs font-mono border border-slate-200 rounded-sm bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          <div className="text-[11px] font-semibold text-slate-500 mb-2">位置 (m)</div>
+          <div className="space-y-3">
+            {axisLabels.map((label, i) => {
+              const key = `pos${i}`;
+              return (
+                <SliderRow
+                  key={label}
+                  label={label}
+                  value={getDisplayValue(key, cameraState.position[i])}
+                  min={-5}
+                  max={5}
                   step={posStep}
-                  aria-label={`相机位置 ${label}`}
+                  unit="m"
+                  decimals={2}
+                  onChange={(v, commit) => {
+                    if (commit) {
+                      props.setPositionAxis(i as 0 | 1 | 2, v);
+                    } else {
+                      scheduleUpdate(key, v);
+                    }
+                  }}
+                  ariaLabelPrefix={`相机位置 ${label}`}
+                  labelWidthClass="w-4"
                 />
-                <span className="text-[10px] text-slate-400 w-4 shrink-0">m</span>
-                <LongPressButton
-                  aria-label={`增大相机位置 ${label}`}
-                  onClick={() => adjustPos(i as 0 | 1 | 2, 1)}
-                  className="w-6 h-6 flex items-center justify-center bg-slate-100 border border-slate-200 rounded-sm text-slate-700 hover:bg-slate-200 active:bg-blue-600 active:text-white text-xs"
-                >
-                  <span className="pointer-events-none">+</span>
-                </LongPressButton>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* 位置步进 */}
-          <div className="flex items-center gap-1 mt-1.5">
+          <div className="flex items-center gap-1 mt-2">
             <span className="text-[10px] text-slate-500">步进:</span>
             {[0.01, 0.05, 0.1, 0.5].map((v) => (
               <button
@@ -140,41 +325,35 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
 
         {/* 朝向控制 */}
         <div>
-          <div className="text-[11px] font-semibold text-slate-500 mb-1.5">朝向 (°)</div>
-          <div className="space-y-1.5">
-            {rotLabels.map((label, i) => (
-              <div key={label} className="flex items-center gap-1.5">
-                <span className="text-[11px] font-mono text-slate-700 w-5">{label}</span>
-                <LongPressButton
-                  aria-label={`减小相机朝向 ${label}`}
-                  onClick={() => adjustRot(i as 0 | 1 | 2, -1)}
-                  className="w-6 h-6 flex items-center justify-center bg-slate-100 border border-slate-200 rounded-sm text-slate-700 hover:bg-slate-200 active:bg-blue-600 active:text-white text-xs"
-                >
-                  <span className="pointer-events-none">−</span>
-                </LongPressButton>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  autoComplete="off"
-                  value={cameraState.rotation[i].toFixed(1)}
-                  onChange={(e) => handleRotChange(i as 0 | 1 | 2, e.target.value)}
-                  className="flex-1 min-w-0 h-6 px-1.5 text-xs font-mono border border-slate-200 rounded-sm bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          <div className="text-[11px] font-semibold text-slate-500 mb-2">朝向 (°)</div>
+          <div className="space-y-3">
+            {rotLabels.map((label, i) => {
+              const key = `rot${i}`;
+              return (
+                <SliderRow
+                  key={label}
+                  label={label}
+                  value={getDisplayValue(key, cameraState.rotation[i])}
+                  min={-360}
+                  max={360}
                   step={rotStep}
-                  aria-label={`相机朝向 ${label}`}
+                  unit="°"
+                  decimals={1}
+                  onChange={(v, commit) => {
+                    if (commit) {
+                      props.setRotationAxis(i as 0 | 1 | 2, v);
+                    } else {
+                      scheduleUpdate(key, v);
+                    }
+                  }}
+                  ariaLabelPrefix={`相机朝向 ${label}`}
+                  labelWidthClass="w-5"
                 />
-                <span className="text-[10px] text-slate-400 w-4 shrink-0">°</span>
-                <LongPressButton
-                  aria-label={`增大相机朝向 ${label}`}
-                  onClick={() => adjustRot(i as 0 | 1 | 2, 1)}
-                  className="w-6 h-6 flex items-center justify-center bg-slate-100 border border-slate-200 rounded-sm text-slate-700 hover:bg-slate-200 active:bg-blue-600 active:text-white text-xs"
-                >
-                  <span className="pointer-events-none">+</span>
-                </LongPressButton>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
-          <div className="flex items-center gap-1 mt-1.5">
+          <div className="flex items-center gap-1 mt-2">
             <span className="text-[10px] text-slate-500">步进:</span>
             {[1, 5, 10, 30].map((v) => (
               <button
@@ -197,73 +376,53 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
 
         {/* 镜头参数 */}
         <div>
-          <div className="text-[11px] font-semibold text-slate-500 mb-1.5">镜头参数</div>
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-mono text-slate-700 w-8">FOV</span>
-              <LongPressButton
-                aria-label="减小 FOV"
-                onClick={() => adjustFov(-1)}
-                className="w-6 h-6 flex items-center justify-center bg-slate-100 border border-slate-200 rounded-sm text-slate-700 hover:bg-slate-200 active:bg-blue-600 active:text-white text-xs"
-              >
-                <span className="pointer-events-none">−</span>
-              </LongPressButton>
-              <input
-                type="number"
-                inputMode="decimal"
-                autoComplete="off"
-                value={cameraState.fov.toFixed(1)}
-                onChange={(e) => props.setFov(parseFloat(e.target.value) || 60)}
-                className="flex-1 min-w-0 h-6 px-1.5 text-xs font-mono border border-slate-200 rounded-sm bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                step={fovStep}
-                aria-label="FOV 视场角"
-              />
-              <span className="text-[10px] text-slate-400 w-4">°</span>
-              <LongPressButton
-                aria-label="增大 FOV"
-                onClick={() => adjustFov(1)}
-                className="w-6 h-6 flex items-center justify-center bg-slate-100 border border-slate-200 rounded-sm text-slate-700 hover:bg-slate-200 active:bg-blue-600 active:text-white text-xs"
-              >
-                <span className="pointer-events-none">+</span>
-              </LongPressButton>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-mono text-slate-700 w-8" title="近裁剪面">近</span>
-              <input
-                type="number"
-                inputMode="decimal"
-                autoComplete="off"
-                value={cameraState.near.toFixed(2)}
-                onChange={(e) => props.setNear(parseFloat(e.target.value) || 0.1)}
-                className="flex-1 min-w-0 h-6 px-1.5 text-xs font-mono border border-slate-200 rounded-sm bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                step={0.01}
-                min={0.01}
-                max={1}
-                aria-label="近裁剪面"
-              />
-              <span className="text-[10px] text-slate-400 w-4 shrink-0">m</span>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-mono text-slate-700 w-8" title="远裁剪面">远</span>
-              <input
-                type="number"
-                inputMode="decimal"
-                autoComplete="off"
-                value={cameraState.far.toFixed(1)}
-                onChange={(e) => props.setFar(parseFloat(e.target.value) || 10)}
-                className="flex-1 min-w-0 h-6 px-1.5 text-xs font-mono border border-slate-200 rounded-sm bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                step={1}
-                min={1}
-                max={100}
-                aria-label="远裁剪面"
-              />
-              <span className="text-[10px] text-slate-400 w-4 shrink-0">m</span>
-            </div>
+          <div className="text-[11px] font-semibold text-slate-500 mb-2">镜头参数</div>
+          <div className="space-y-3">
+            <SliderRow
+              label="FOV"
+              value={getDisplayValue('fov', cameraState.fov)}
+              min={10}
+              max={120}
+              step={fovStep}
+              unit="°"
+              decimals={1}
+              onChange={(v, commit) => {
+                if (commit) props.setFov(v);
+                else scheduleUpdate('fov', v);
+              }}
+              ariaLabelPrefix="FOV 视场角"
+            />
+            <SliderRow
+              label="近"
+              value={getDisplayValue('near', cameraState.near)}
+              min={0.01}
+              max={1}
+              step={0.01}
+              unit="m"
+              decimals={2}
+              onChange={(v, commit) => {
+                if (commit) props.setNear(v);
+                else scheduleUpdate('near', v);
+              }}
+              ariaLabelPrefix="近裁剪面"
+            />
+            <SliderRow
+              label="远"
+              value={getDisplayValue('far', cameraState.far)}
+              min={1}
+              max={100}
+              step={1}
+              unit="m"
+              decimals={1}
+              onChange={(v, commit) => {
+                if (commit) props.setFar(v);
+                else scheduleUpdate('far', v);
+              }}
+              ariaLabelPrefix="远裁剪面"
+            />
           </div>
 
-          <div className="flex items-center gap-1 mt-1.5">
+          <div className="flex items-center gap-1 mt-2">
             <span className="text-[10px] text-slate-500">步进:</span>
             {[1, 5, 10, 30].map((v) => (
               <button
