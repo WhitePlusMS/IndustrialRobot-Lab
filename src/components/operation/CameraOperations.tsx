@@ -1,5 +1,5 @@
 // src/components/operation/CameraOperations.tsx
-import { Camera, Aperture, RotateCcw } from 'lucide-react';
+import { Aperture, RotateCcw } from 'lucide-react';
 import type { OperationPanelData } from './OperationPanel';
 import CameraParamsCard from '@/components/camera/CameraParamsCard';
 import CapturePanel from '@/components/camera/CapturePanel';
@@ -10,10 +10,26 @@ export default function CameraOperations(props: OperationPanelData) {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 border-l-4 border-l-blue-500 shadow-sm">
-        <p className="text-[11px] font-bold text-blue-600 uppercase tracking-wider mb-1">当前任务</p>
-        <p className="text-[15px] font-bold text-slate-800">{props.currentStep.title}</p>
-      </div>
+      {/* 内外参调节 */}
+      {(stepId === 'camera-params' || isFree) && (
+        <CameraParamsCard
+          cameraState={props.cameraState}
+          posStep={props.cameraPosStep}
+          onPosStepChange={props.onCameraPosStepChange}
+          rotStep={props.cameraRotStep}
+          onRotStepChange={props.onCameraRotStepChange}
+          fovStep={props.cameraFovStep}
+          onFovStepChange={props.onCameraFovStepChange}
+          setPositionAxis={props.setCameraPositionAxis}
+          setRotationAxis={props.setCameraRotationAxis}
+          setFov={props.setCameraFov}
+          setNear={props.setCameraNear}
+          setFar={props.setCameraFar}
+          toggleFrustum={props.toggleCameraFrustum}
+          toggleModel={props.toggleCameraModel}
+          resetCamera={props.resetCamera}
+        />
+      )}
 
       {/* 相机位姿滑块 */}
       {(stepId === 'camera-pose' || isFree) && (
@@ -124,17 +140,6 @@ export default function CameraOperations(props: OperationPanelData) {
           toggleModel={props.toggleCameraModel}
           resetCamera={props.resetCamera}
         />
-      )}
-
-      {/* 步骤确认按钮 */}
-      {stepId === 'camera-model' && (
-        <button
-          type="button"
-          className="w-full py-3 text-[13px] font-semibold rounded-xl text-white bg-gradient-to-r from-green-500 to-green-600 border border-green-600 shadow-sm hover:from-green-600 hover:to-green-700 flex items-center justify-center gap-2"
-        >
-          <Camera className="w-4 h-4" />
-          我理解了相机模型
-        </button>
       )}
 
       {stepId === 'camera-pose' && (
