@@ -15,6 +15,8 @@ interface JointAngleCardProps {
   sliderTargetRef: React.MutableRefObject<JointAngles>;
   onReset: () => void;
   onRandom: () => void;
+  /** 是否允许折叠，教学模式可设为 false 以默认展开 */
+  collapsible?: boolean;
 }
 
 export default function JointAngleCard({
@@ -27,6 +29,7 @@ export default function JointAngleCard({
   sliderTargetRef,
   onReset,
   onRandom,
+  collapsible = true,
 }: JointAngleCardProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [editing, setEditing] = useState<{ index: number; value: string } | null>(null);
@@ -113,16 +116,18 @@ export default function JointAngleCard({
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setCollapsed(!collapsed)}
-        className="w-full flex items-center justify-between px-4 py-3 bg-slate-50/80 border-b border-slate-100 hover:bg-slate-100 transition-colors focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
-        aria-expanded={!collapsed}
-      >
-        <span className="text-sm font-semibold text-slate-700">关节角度</span>
-        {collapsed ? <ChevronDown className="w-4 h-4 text-slate-500" /> : <ChevronUp className="w-4 h-4 text-slate-500" />}
-      </button>
-      {!collapsed && (
+      {collapsible && (
+        <button
+          type="button"
+          onClick={() => setCollapsed(!collapsed)}
+          className="w-full flex items-center justify-between px-4 py-3 bg-slate-50/80 border-b border-slate-100 hover:bg-slate-100 transition-colors focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
+          aria-expanded={!collapsed}
+        >
+          <span className="text-sm font-semibold text-slate-700">关节角度</span>
+          {collapsed ? <ChevronDown className="w-4 h-4 text-slate-500" /> : <ChevronUp className="w-4 h-4 text-slate-500" />}
+        </button>
+      )}
+      {(!collapsible || !collapsed) && (
         <div className="p-4 space-y-3">
           {joints.map((angle, i) => {
             const range = dhValues[i].thetaRange;
