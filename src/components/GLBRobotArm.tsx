@@ -286,13 +286,6 @@ export default function GLBRobotArm({
 
   // 关节高亮（委托给 joint-highlight 模块）
   const highlightMeshRef = useRef<THREE.Mesh | null>(null);
-  const handleHighlight = useCallback((mesh: THREE.Mesh) => {
-    if (highlightMeshRef.current && highlightMeshRef.current !== mesh) {
-      unhighlightJoint(highlightMeshRef.current);
-    }
-    highlightMeshRef.current = mesh;
-    highlightJoint(mesh);
-  }, []);
 
   const arm = useMemo(() => {
     if (!scene) return null;
@@ -334,17 +327,22 @@ export default function GLBRobotArm({
     );
     jointPivotsRef.current = jointPivots;
     jointMeshesRef.current = collectJointMeshes(arm);
+    console.log('[GLBRobotArm][DEBUG] 收集关节 Mesh:', jointMeshesRef.current.map((ms, i) => `${JOINT_NAMES[i]}:${ms.length}个mesh`));
   }, [arm]);
 
   // 关节高亮
   useEffect(() => {
+    console.log('[GLBRobotArm][DEBUG] 高亮 effect 触发, highlightedJoint:', highlightedJoint);
     jointPivotsRef.current.forEach((_pivot, jointIndex) => {
       const shouldHighlight = highlightedJoint !== null && jointIndex === highlightedJoint;
       const meshes = jointMeshesRef.current[jointIndex] ?? [];
+      if (shouldHighlight) {
+        console.log(`[GLBRobotArm][DEBUG]   高亮关节 ${jointIndex} (${JOINT_NAMES[jointIndex]}), mesh数:${meshes.length}`);
+      }
 
       meshes.forEach((mesh) => {
         if (shouldHighlight) {
-          handleHighlight(mesh);
+          highlightJoint(mesh);
         } else {
           unhighlightJoint(mesh);
         }
@@ -354,6 +352,7 @@ export default function GLBRobotArm({
 
   // 工具坐标系
   useEffect(() => {
+    console.log('[GLBRobotArm][DEBUG] 工具坐标系 effect 触发, showToolAxes:', showToolAxes);
     if (!r3fScene) return;
 
     const existingHelpers: THREE.Object3D[] = [];
@@ -451,9 +450,11 @@ export default function GLBRobotArm({
 
   // 工具可见性
   useEffect(() => {
+    console.log('[GLBRobotArm][DEBUG] 工具可见性 effect 触发, selectedTool:', selectedTool);
     if (!arm) return;
     const flange = findNode(arm, '快拆机器人端口');
-    if (!flange) return;
+    if (!flange) { console.log('[GLBRobotArm][DEBUG]   未找到快拆机器人端口!'); return; }
+    console.log('[GLBRobotArm][DEBUG]   法兰子节点:', flange.children.map(c => `${c.name}(visible=${c.visible})`));
 
     flange.children.forEach((child) => {
       if (child.name && !/^mesh_\d+$/.test(child.name)) {
