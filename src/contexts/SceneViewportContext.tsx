@@ -8,17 +8,17 @@ const DEFAULT_SCENE_CAMERA_POSITION: [number, number, number] = [3, 2, 3];
 
 interface SceneViewportContextValue {
   showGrid: boolean;
-  showAxes: boolean;
   showTrajectory: boolean;
   showDH: boolean;
   showDataOverlay: boolean;
   showCoordinateSystems: boolean;
+  showCamera: boolean;
   toggleGrid: () => void;
-  toggleAxes: () => void;
   toggleTrajectory: () => void;
   toggleDH: () => void;
   toggleDataOverlay: () => void;
   toggleCoordinateSystems: () => void;
+  toggleCamera: () => void;
   cameraPosition: [number, number, number];
   setCameraPosition: (pos: [number, number, number]) => void;
   setCameraPositionAxis: (axis: 0 | 1 | 2, value: number) => void;
@@ -30,19 +30,19 @@ const SceneViewportContext = createContext<SceneViewportContextValue | null>(nul
 
 export function SceneViewportProvider({ children }: { children: ReactNode }) {
   const [showGrid, setShowGrid] = useState(true);
-  const [showAxes, setShowAxes] = useState(true);
   const [showTrajectory, setShowTrajectory] = useState(true);
   const [showDH, setShowDH] = useState(false);
   const [showDataOverlay, setShowDataOverlay] = useState(true);
   const [showCoordinateSystems, setShowCoordinateSystems] = useState(true);
+  const [showCamera, setShowCamera] = useState(true);
   const [cameraPosition, setCameraPosition] = useState<[number, number, number]>(DEFAULT_SCENE_CAMERA_POSITION);
 
   const toggleGrid = useCallback(() => setShowGrid((v) => !v), []);
-  const toggleAxes = useCallback(() => setShowAxes((v) => !v), []);
   const toggleTrajectory = useCallback(() => setShowTrajectory((v) => !v), []);
   const toggleDH = useCallback(() => setShowDH((v) => !v), []);
   const toggleDataOverlay = useCallback(() => setShowDataOverlay((v) => !v), []);
   const toggleCoordinateSystems = useCallback(() => setShowCoordinateSystems((v) => !v), []);
+  const toggleCamera = useCallback(() => setShowCamera((v) => !v), []);
 
   const setCameraPositionAxis = useCallback((axis: 0 | 1 | 2, value: number) => {
     setCameraPosition((prev) => {
@@ -78,17 +78,17 @@ export function SceneViewportProvider({ children }: { children: ReactNode }) {
     <SceneViewportContext.Provider
       value={{
         showGrid,
-        showAxes,
         showTrajectory,
         showDH,
         showDataOverlay,
         showCoordinateSystems,
+        showCamera,
         toggleGrid,
-        toggleAxes,
         toggleTrajectory,
         toggleDH,
         toggleDataOverlay,
         toggleCoordinateSystems,
+        toggleCamera,
         cameraPosition,
         setCameraPosition,
         setCameraPositionAxis,

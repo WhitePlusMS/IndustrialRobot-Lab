@@ -58,6 +58,8 @@ interface RobotSceneProps {
   highlightedJoint?: number | null;
   /** 是否显示坐标系（基坐标系 + 末端工具坐标系） */
   showCoordinateSystems?: boolean;
+  /** HUD 相机可视化总闸 */
+  showCamera?: boolean;
   /** 当前位姿控制坐标系，用于高亮对应坐标系 */
   coordinateSystem?: 'World' | 'Tool';
   // 箱子/吸盘
@@ -179,6 +181,7 @@ function SceneContent({
   sliderTargetRef,
   highlightedJoint,
   showCoordinateSystems,
+  showCamera = true,
   coordinateSystem = 'World',
   boxPosition,
   boxState,
@@ -413,7 +416,7 @@ function SceneContent({
       <DemoPartsRenderer parts={demoParts ?? []} />
 
       {/* 外部相机模型 */}
-      {displayCameraState && (
+      {showCamera && displayCameraState && (
         <group userData={{ isCameraModel: true }}>
           <CameraModel
             position={displayCameraState.position}
@@ -428,7 +431,7 @@ function SceneContent({
       )}
 
       {/* 相机视锥体地面投影虚线框 */}
-      {displayCameraState && displayCameraState.showFrustum && (
+      {showCamera && displayCameraState && displayCameraState.showFrustum && (
         <CameraGroundProjection
           position={displayCameraState.position}
           rotation={displayCameraState.rotation}
@@ -453,7 +456,7 @@ function SceneContent({
 
 export default function RobotScene(props: RobotSceneProps) {
   const { highlightedJoint } = useRobotContext();
-  const { showCoordinateSystems } = useSceneViewport();
+  const { showCoordinateSystems, showCamera } = useSceneViewport();
 
   return (
     <div className="w-full h-full" style={{ touchAction: 'manipulation' }}>
@@ -467,6 +470,7 @@ export default function RobotScene(props: RobotSceneProps) {
           {...props}
           highlightedJoint={highlightedJoint}
           showCoordinateSystems={showCoordinateSystems}
+          showCamera={showCamera}
         />
       </Canvas>
     </div>

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CameraState } from '@/types/camera';
 import LongPressButton from '@/components/LongPressButton';
 import { useVirtualCameraContext } from '@/contexts/VirtualCameraContext';
+import { useSceneViewport } from '@/contexts/SceneViewportContext';
 
 interface CameraParamsCardProps {
   cameraState: CameraState;
@@ -160,6 +161,7 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
     setFar,
   } = props;
   const camera = useVirtualCameraContext();
+  const { showCamera } = useSceneViewport();
 
   // 根据 FOV 与分辨率近似计算内参矩阵（假设正方形像素、主点在图像中心）
   const [width, height] = cameraState.resolution;
@@ -487,20 +489,22 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
 
         {/* 显示控制 */}
         <div className="flex items-center gap-4 pt-1">
-          <label className="flex items-center gap-1.5 cursor-pointer">
+          <label className={`flex items-center gap-1.5 ${!showCamera ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}>
             <input
               type="checkbox"
               checked={cameraState.showFrustum}
               onChange={props.toggleFrustum}
+              disabled={!showCamera}
               className="w-3.5 h-3.5 rounded border-slate-200 text-blue-600 focus:ring-blue-500"
             />
             <span className="text-[11px] text-slate-700">显示视野锥</span>
           </label>
-          <label className="flex items-center gap-1.5 cursor-pointer">
+          <label className={`flex items-center gap-1.5 ${!showCamera ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}>
             <input
               type="checkbox"
               checked={cameraState.showModel}
               onChange={props.toggleModel}
+              disabled={!showCamera}
               className="w-3.5 h-3.5 rounded border-slate-200 text-blue-600 focus:ring-blue-500"
             />
             <span className="text-[11px] text-slate-700">显示相机模型</span>

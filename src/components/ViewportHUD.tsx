@@ -21,11 +21,13 @@ export default function ViewportHUD({
     showTrajectory,
     showDH,
     showDataOverlay,
+    showCamera,
     toggleGrid,
     toggleCoordinateSystems,
     toggleTrajectory,
     toggleDH,
     toggleDataOverlay,
+    toggleCamera,
     setCameraView,
   } = useSceneViewport();
   const viewButtons = [
@@ -39,6 +41,7 @@ export default function ViewportHUD({
     { label: '网格', icon: Grid3X3, active: showGrid, onClick: toggleGrid },
     { label: '坐标系', icon: Eye, active: showCoordinateSystems, onClick: toggleCoordinateSystems },
     { label: '轨迹', icon: Route, active: showTrajectory, onClick: toggleTrajectory },
+    { label: '相机', icon: Camera, active: showCamera, onClick: toggleCamera },
     { label: 'DH表', icon: Table, active: showDH, onClick: toggleDH },
     { label: '位置', icon: MapPin, active: showDataOverlay, onClick: toggleDataOverlay },
   ];
