@@ -1,10 +1,12 @@
 // src/contexts/SceneViewportContext.tsx
-// 3D 场景视口状态：显示开关、场景相机位姿
+// 3D 场景视口状态：显示开关、场景相机位姿、Gizmo 操作轴
 /* eslint-disable react-refresh/only-export-components */
 
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 
 const DEFAULT_SCENE_CAMERA_POSITION: [number, number, number] = [3, 2, 3];
+
+type GizmoMode = 'translate' | 'rotate';
 
 interface SceneViewportContextValue {
   showGrid: boolean;
@@ -13,12 +15,16 @@ interface SceneViewportContextValue {
   showDataOverlay: boolean;
   showCoordinateSystems: boolean;
   showCamera: boolean;
+  showTransformGizmo: boolean;
+  gizmoMode: GizmoMode;
   toggleGrid: () => void;
   toggleTrajectory: () => void;
   toggleDH: () => void;
   toggleDataOverlay: () => void;
   toggleCoordinateSystems: () => void;
   toggleCamera: () => void;
+  toggleTransformGizmo: () => void;
+  setGizmoMode: (mode: GizmoMode) => void;
   cameraPosition: [number, number, number];
   setCameraPosition: (pos: [number, number, number]) => void;
   setCameraPositionAxis: (axis: 0 | 1 | 2, value: number) => void;
@@ -35,6 +41,8 @@ export function SceneViewportProvider({ children }: { children: ReactNode }) {
   const [showDataOverlay, setShowDataOverlay] = useState(true);
   const [showCoordinateSystems, setShowCoordinateSystems] = useState(true);
   const [showCamera, setShowCamera] = useState(true);
+  const [showTransformGizmo, setShowTransformGizmo] = useState(false);
+  const [gizmoMode, setGizmoMode] = useState<GizmoMode>('translate');
   const [cameraPosition, setCameraPosition] = useState<[number, number, number]>(DEFAULT_SCENE_CAMERA_POSITION);
 
   const toggleGrid = useCallback(() => setShowGrid((v) => !v), []);
@@ -43,6 +51,9 @@ export function SceneViewportProvider({ children }: { children: ReactNode }) {
   const toggleDataOverlay = useCallback(() => setShowDataOverlay((v) => !v), []);
   const toggleCoordinateSystems = useCallback(() => setShowCoordinateSystems((v) => !v), []);
   const toggleCamera = useCallback(() => setShowCamera((v) => !v), []);
+  const toggleTransformGizmo = useCallback(() => {
+    setShowTransformGizmo((v) => !v);
+  }, []);
 
   const setCameraPositionAxis = useCallback((axis: 0 | 1 | 2, value: number) => {
     setCameraPosition((prev) => {
@@ -83,12 +94,16 @@ export function SceneViewportProvider({ children }: { children: ReactNode }) {
         showDataOverlay,
         showCoordinateSystems,
         showCamera,
+        showTransformGizmo,
+        gizmoMode,
         toggleGrid,
         toggleTrajectory,
         toggleDH,
         toggleDataOverlay,
         toggleCoordinateSystems,
         toggleCamera,
+        toggleTransformGizmo,
+        setGizmoMode,
         cameraPosition,
         setCameraPosition,
         setCameraPositionAxis,

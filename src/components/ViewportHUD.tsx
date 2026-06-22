@@ -1,5 +1,5 @@
 // src/components/ViewportHUD.tsx
-import { Eye, Grid3X3, Route, Table, Camera, Pin, RotateCcw, Home, MapPin } from 'lucide-react';
+import { Eye, Grid3X3, Route, Table, Camera, Pin, RotateCcw, Home, MapPin, Move, Rotate3D } from 'lucide-react';
 import { useSceneViewport } from '@/contexts/SceneViewportContext';
 
 interface ViewportHUDProps {
@@ -22,13 +22,16 @@ export default function ViewportHUD({
     showDH,
     showDataOverlay,
     showCamera,
+    showTransformGizmo,
+    gizmoMode,
     toggleGrid,
     toggleCoordinateSystems,
     toggleTrajectory,
     toggleDH,
     toggleDataOverlay,
     toggleCamera,
-    setCameraView,
+    toggleTransformGizmo,
+    setGizmoMode,
   } = useSceneViewport();
   const viewButtons = [
     { label: '正视', view: 'front' as const },
@@ -91,6 +94,43 @@ export default function ViewportHUD({
             {btn.label}
           </button>
         ))}
+      </div>
+
+      {/* 操作轴控制 */}
+      <div className="flex flex-col gap-1 bg-white/90 backdrop-blur-sm border border-[#D1D5DB] rounded-sm p-1 shadow-sm">
+        <button
+          type="button"
+          onClick={toggleTransformGizmo}
+          aria-pressed={showTransformGizmo}
+          className={`flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-sm transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none ${
+            showTransformGizmo
+              ? 'bg-[#2563EB] text-white'
+              : 'text-[#1E293B] hover:bg-[#F3F4F6]'
+          }`}
+        >
+          <Move className="w-3.5 h-3.5" />
+          操作轴
+        </button>
+        {showTransformGizmo && (
+          <div className="flex gap-1" role="group" aria-label="操作轴模式">
+            {(['translate', 'rotate'] as const).map((mode) => (
+              <button
+                type="button"
+                key={mode}
+                onClick={() => setGizmoMode(mode)}
+                aria-pressed={gizmoMode === mode}
+                className={`flex-1 flex items-center justify-center gap-1 px-1.5 py-0.5 text-[11px] font-medium rounded-sm transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none ${
+                  gizmoMode === mode
+                    ? 'bg-[#2563EB]/10 text-[#2563EB]'
+                    : 'text-[#64748B] hover:bg-[#F3F4F6]'
+                }`}
+              >
+                {mode === 'translate' ? <Move className="w-3 h-3" /> : <Rotate3D className="w-3 h-3" />}
+                {mode === 'translate' ? '平移' : '旋转'}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* 显示开关 */}

@@ -11,6 +11,8 @@ import { useRobotContext } from '@/contexts/RobotContext';
 import { useSceneViewport } from '@/contexts/SceneViewportContext';
 import { createBaseAxes } from '@/components/GLBRobotArm';
 import GLBRobotArm from './GLBRobotArm';
+import TransformGizmo from './TransformGizmo';
+import type { GizmoIKHandle } from '@/types/robot';
 import CameraModel from '@/components/camera/CameraModel';
 import CameraGroundProjection from '@/components/camera/CameraGroundProjection';
 
@@ -62,6 +64,14 @@ interface RobotSceneProps {
   showCamera?: boolean;
   /** 当前位姿控制坐标系，用于高亮对应坐标系 */
   coordinateSystem?: 'World' | 'Tool';
+  /** Gizmo IK 处理器 ref */
+  gizmoIKRef?: React.MutableRefObject<GizmoIKHandle | null>;
+  /** 是否显示操作轴 Gizmo */
+  showTransformGizmo?: boolean;
+  /** Gizmo 模式 */
+  gizmoMode?: 'translate' | 'rotate';
+  /** 停止机器人动画（Gizmo 拖拽时调用） */
+  onStopAnimation?: () => void;
   // 箱子/吸盘
   boxPosition?: [number, number, number];
   boxState?: BoxState;
@@ -183,6 +193,10 @@ function SceneContent({
   showCoordinateSystems,
   showCamera = true,
   coordinateSystem = 'World',
+  gizmoIKRef,
+  showTransformGizmo,
+  gizmoMode = 'translate',
+  onStopAnimation,
   boxPosition,
   boxState,
   checkAttachment,
@@ -374,7 +388,7 @@ function SceneContent({
           selectedTool={selectedTool}
           onToolList={onToolList}
           highlightedJoint={highlightedJoint}
-          showToolAxes={showCoordinateSystems}
+          showToolAxes={showCoordinateSystems && !showTransformGizmo}
           coordinateSystem={coordinateSystem}
         />
       </Suspense>
@@ -438,6 +452,15 @@ function SceneContent({
           fov={displayCameraState.fov}
           near={displayCameraState.near}
           far={displayCameraState.far}
+        />
+      )}
+
+      {/* 操作轴 Gizmo */}
+      {showTransformGizmo && gizmoIKRef && (
+        <TransformGizmo
+          gizmoIKRef={gizmoIKRef}
+          mode={gizmoMode}
+          stopAnimation={onStopAnimation}
         />
       )}
 

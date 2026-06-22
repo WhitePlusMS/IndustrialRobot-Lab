@@ -86,6 +86,10 @@ function AppContent() {
             cameraState={camera.cameraState}
             cameraSliderTargetRef={camera.cameraSliderTargetRef}
             coordinateSystem={robot.coordinateSystem}
+            gizmoIKRef={robot.gizmoIKRef}
+            showTransformGizmo={viewport.showTransformGizmo}
+            gizmoMode={viewport.gizmoMode}
+            onStopAnimation={robot.stopAnimation}
             // 箱子/吸盘
             boxPosition={sucker.boxPosition}
             boxState={sucker.boxState}
