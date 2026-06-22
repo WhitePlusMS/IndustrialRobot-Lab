@@ -154,6 +154,11 @@ export const courseModules: CourseModule[] = [
             'J4~J6 位于手腕处，主要改变末端法兰的朝向。',
           ],
           keyTerms: [
+            { term: '6F', definition: '6 自由度（6 Degrees of Freedom）的缩写，表示机械臂具有 6 个独立旋转关节。' },
+            { term: '底座', definition: '机械臂最底部的固定基座，J1 安装在底座上方，是整个机械臂的支撑基础。' },
+            { term: '大臂', definition: '连接 J2 和 J3 之间的长连杆，负责控制末端的高度和距离。' },
+            { term: '小臂', definition: '连接 J3 和手腕之间的连杆，与大臂配合调整末端位姿。' },
+            { term: '手腕', definition: 'J4~J6 所在的末端区域，主要负责调整末端法兰的朝向（姿态）。' },
             { term: '关节', definition: '机械臂中允许相对转动的连接部位。' },
             { term: '自由度', definition: '描述物体独立运动能力的数量，一个旋转关节对应一个自由度。' },
             { term: '末端法兰', definition: '机械臂最末端的安装面，用于连接吸盘、夹爪等工具。' },
@@ -192,8 +197,12 @@ export const courseModules: CourseModule[] = [
             '切换坐标系时，末端法兰在场景中的实际位置不变，但坐标数值的参考对象改变。',
           ],
           keyTerms: [
+            { term: '坐标系', definition: '由原点、X/Y/Z 三个相互垂直的方向轴组成的参照框架，用于定量描述空间中点的位置。' },
             { term: '基坐标系', definition: '以机械臂底座为原点的固定坐标系，用于描述绝对位置。' },
             { term: '工具坐标系', definition: '以末端工具为原点的随动坐标系，用于描述相对运动。' },
+            { term: 'X/Y/Z 轴', definition: '坐标系的三条方向轴：X 轴前后、Y 轴左右、Z 轴上下（右手定则）。' },
+            { term: '绝对位置', definition: '相对于基坐标系的位置，不受机械臂运动影响。' },
+            { term: '相对位置', definition: '相对于工具坐标系的位置，随机械臂运动而改变参照。' },
             { term: '位姿', definition: '位置与姿态的合称，完整描述一个物体在空间中的状态。' },
           ],
         },
@@ -226,8 +235,11 @@ export const courseModules: CourseModule[] = [
             '底部状态栏中 J1 数值与滑块数值一致。',
           ],
           keyTerms: [
+            { term: '关节角度', definition: '关节绕自身旋转轴转过的角度值，通常以度（°）为单位。正负号遵循右手定则。' },
+            { term: '关节限位', definition: '每个关节允许的最大/最小角度范围，超出限位可能损坏机械结构或导致不可预期的运动。' },
             { term: '正运动学', definition: '已知关节角度，计算末端位姿的过程。' },
             { term: '关节空间', definition: '用各个关节角度描述机械臂状态的方式。' },
+            { term: '奇异状态', definition: '关节处于某些特殊角度组合时，机械臂失去一个或多个方向运动能力的状态。' },
           ],
         },
       },
@@ -263,6 +275,7 @@ export const courseModules: CourseModule[] = [
             'J2 和 J3 配合才能同时控制高度和距离，这种协同关系称为关节耦合。',
           ],
           keyTerms: [
+            { term: '俯仰', definition: '绕水平轴上下旋转的运动，类似点头动作。J2 和 J3 均为俯仰关节。' },
             { term: '关节耦合', definition: '多个关节同时影响末端同一方向位置的现象。' },
             { term: '工作空间', definition: '机械臂末端能够到达的所有位置集合。' },
           ],
@@ -299,6 +312,7 @@ export const courseModules: CourseModule[] = [
           keyTerms: [
             { term: '逆运动学', definition: '给定末端目标位姿，自动求解各关节角度的过程。' },
             { term: '笛卡尔坐标', definition: '用 X、Y、Z 三个值描述空间中一点位置的坐标系。' },
+            { term: '姿态', definition: '物体在空间中的朝向，用 Rx（绕 X 轴旋转）、Ry（绕 Y 轴旋转）、Rz（绕 Z 轴旋转）三个欧拉角描述。' },
           ],
         },
       },
@@ -378,6 +392,8 @@ export const courseModules: CourseModule[] = [
             '成像平面位于光心后方，与光心之间的距离对应焦距。',
           ],
           keyTerms: [
+            { term: '针孔相机模型', definition: '最基础的相机成像模型：光线穿过光心，在成像平面上形成倒立实像。' },
+            { term: '透镜', definition: '实际相机中代替小孔的聚光元件，可汇聚更多光线，使图像更亮，但会引入畸变。' },
             { term: '光心', definition: '相机模型的中心点，光线在此汇聚后投射到成像平面。' },
             { term: '成像平面', definition: '相机内部接收光线并形成图像的平面。' },
             { term: '焦距', definition: '光心到成像平面的距离，焦距决定视角大小和成像放大倍率。' },
@@ -416,6 +432,8 @@ export const courseModules: CourseModule[] = [
             { term: '内参', definition: '描述相机内部几何特性的参数，决定投影到像素的尺度。' },
             { term: '外参', definition: '描述相机在世界坐标系中位姿的参数。' },
             { term: '主点', definition: '成像平面中心的像素坐标，理想情况下位于图像中心。' },
+            { term: '投影', definition: '将 3D 空间中的点通过数学变换映射到 2D 图像平面的过程。' },
+            { term: '相机坐标系', definition: '以相机光心为原点、光轴为 Z 轴的坐标系，描述物体相对于相机的位置。' },
           ],
         },
       },
@@ -485,6 +503,8 @@ export const courseModules: CourseModule[] = [
           keyTerms: [
             { term: '视场角', definition: '相机视野的张角，通常用度数表示。' },
             { term: '分辨率', definition: '图像的宽度和高度像素数，如 640×480。' },
+            { term: '视锥体', definition: '相机可见区域的 3D 形状，从光心向外张开，呈锥形。FOV 越大锥体越宽。' },
+            { term: '透视畸变', definition: '广角镜头下近处物体被拉大、远处物体被压缩的变形现象，FOV 越大越明显。' },
           ],
         },
       },
@@ -517,6 +537,8 @@ export const courseModules: CourseModule[] = [
           ],
           keyTerms: [
             { term: '标定', definition: '通过拍摄已知图案确定相机内外参和畸变参数的过程。' },
+            { term: '标定板', definition: '标定时使用的标准图案（如棋盘格），其尺寸和几何关系已知，用于计算相机参数。' },
+            { term: '畸变', definition: '实际镜头使图像产生的变形，包括径向畸变（桶形/枕形）和切向畸变，标定后可通过算法校正。' },
             { term: '像素坐标', definition: '图像中某点所在的行列位置，单位为像素。' },
             { term: '世界坐标', definition: '物体在全局坐标系中的实际位置，单位为毫米或米。' },
           ],
@@ -624,6 +646,8 @@ export const courseModules: CourseModule[] = [
             { term: '真空吸盘', definition: '利用负压产生吸附力的末端执行器。' },
             { term: '末端执行器', definition: '安装在机械臂末端、用于完成作业的工具。' },
             { term: '负压', definition: '低于大气压的气压状态，是产生吸附力的原因。' },
+            { term: '大气压', definition: '地球表面空气重力产生的压强，约 101.3 kPa。吸盘抽走空气后，外部大气压将物体压紧在吸盘上。' },
+            { term: '气泵', definition: '抽取吸盘内部空气的设备，通过抽气在吸盘腔体内形成负压。' },
           ],
         },
       },
@@ -658,6 +682,7 @@ export const courseModules: CourseModule[] = [
           keyTerms: [
             { term: '工作空间', definition: '机械臂末端能够到达的所有位置集合。' },
             { term: '待抓取物体', definition: '场景中需要被机械臂抓取并搬运的目标物体。' },
+            { term: '仿真环境', definition: '使用计算机模拟真实物理世界的虚拟场景，可安全地反复练习而不会损坏设备。' },
           ],
         },
       },
@@ -691,6 +716,7 @@ export const courseModules: CourseModule[] = [
           keyTerms: [
             { term: '接近', definition: '抓取前将末端移动到物体附近的预备动作。' },
             { term: '逆运动学', definition: '给定末端目标位姿，自动求解各关节角度的过程。' },
+            { term: '安全距离', definition: '末端与目标之间预留的安全间隙，防止碰撞。接近物体时通常留出约 5cm 安全距离。' },
           ],
         },
       },
@@ -725,6 +751,7 @@ export const courseModules: CourseModule[] = [
           keyTerms: [
             { term: '吸取', definition: '开启真空吸盘，使物体附着在吸盘上的动作。' },
             { term: '释放', definition: '关闭真空吸盘，使物体脱离吸盘的动作。' },
+            { term: '放置区', definition: '抓取流程中将物体搬运到的目标区域，通常位于工作台指定位置。' },
           ],
         },
       },
@@ -770,6 +797,7 @@ export const courseModules: CourseModule[] = [
           keyTerms: [
             { term: '动作序列', definition: '一组按顺序执行的机器人动作，构成完整作业程序。' },
             { term: '记忆点', definition: '保存下来的机械臂位姿，后续可以让机械臂直接回到该位置。' },
+            { term: '归位', definition: '机械臂在任务完成后自动回到预设的安全初始位置，避免与后续操作或人员发生干涉。' },
           ],
         },
       },
