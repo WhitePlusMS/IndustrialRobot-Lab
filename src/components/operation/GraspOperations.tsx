@@ -159,12 +159,10 @@ export default function GraspOperations(props: OperationPanelData) {
             rotStep={props.rotStep}
             onRotStepChange={props.onRotStepChange}
             onMoveDirection={props.onMoveDirection}
-            disabled={props.status === 'moving'}
           />
           <PositionTargetCard
             currentGLBPosition={props.currentGLBPosition}
             onGoToPosition={props.onGoToPosition}
-            disabled={props.status === 'moving'}
           />
         </div>
       )}
@@ -235,12 +233,10 @@ export default function GraspOperations(props: OperationPanelData) {
             rotStep={props.rotStep}
             onRotStepChange={props.onRotStepChange}
             onMoveDirection={props.onMoveDirection}
-            disabled={props.status === 'moving'}
           />
           <PositionTargetCard
             currentGLBPosition={props.currentGLBPosition}
             onGoToPosition={props.onGoToPosition}
-            disabled={props.status === 'moving'}
           />
         </div>
       )}

@@ -5,7 +5,7 @@ import PoseControlCard from '@/components/PoseControlCard';
 import PositionTargetCard from '@/components/PositionTargetCard';
 import WaypointPanel from '@/components/WaypointPanel';
 import { useSceneViewport } from '@/contexts/SceneViewportContext';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Grip } from 'lucide-react';
 
 export default function RobotOperations(props: OperationPanelData) {
   const stepId = props.currentStep.id;
@@ -28,6 +28,11 @@ export default function RobotOperations(props: OperationPanelData) {
 
   const handleJointCardClick = (index: number) => {
     props.setHighlightedJoint(props.highlightedJoint === index ? null : index);
+  };
+
+  const isSuckerVisible = props.selectedTool === '吸盘';
+  const handleToggleSucker = () => {
+    props.setSelectedTool(isSuckerVisible ? '无' : '吸盘');
   };
 
   return (
@@ -56,25 +61,54 @@ export default function RobotOperations(props: OperationPanelData) {
 
       {/* 关节认识卡片 */}
       {isStructureStep && (
-        <div className="grid grid-cols-2 gap-2">
-          {jointCards.map(({ j, name, index }) => {
-            const active = props.highlightedJoint === index;
-            return (
-              <button
-                key={j}
-                type="button"
-                onClick={() => handleJointCardClick(index)}
-                className={`text-left px-3 py-3 rounded-xl text-xs font-semibold flex flex-col gap-1 border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                  active
-                    ? 'bg-blue-50 border-blue-400 text-blue-700'
-                    : 'bg-white border-slate-200 text-slate-700 hover:border-blue-300 hover:bg-blue-50'
-                }`}
-              >
-                <span className={`text-sm ${active ? 'text-blue-700' : 'text-blue-600'}`}>{j}</span>
-                <span className="text-slate-500 font-normal">{name}</span>
-              </button>
-            );
-          })}
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            {jointCards.map(({ j, name, index }) => {
+              const active = props.highlightedJoint === index;
+              return (
+                <button
+                  key={j}
+                  type="button"
+                  onClick={() => handleJointCardClick(index)}
+                  className={`text-left px-3 py-3 rounded-xl text-xs font-semibold flex flex-col gap-1 border shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                    active
+                      ? 'bg-blue-50 border-blue-400 text-blue-700'
+                      : 'bg-white border-slate-200 text-slate-700 hover:border-blue-300 hover:bg-blue-50'
+                  }`}
+                >
+                  <span className={`text-sm ${active ? 'text-blue-700' : 'text-blue-600'}`}>{j}</span>
+                  <span className="text-slate-500 font-normal">{name}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* 末端执行器：显示/隐藏吸盘 */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                <Grip className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-800">真空吸盘</p>
+                <p className="text-xs text-slate-500">末端执行器</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              吸盘安装在末端法兰下方，是机械臂与物体交互的工具。开启后可在 3D 场景中观察它与末端法兰的连接方式。
+            </p>
+            <button
+              type="button"
+              onClick={handleToggleSucker}
+              className={`w-full py-2.5 text-[13px] font-semibold rounded-xl border shadow-sm flex items-center justify-center gap-2 transition-colors ${
+                isSuckerVisible
+                  ? 'bg-amber-50 text-amber-700 border-amber-300'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              {isSuckerVisible ? '隐藏吸盘' : '在 3D 场景中显示吸盘'}
+            </button>
+          </div>
         </div>
       )}
 
@@ -92,7 +126,6 @@ export default function RobotOperations(props: OperationPanelData) {
           onRandom={props.onRandom}
           collapsible={false}
           enabledJoints={isSingleJointStep ? [0] : [1, 2]}
-          disabled={props.status === 'moving'}
         />
       )}
 
@@ -106,7 +139,6 @@ export default function RobotOperations(props: OperationPanelData) {
           rotStep={props.rotStep}
           onRotStepChange={props.onRotStepChange}
           onMoveDirection={props.onMoveDirection}
-          disabled={props.status === 'moving'}
         />
       )}
 
@@ -126,7 +158,6 @@ export default function RobotOperations(props: OperationPanelData) {
             rotStep={props.rotStep}
             onRotStepChange={props.onRotStepChange}
             onMoveDirection={props.onMoveDirection}
-            disabled={props.status === 'moving'}
           />
           <WaypointPanel currentJoints={props.joints} onGotoWaypoint={props.onGotoWaypoint} />
         </>

@@ -1,5 +1,5 @@
 // src/components/DirectionButton.tsx
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 
 interface DirectionButtonProps {
   label: string;
@@ -32,6 +32,13 @@ export default function DirectionButton({
       longPressInterval.current = null;
     }
   }, []);
+
+  // 禁用态变化时强制清理定时器，避免运动中禁用后长按 interval 继续泄漏
+  useEffect(() => {
+    if (disabled) {
+      clearTimers();
+    }
+  }, [disabled, clearTimers]);
 
   const handleMouseDown = useCallback(() => {
     if (disabled) return;

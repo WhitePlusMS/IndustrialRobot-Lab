@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { JointAngles, Pose, RobotConfig, StatusType } from '@/types/robot';
 import type { RobotModel } from '@/lib/robot-model';
-import { DEFAULT_MOTION_CONFIG, lerpJoints, updateJointAngles } from '@/lib/motion-smoothing';
+import { DEFAULT_MOTION_CONFIG, lerpJoints } from '@/lib/motion-smoothing';
 import { solveCartesianPositionStep, solveCartesianStep } from '@/lib/motion-planner';
 
 interface CartesianAnimationOptions {
@@ -34,6 +34,7 @@ interface UseMotionReturn {
   isAnimatingRef: React.MutableRefObject<boolean>;
   stopAnimation: () => void;
   startEasedAnimation: (target: JointAngles, duration?: number) => void;
+  startCoordinatedAnimation: (target: JointAngles) => void;
   startSpeedLimitedAnimation: (target: JointAngles) => void;
   startCartesianAnimation: (targetPose: Pose, options?: CartesianAnimationOptions) => void;
 }
@@ -47,13 +48,19 @@ function clampJoints(joints: JointAngles, config: RobotConfig): JointAngles {
   }) as JointAngles;
 }
 
+/** 活跃的动画类型，用于判断连续调用时是否只需更新目标 */
+type AnimType = 'none' | 'joint-eased' | 'joint-speed' | 'joint-coordinated' | 'cartesian';
+
 /**
  * 管理机器人 RAF 动画循环
  *
- * 提供三种动画：
- * - 关节空间缓动：单击 +/- 按钮，400ms easeInOutCubic 到位
- * - 关节空间速度限制：长按连续触发，按最大关节速度平滑追目标
- * - 笛卡尔空间动画：位姿控制，逐帧求解 IK 并更新关节
+ * 提供四种动画：
+ * - 关节空间缓动（eased）：单击，400ms easeInOutCubic 到位
+ * - 关节空间协调匀速（coordinated）：长按/快速连点，所有关节按同一比例匀速移动，路径不走样
+ * - 关节空间速度限制（speed-limited）：单关节拖动，各关节独立速度限制
+ * - 笛卡尔空间动画（cartesian）：位姿方向键，逐帧求解 IK 并更新关节
+ *
+ * 连续调用同一类型动画时仅更新目标 ref，避免 cancel+restart 导致帧间隙卡顿。
  */
 export function useMotion({
   model,
@@ -71,6 +78,7 @@ export function useMotion({
   const animIdRef = useRef<number>(0);
   const isAnimatingRef = useRef(false);
   const [isAnimating, setIsAnimating] = useState(false);
+  const activeAnimTypeRef = useRef<AnimType>('none');
 
   // 关节动画共享的 refs
   const targetJointsRef = useRef<JointAngles>([0, 0, 0, 0, 0, 0]);
@@ -98,6 +106,7 @@ export function useMotion({
     animIdRef.current = 0;
     isAnimatingRef.current = false;
     setIsAnimating(false);
+    activeAnimTypeRef.current = 'none';
     setStatus('complete');
     statusTimerRef.current = setTimeout(() => setStatus('ready'), 500);
   }, [setStatus]);
@@ -106,6 +115,7 @@ export function useMotion({
     animIdRef.current = 0;
     isAnimatingRef.current = false;
     setIsAnimating(false);
+    activeAnimTypeRef.current = 'none';
     setStatus('unreachable');
     statusTimerRef.current = setTimeout(() => setStatus('ready'), 1500);
   }, [setStatus]);
@@ -116,13 +126,14 @@ export function useMotion({
     animIdRef.current = 0;
     isAnimatingRef.current = false;
     setIsAnimating(false);
+    activeAnimTypeRef.current = 'none';
     cartesianStartPoseRef.current = null;
     cartesianTargetPoseRef.current = null;
     cartesianPositionOnlyRef.current = false;
     clearStatusTimer();
   }, [clearStatusTimer]);
 
-  /** 关节空间缓动动画循环 */
+  /** 关节空间缓动动画循环（单击用，easeInOutCubic） */
   const runEasedAnimation = useCallback(() => {
     const now = performance.now();
     const elapsed = now - startTimeRef.current;
@@ -139,30 +150,57 @@ export function useMotion({
     }
   }, [config, setJoints, finishAnimation]);
 
-  /** 关节空间速度限制动画循环 */
+  /** 关节空间速度限制动画循环（单关节拖动用，各关节独立限速） */
   const runSpeedLimitedAnimation = useCallback(() => {
     const now = performance.now();
     const deltaTime = lastTimeRef.current ? now - lastTimeRef.current : 16;
     lastTimeRef.current = now;
 
     const current = getCurrentJoints();
-    const next = updateJointAngles(
-      [...current],
-      targetJointsRef.current,
-      deltaTime,
-      cfgRef.current.jointSpeedLimit
-    );
-    setJoints(clampJoints(next as JointAngles, config));
+    // 各关节独立限速：适合单关节拖动，不适合多关节协调运动
+    const maxStep = (cfgRef.current.jointSpeedLimit * deltaTime) / 1000;
+    const next = current.map((c, i) => {
+      const diff = targetJointsRef.current[i] - c;
+      if (Math.abs(diff) < cfgRef.current.snapThreshold) return targetJointsRef.current[i];
+      return c + Math.sign(diff) * Math.min(Math.abs(diff), maxStep);
+    }) as JointAngles;
 
-    const cfg = cfgRef.current;
+    setJoints(clampJoints(next, config));
+
     const allClose = next.every(
-      (value, i) => Math.abs(value - targetJointsRef.current[i]) < cfg.snapThreshold
+      (v, i) => Math.abs(v - targetJointsRef.current[i]) < cfgRef.current.snapThreshold
     );
     if (!allClose) {
       animIdRef.current = requestAnimationFrame(runSpeedLimitedAnimation);
     } else {
       finishAnimation();
     }
+  }, [config, getCurrentJoints, setJoints, finishAnimation]);
+
+  /** 关节空间协调匀速动画循环（长按/快速连点用，所有关节等比例缩放，路径不走样） */
+  const runCoordinatedSpeedAnimation = useCallback(() => {
+    const now = performance.now();
+    const deltaTime = lastTimeRef.current ? now - lastTimeRef.current : 16;
+    lastTimeRef.current = now;
+
+    const current = getCurrentJoints();
+    const target = targetJointsRef.current;
+
+    // 所有关节按同一比例移动，保留 IK 求解出的姿态协调关系
+    const deltas = target.map((t, i) => t - current[i]);
+    const maxAbsDelta = Math.max(...deltas.map(Math.abs));
+
+    if (maxAbsDelta < cfgRef.current.snapThreshold) {
+      finishAnimation();
+      return;
+    }
+
+    const maxStep = (cfgRef.current.jointSpeedLimit * deltaTime) / 1000;
+    const scale = Math.min(1, maxStep / maxAbsDelta);
+    const next = deltas.map((d, i) => current[i] + d * scale) as JointAngles;
+
+    setJoints(clampJoints(next, config));
+    animIdRef.current = requestAnimationFrame(runCoordinatedSpeedAnimation);
   }, [config, getCurrentJoints, setJoints, finishAnimation]);
 
   /** 笛卡尔空间动画循环 */
@@ -219,19 +257,27 @@ export function useMotion({
     }
   }, [config, getCurrentJoints, setJoints, model, stopAnimation, finishAnimation, markUnreachable]);
 
-  /** 启动关节空间缓动动画 */
+  /** 启动关节空间缓动动画 — 同类型重复调用时重置起点为当前值，RAF 不中断 */
   const startEasedAnimation = useCallback(
     (target: JointAngles, duration = cfgRef.current.ikAnimDuration) => {
+      targetJointsRef.current = [...target] as JointAngles;
+
+      if (activeAnimTypeRef.current === 'joint-eased') {
+        startJointsRef.current = [...getCurrentJoints()] as JointAngles;
+        startTimeRef.current = performance.now();
+        animDurationRef.current = duration;
+        return;
+      }
+
       cancelAnimationFrame(animIdRef.current);
       clearStatusTimer();
-      targetJointsRef.current = [...target] as JointAngles;
       startJointsRef.current = [...getCurrentJoints()] as JointAngles;
       startTimeRef.current = performance.now();
       animDurationRef.current = duration;
-      // 关闭笛卡尔动画上下文
       cartesianStartPoseRef.current = null;
       cartesianTargetPoseRef.current = null;
       cartesianPositionOnlyRef.current = false;
+      activeAnimTypeRef.current = 'joint-eased';
       isAnimatingRef.current = true;
       setIsAnimating(true);
       setStatus('moving');
@@ -240,17 +286,22 @@ export function useMotion({
     [getCurrentJoints, setStatus, runEasedAnimation, clearStatusTimer]
   );
 
-  /** 启动关节空间速度限制动画（长按连续触发） */
+  /** 启动关节空间速度限制动画 — 同一类型重复调用时只更新目标不重启 */
   const startSpeedLimitedAnimation = useCallback(
     (target: JointAngles) => {
+      targetJointsRef.current = [...target] as JointAngles;
+
+      if (activeAnimTypeRef.current === 'joint-speed') {
+        return;
+      }
+
       cancelAnimationFrame(animIdRef.current);
       clearStatusTimer();
-      targetJointsRef.current = [...target] as JointAngles;
       lastTimeRef.current = 0;
-      // 关闭笛卡尔动画上下文
       cartesianStartPoseRef.current = null;
       cartesianTargetPoseRef.current = null;
       cartesianPositionOnlyRef.current = false;
+      activeAnimTypeRef.current = 'joint-speed';
       isAnimatingRef.current = true;
       setIsAnimating(true);
       setStatus('moving');
@@ -259,10 +310,43 @@ export function useMotion({
     [setStatus, runSpeedLimitedAnimation, clearStatusTimer]
   );
 
-  /** 启动笛卡尔空间动画 */
+  /** 启动关节空间协调匀速动画 — 同一类型重复调用时只更新目标不重启 */
+  const startCoordinatedAnimation = useCallback(
+    (target: JointAngles) => {
+      targetJointsRef.current = [...target] as JointAngles;
+
+      if (activeAnimTypeRef.current === 'joint-coordinated') {
+        // 同类型已在运行：只更新目标 ref，下一帧自动按新目标匀速移动
+        return;
+      }
+
+      cancelAnimationFrame(animIdRef.current);
+      clearStatusTimer();
+      lastTimeRef.current = 0;
+      cartesianStartPoseRef.current = null;
+      cartesianTargetPoseRef.current = null;
+      cartesianPositionOnlyRef.current = false;
+      activeAnimTypeRef.current = 'joint-coordinated';
+      isAnimatingRef.current = true;
+      setIsAnimating(true);
+      setStatus('moving');
+      animIdRef.current = requestAnimationFrame(runCoordinatedSpeedAnimation);
+    },
+    [setStatus, runCoordinatedSpeedAnimation, clearStatusTimer]
+  );
+
+  /** 启动笛卡尔空间动画 — 同一类型重复调用时只更新目标不重启 */
   const startCartesianAnimation = useCallback(
     (targetPose: Pose, options: CartesianAnimationOptions = {}) => {
       const duration = options.duration ?? cfgRef.current.ikAnimDuration;
+
+      cartesianTargetPoseRef.current = targetPose;
+      cartesianPositionOnlyRef.current = options.positionOnly ?? false;
+
+      if (activeAnimTypeRef.current === 'cartesian') {
+        return;
+      }
+
       cancelAnimationFrame(animIdRef.current);
       clearStatusTimer();
 
@@ -274,10 +358,9 @@ export function useMotion({
       }
 
       cartesianStartPoseRef.current = startPose;
-      cartesianTargetPoseRef.current = targetPose;
-      cartesianPositionOnlyRef.current = options.positionOnly ?? false;
       startTimeRef.current = performance.now();
       animDurationRef.current = duration;
+      activeAnimTypeRef.current = 'cartesian';
       isAnimatingRef.current = true;
       setIsAnimating(true);
       setStatus('moving');
@@ -299,6 +382,7 @@ export function useMotion({
     isAnimatingRef,
     stopAnimation,
     startEasedAnimation,
+    startCoordinatedAnimation,
     startSpeedLimitedAnimation,
     startCartesianAnimation,
   };

@@ -99,6 +99,7 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
   // 动画循环（直接解构稳定回调，避免整个 motion 对象变化导致 command API 不必要重建）
   const {
     startEasedAnimation,
+    startCoordinatedAnimation,
     startSpeedLimitedAnimation,
     startCartesianAnimation,
     stopAnimation,
@@ -312,7 +313,8 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
         }
 
         const targetPose: Pose = { position: targetPos, euler: targetEuler, rotation: targetRot };
-        const duration = isLongPress ? DEFAULT_MOTION_CONFIG.longPressThrottle : DEFAULT_MOTION_CONFIG.ikAnimDuration;
+        // 长按使用与单击相同的时长，配合 useMotion 的同类型不重启优化，连续 tick 仅更新目标 ref，不产生帧间隙
+        const duration = DEFAULT_MOTION_CONFIG.ikAnimDuration;
         startCartesianAnimation(targetPose, { duration, positionOnly: true });
         return { success: true };
       }
@@ -342,14 +344,15 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
       }
 
       const clamped = clampJointsToRanges(solved, config);
-      startEasedAnimation(clamped);
+      // 协调匀速动画：所有关节按同一比例移动，路径不走样，连续调用不重启 RAF
+      startCoordinatedAnimation(clamped);
       return { success: true };
     },
     [
       config,
       coordinateSystem,
       model,
-      startEasedAnimation,
+      startCoordinatedAnimation,
       startCartesianAnimation,
       posStep,
       rotStep,
