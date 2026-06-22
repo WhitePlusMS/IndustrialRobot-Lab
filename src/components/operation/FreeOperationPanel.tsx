@@ -149,6 +149,12 @@ function CameraTab(props: OperationPanelData) {
         toggleFrustum={props.toggleCameraFrustum}
         toggleModel={props.toggleCameraModel}
         resetCamera={props.resetCamera}
+        showCamera={props.showCamera}
+        setPositionAxisTarget={props.setCameraPositionAxisTarget}
+        setRotationAxisTarget={props.setCameraRotationAxisTarget}
+        setFovTarget={props.setCameraFovTarget}
+        setNearTarget={props.setCameraNearTarget}
+        setFarTarget={props.setCameraFarTarget}
       />
 
       <CapturePanel

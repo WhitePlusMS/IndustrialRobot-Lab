@@ -1,9 +1,7 @@
 // src/components/camera/CameraParamsCard.tsx
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type { CameraState } from '@/types/camera';
 import LongPressButton from '@/components/LongPressButton';
-import { useVirtualCameraContext } from '@/contexts/VirtualCameraContext';
-import { useSceneViewport } from '@/contexts/SceneViewportContext';
 
 interface CameraParamsCardProps {
   cameraState: CameraState;
@@ -21,6 +19,16 @@ interface CameraParamsCardProps {
   toggleFrustum: () => void;
   toggleModel: () => void;
   resetCamera: () => void;
+  /** 相机总闸（用于禁用内部 checkbox） */
+  showCamera: boolean;
+  /** 是否显示镜头参数区（FOV/near/far），默认 true。Step 3 位姿调整传 false */
+  showLensParams?: boolean;
+  /** slider 拖拽时直接写 ref，不触发 React state */
+  setPositionAxisTarget: (axis: 0 | 1 | 2, value: number) => void;
+  setRotationAxisTarget: (axis: 0 | 1 | 2, value: number) => void;
+  setFovTarget: (value: number) => void;
+  setNearTarget: (value: number) => void;
+  setFarTarget: (value: number) => void;
 }
 
 const axisLabels = ['X', 'Y', 'Z'];
@@ -152,7 +160,7 @@ function SliderRow({
 }
 
 export default function CameraParamsCard(props: CameraParamsCardProps) {
-  const { cameraState, posStep, rotStep, fovStep } = props;
+  const { cameraState, posStep, rotStep, fovStep, showCamera } = props;
   const {
     setPositionAxis,
     setRotationAxis,
@@ -160,8 +168,6 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
     setNear,
     setFar,
   } = props;
-  const camera = useVirtualCameraContext();
-  const { showCamera } = useSceneViewport();
 
   // 根据 FOV 与分辨率近似计算内参矩阵（假设正方形像素、主点在图像中心）
   const [width, height] = cameraState.resolution;
@@ -244,15 +250,15 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
 
       // 写 slider target ref
       if (key.startsWith('pos')) {
-        camera.setPositionAxisTarget(Number(key.slice(3)) as 0 | 1 | 2, value);
+        props.setPositionAxisTarget(Number(key.slice(3)) as 0 | 1 | 2, value);
       } else if (key.startsWith('rot')) {
-        camera.setRotationAxisTarget(Number(key.slice(3)) as 0 | 1 | 2, value);
+        props.setRotationAxisTarget(Number(key.slice(3)) as 0 | 1 | 2, value);
       } else if (key === 'fov') {
-        camera.setFovTarget(value);
+        props.setFovTarget(value);
       } else if (key === 'near') {
-        camera.setNearTarget(value);
+        props.setNearTarget(value);
       } else if (key === 'far') {
-        camera.setFarTarget(value);
+        props.setFarTarget(value);
       }
 
       // 无直连 target setter 时回退到 rAF 节流，避免事件风暴
@@ -267,7 +273,7 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
         });
       }
     },
-    [camera, flushSliderValue]
+    [props, flushSliderValue]
   );
 
   // 获取显示值：拖动中优先用 sliderValues，否则用 cameraState
@@ -418,7 +424,8 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
           </div>
         </div>
 
-        {/* 镜头参数 */}
+        {/* 镜头参数（可选：Step 3 位姿调整时隐藏） */}
+        {props.showLensParams !== false && (
         <div>
           <div className="text-[11px] font-semibold text-slate-500 mb-2">镜头参数</div>
           <div className="space-y-3">
@@ -486,6 +493,7 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
             <span className="text-[10px] text-slate-400">°</span>
           </div>
         </div>
+        )}
 
         {/* 显示控制 */}
         <div className="flex items-center gap-4 pt-1">

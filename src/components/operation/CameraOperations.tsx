@@ -1,6 +1,6 @@
 // src/components/operation/CameraOperations.tsx
 import { useState } from 'react';
-import { Aperture, RotateCcw, Camera, Scan, Crosshair, Box } from 'lucide-react';
+import { Aperture, Camera, Scan, Crosshair, Box } from 'lucide-react';
 import { CAMERA_RESOLUTIONS } from '@/lib/camera-config';
 import type { OperationPanelData } from './OperationPanel';
 import CameraParamsCard from '@/components/camera/CameraParamsCard';
@@ -9,23 +9,6 @@ import CapturePanel from '@/components/camera/CapturePanel';
 export default function CameraOperations(props: OperationPanelData) {
   const stepId = props.currentStep.id;
   const [showCalibrationResult, setShowCalibrationResult] = useState(false);
-
-  // 快捷视角：控制虚拟工业相机本身的位置与朝向
-  const views = [
-    { label: '前', pos: [0, 1.5, 4] as [number, number, number], rot: [-90, 0, 180] as [number, number, number] },
-    { label: '侧', pos: [4, 1.5, 0] as [number, number, number], rot: [-90, 0, -90] as [number, number, number] },
-    { label: '顶', pos: [0, 5, 0.01] as [number, number, number], rot: [-90, 0, 0] as [number, number, number] },
-    { label: '自', pos: [3, 2, 3] as [number, number, number], rot: [-90, 0, 135] as [number, number, number] },
-  ];
-
-  const applyCameraView = (pos: [number, number, number], rot: [number, number, number]) => {
-    props.setCameraPositionAxis(0, pos[0]);
-    props.setCameraPositionAxis(1, pos[1]);
-    props.setCameraPositionAxis(2, pos[2]);
-    props.setCameraRotationAxis(0, rot[0]);
-    props.setCameraRotationAxis(1, rot[1]);
-    props.setCameraRotationAxis(2, rot[2]);
-  };
 
   const handleCalibrate = () => {
     setShowCalibrationResult(true);
@@ -80,8 +63,71 @@ export default function CameraOperations(props: OperationPanelData) {
         </div>
       )}
 
-      {/* camera-params：内外参综合调节 */}
+      {/* camera-params：内外参只读概览 */}
       {stepId === 'camera-params' && (
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="px-4 py-3 bg-slate-50/80 border-b border-slate-100">
+            <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+              <Camera className="w-3.5 h-3.5" />
+              相机参数概览
+            </h3>
+          </div>
+          <div className="p-4 space-y-4">
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              本步骤用于认知内外参的含义，所有参数为<strong>只读</strong>展示。如需调节，请切换到后续步骤。
+            </p>
+
+            {/* 内参矩阵 */}
+            <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+              <div className="text-[11px] font-semibold text-slate-700 mb-1">内参矩阵 K</div>
+              <p className="text-[10px] text-slate-400 mb-2 leading-relaxed">
+                内参反映相机自身特性（焦距 fx/fy、主点 cx/cy），由 FOV 和分辨率决定，同一台相机通常固定不变。
+              </p>
+              <div className="grid grid-cols-3 gap-x-4 gap-y-1 text-[11px] font-mono text-slate-700">
+                <span>{fx.toFixed(1)}</span>
+                <span>0</span>
+                <span>{cx.toFixed(1)}</span>
+                <span>0</span>
+                <span>{fy.toFixed(1)}</span>
+                <span>{cy.toFixed(1)}</span>
+                <span>0</span>
+                <span>0</span>
+                <span>1</span>
+              </div>
+              <div className="mt-2 text-[10px] text-slate-400">
+                由 FOV {props.cameraState.fov.toFixed(1)}° 与分辨率 {cw}×{ch} 近似计算
+              </div>
+            </div>
+
+            {/* 外参只读 */}
+            <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
+              <div className="text-[11px] font-semibold text-slate-700 mb-1">外参（相机在世界坐标系中的位姿）</div>
+              <p className="text-[10px] text-slate-400 mb-2 leading-relaxed">
+                外参反映相机在空间中的位置和朝向，移动或旋转相机时外参会随之改变。
+              </p>
+              <div className="grid grid-cols-3 gap-2 text-[11px]">
+                {(['X', 'Y', 'Z'] as const).map((label, i) => (
+                  <div key={label} className="bg-white rounded border border-slate-200 p-2 text-center">
+                    <div className="text-[10px] text-slate-400">{label}</div>
+                    <div className="font-mono font-semibold text-slate-700">{props.cameraState.position[i].toFixed(2)} m</div>
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-3 gap-2 mt-2 text-[11px]">
+                {(['Rx', 'Ry', 'Rz'] as const).map((label, i) => (
+                  <div key={label} className="bg-white rounded border border-slate-200 p-2 text-center">
+                    <div className="text-[10px] text-slate-400">{label}</div>
+                    <div className="font-mono font-semibold text-slate-700">{props.cameraState.rotation[i].toFixed(1)}°</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* camera-pose：相机位姿调节（仅外参：位置+朝向+显示开关） */}
+      {stepId === 'camera-pose' && (
         <CameraParamsCard
           cameraState={props.cameraState}
           posStep={props.cameraPosStep}
@@ -98,63 +144,14 @@ export default function CameraOperations(props: OperationPanelData) {
           toggleFrustum={props.toggleCameraFrustum}
           toggleModel={props.toggleCameraModel}
           resetCamera={props.resetCamera}
+          showCamera={props.showCamera}
+          showLensParams={false}
+          setPositionAxisTarget={props.setCameraPositionAxisTarget}
+          setRotationAxisTarget={props.setCameraRotationAxisTarget}
+          setFovTarget={props.setCameraFovTarget}
+          setNearTarget={props.setCameraNearTarget}
+          setFarTarget={props.setCameraFarTarget}
         />
-      )}
-
-      {/* camera-pose：位姿滑块 + 快捷视角 */}
-      {stepId === 'camera-pose' && (
-        <div className="space-y-3">
-          {[
-            { label: '位置 X', value: props.cameraState.position[0], min: -5, max: 5, step: 0.1, axis: 0 as const, unit: 'm', setter: props.setCameraPositionAxis },
-            { label: '位置 Y', value: props.cameraState.position[1], min: -5, max: 5, step: 0.1, axis: 1 as const, unit: 'm', setter: props.setCameraPositionAxis },
-            { label: '位置 Z', value: props.cameraState.position[2], min: -5, max: 5, step: 0.1, axis: 2 as const, unit: 'm', setter: props.setCameraPositionAxis },
-            { label: '朝向 Rx', value: props.cameraState.rotation[0], min: -360, max: 360, step: 1, axis: 0 as const, unit: '°', setter: props.setCameraRotationAxis },
-            { label: '朝向 Ry', value: props.cameraState.rotation[1], min: -360, max: 360, step: 1, axis: 1 as const, unit: '°', setter: props.setCameraRotationAxis },
-            { label: '朝向 Rz', value: props.cameraState.rotation[2], min: -360, max: 360, step: 1, axis: 2 as const, unit: '°', setter: props.setCameraRotationAxis },
-          ].map((item) => (
-            <div key={item.label} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-semibold text-slate-700">{item.label}</label>
-                <span className="font-mono text-sm font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
-                  {item.value.toFixed(2)}
-                  {item.unit}
-                </span>
-              </div>
-              <input
-                type="range"
-                min={item.min}
-                max={item.max}
-                step={item.step}
-                value={item.value}
-                onChange={(e) => item.setter(item.axis, parseFloat(e.target.value))}
-                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
-              />
-            </div>
-          ))}
-
-          {/* 快捷视角：直接控制虚拟工业相机 */}
-          <div className="grid grid-cols-4 gap-2">
-            {views.map((view) => (
-              <button
-                key={view.label}
-                type="button"
-                onClick={() => applyCameraView(view.pos, view.rot)}
-                className="py-2 text-xs font-semibold text-slate-600 rounded-lg bg-white border border-slate-200 shadow-sm hover:bg-slate-50 active:bg-slate-100 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none"
-              >
-                {view.label}
-              </button>
-            ))}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => props.resetCamera()}
-            className="w-full py-3 text-[13px] font-semibold rounded-xl text-white bg-gradient-to-r from-green-500 to-green-600 border border-green-600 shadow-sm hover:from-green-600 hover:to-green-700 flex items-center justify-center gap-2 focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:outline-none"
-          >
-            <RotateCcw className="w-4 h-4" />
-            重置相机视角
-          </button>
-        </div>
       )}
 
       {/* camera-fov：FOV + 分辨率 */}

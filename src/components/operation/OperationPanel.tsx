@@ -25,14 +25,16 @@ export interface OperationPanelProps {
 }
 
 // 供内部子组件使用的聚合 props（保持子组件接口不变，减少侵入式修改）
-export interface OperationPanelData {
+export interface LayoutPanelData {
   currentModule: ModuleId;
   currentStep: CourseStep;
   mode: LearningMode;
   collapsed: boolean;
   onCollapse: () => void;
+}
+
+export interface RobotPanelData {
   sliderTargetRef: React.MutableRefObject<JointAngles>;
-  // Robot
   joints: JointAngles;
   config: RobotConfig;
   jointStep: number;
@@ -56,7 +58,9 @@ export interface OperationPanelData {
   setHighlightedJoint: (index: number | null) => void;
   selectedTool: string;
   setSelectedTool: (tool: string) => void;
-  // Virtual camera
+}
+
+export interface CameraPanelData {
   cameraState: CameraState;
   captureResult: CaptureResult | null;
   cameraPosStep: number;
@@ -74,13 +78,23 @@ export interface OperationPanelData {
   toggleCameraModel: () => void;
   setCameraResolution: (w: number, h: number) => void;
   resetCamera: () => void;
+  setCameraPositionAxisTarget: (axis: 0 | 1 | 2, value: number) => void;
+  setCameraRotationAxisTarget: (axis: 0 | 1 | 2, value: number) => void;
+  setCameraFovTarget: (value: number) => void;
+  setCameraNearTarget: (value: number) => void;
+  setCameraFarTarget: (value: number) => void;
+  showCamera: boolean;
   onCapture: (result: CaptureResult) => void;
-  // Scene viewport camera
+}
+
+export interface SceneCameraPanelData {
   sceneCameraPosition: [number, number, number];
   setSceneCameraPositionAxis: (axis: 0 | 1 | 2, value: number) => void;
   setSceneCameraView: (view: 'front' | 'side' | 'top' | 'free') => void;
   resetSceneCamera: () => void;
-  // Sequence
+}
+
+export interface SequencePanelData {
   sequenceSteps: ActionStep[];
   setSequenceSteps: (steps: ActionStep[]) => void;
   sequenceCurrentStep: number;
@@ -96,20 +110,23 @@ export interface OperationPanelData {
   onSequenceReset: () => void;
   waypoints: Waypoint[];
   captureImages: { color?: string; segmentation?: string; depth?: string };
+}
+
+export interface GraspPanelData {
   suckerOn: boolean;
   boxState: string;
   boxPosition: [number, number, number];
-  // Demo parts / grasp
   onSpawnParts: (count: number, size: number) => void;
   onClearParts: () => void;
   hasDemoParts: boolean;
-  // Sucker direct actions
   turnSuckerOn: () => void;
   turnSuckerOff: () => void;
   forceAttachBox: () => void;
   spawnBox: (position: [number, number, number], restingHeight?: number) => void;
   resetBox: () => void;
 }
+
+export interface OperationPanelData extends LayoutPanelData, RobotPanelData, CameraPanelData, SceneCameraPanelData, SequencePanelData, GraspPanelData {}
 
 function useOperationPanelData(props: OperationPanelProps): OperationPanelData {
   const learning = useLearning();
@@ -124,14 +141,16 @@ function useOperationPanelData(props: OperationPanelProps): OperationPanelData {
     throw new Error('OperationPanel must be rendered within LearningProvider');
   }
 
-  return {
+  const layout: LayoutPanelData = {
     currentModule: learning.currentModule,
     currentStep: learning.currentStep,
     mode: learning.learningMode,
     collapsed: props.collapsed,
     onCollapse: props.onCollapse,
+  };
+
+  const robotData: RobotPanelData = {
     sliderTargetRef: robot.sliderTargetRef,
-    // Robot
     joints: robot.joints,
     config: robot.config,
     jointStep: robot.jointStep,
@@ -155,7 +174,9 @@ function useOperationPanelData(props: OperationPanelProps): OperationPanelData {
     setHighlightedJoint: robot.setHighlightedJoint,
     selectedTool: robot.selectedTool,
     setSelectedTool: robot.setSelectedTool,
-    // Virtual camera
+  };
+
+  const cameraData: CameraPanelData = {
     cameraState: camera.cameraState,
     captureResult: camera.captureResult,
     cameraPosStep: camera.posStep,
@@ -173,13 +194,23 @@ function useOperationPanelData(props: OperationPanelProps): OperationPanelData {
     toggleCameraModel: camera.toggleModel,
     setCameraResolution: camera.setResolution,
     resetCamera: camera.resetCamera,
+    setCameraPositionAxisTarget: camera.setPositionAxisTarget,
+    setCameraRotationAxisTarget: camera.setRotationAxisTarget,
+    setCameraFovTarget: camera.setFovTarget,
+    setCameraNearTarget: camera.setNearTarget,
+    setCameraFarTarget: camera.setFarTarget,
+    showCamera: camera.cameraState.showCamera,
     onCapture: camera.saveCapture,
-    // Scene viewport camera
+  };
+
+  const sceneCameraData: SceneCameraPanelData = {
     sceneCameraPosition: viewport.cameraPosition,
     setSceneCameraPositionAxis: viewport.setCameraPositionAxis,
     setSceneCameraView: viewport.setCameraView,
     resetSceneCamera: viewport.resetCamera,
-    // Sequence
+  };
+
+  const sequenceData: SequencePanelData = {
     sequenceSteps: sequence.steps,
     setSequenceSteps: sequence.setStepsList,
     sequenceCurrentStep: sequence.currentStepIndex,
@@ -195,10 +226,12 @@ function useOperationPanelData(props: OperationPanelProps): OperationPanelData {
     onSequenceReset: sequence.resetSequence,
     waypoints: sequence.waypoints,
     captureImages: sequence.captureImages,
+  };
+
+  const graspData: GraspPanelData = {
     suckerOn: sucker.suckerOn,
     boxState: sucker.boxState,
     boxPosition: sucker.boxPosition,
-    // Demo parts / grasp
     onSpawnParts: (n, s) =>
       demoParts.spawnParts(n, s, {
         position: camera.cameraState.position,
@@ -209,12 +242,20 @@ function useOperationPanelData(props: OperationPanelProps): OperationPanelData {
       }),
     onClearParts: demoParts.clearParts,
     hasDemoParts: demoParts.parts.length > 0,
-    // Sucker direct actions
     turnSuckerOn: sucker.turnSuckerOn,
     turnSuckerOff: sucker.turnSuckerOff,
     forceAttachBox: sucker.forceAttachBox,
     spawnBox: sucker.spawnBox,
     resetBox: sucker.resetBox,
+  };
+
+  return {
+    ...layout,
+    ...robotData,
+    ...cameraData,
+    ...sceneCameraData,
+    ...sequenceData,
+    ...graspData,
   };
 }
 
