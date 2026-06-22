@@ -1,6 +1,7 @@
 // src/components/ViewportHUD.tsx
 import { Eye, Grid3X3, Route, Table, Camera, Pin, RotateCcw, Home, MapPin, Move, Rotate3D } from 'lucide-react';
 import { useSceneViewport } from '@/contexts/SceneViewportContext';
+import { useVirtualCameraContext } from '@/contexts/VirtualCameraContext';
 
 interface ViewportHUDProps {
   onSaveOrigin: () => void;
@@ -21,7 +22,6 @@ export default function ViewportHUD({
     showTrajectory,
     showDH,
     showDataOverlay,
-    showCamera,
     showTransformGizmo,
     gizmoMode,
     toggleGrid,
@@ -29,10 +29,10 @@ export default function ViewportHUD({
     toggleTrajectory,
     toggleDH,
     toggleDataOverlay,
-    toggleCamera,
     toggleTransformGizmo,
     setGizmoMode,
   } = useSceneViewport();
+  const { showCamera, toggleCamera } = useVirtualCameraContext();
   const viewButtons = [
     { label: '正视', view: 'front' as const },
     { label: '侧视', view: 'side' as const },

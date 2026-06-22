@@ -14,7 +14,6 @@ interface SceneViewportContextValue {
   showDH: boolean;
   showDataOverlay: boolean;
   showCoordinateSystems: boolean;
-  showCamera: boolean;
   showTransformGizmo: boolean;
   gizmoMode: GizmoMode;
   toggleGrid: () => void;
@@ -22,7 +21,6 @@ interface SceneViewportContextValue {
   toggleDH: () => void;
   toggleDataOverlay: () => void;
   toggleCoordinateSystems: () => void;
-  toggleCamera: () => void;
   toggleTransformGizmo: () => void;
   setGizmoMode: (mode: GizmoMode) => void;
   cameraPosition: [number, number, number];
@@ -40,7 +38,6 @@ export function SceneViewportProvider({ children }: { children: ReactNode }) {
   const [showDH, setShowDH] = useState(false);
   const [showDataOverlay, setShowDataOverlay] = useState(true);
   const [showCoordinateSystems, setShowCoordinateSystems] = useState(true);
-  const [showCamera, setShowCamera] = useState(true);
   const [showTransformGizmo, setShowTransformGizmo] = useState(false);
   const [gizmoMode, setGizmoMode] = useState<GizmoMode>('translate');
   const [cameraPosition, setCameraPosition] = useState<[number, number, number]>(DEFAULT_SCENE_CAMERA_POSITION);
@@ -50,7 +47,6 @@ export function SceneViewportProvider({ children }: { children: ReactNode }) {
   const toggleDH = useCallback(() => setShowDH((v) => !v), []);
   const toggleDataOverlay = useCallback(() => setShowDataOverlay((v) => !v), []);
   const toggleCoordinateSystems = useCallback(() => setShowCoordinateSystems((v) => !v), []);
-  const toggleCamera = useCallback(() => setShowCamera((v) => !v), []);
   const toggleTransformGizmo = useCallback(() => {
     setShowTransformGizmo((v) => !v);
   }, []);
@@ -93,7 +89,6 @@ export function SceneViewportProvider({ children }: { children: ReactNode }) {
         showDH,
         showDataOverlay,
         showCoordinateSystems,
-        showCamera,
         showTransformGizmo,
         gizmoMode,
         toggleGrid,
@@ -101,7 +96,6 @@ export function SceneViewportProvider({ children }: { children: ReactNode }) {
         toggleDH,
         toggleDataOverlay,
         toggleCoordinateSystems,
-        toggleCamera,
         toggleTransformGizmo,
         setGizmoMode,
         cameraPosition,

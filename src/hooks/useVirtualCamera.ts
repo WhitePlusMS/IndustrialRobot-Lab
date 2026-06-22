@@ -9,6 +9,7 @@ const DEFAULT_CAMERA_STATE: CameraState = {
   fov: 60,
   near: 0.1,                    // m
   far: 10,                      // m
+  showCamera: true,
   showFrustum: true,
   showModel: true,
   resolution: [640, 480],
@@ -120,6 +121,14 @@ export function useVirtualCamera() {
     });
   }, []);
 
+  const toggleCamera = useCallback(() => {
+    setCameraState((s) => {
+      const next = { ...s, showCamera: !s.showCamera };
+      cameraSliderTargetRef.current = next;
+      return next;
+    });
+  }, []);
+
   const setResolution = useCallback((w: number, h: number) => {
     setCameraState((s) => {
       const next = { ...s, resolution: [w, h] as [number, number] };
@@ -160,6 +169,7 @@ export function useVirtualCamera() {
     setFarTarget,
     toggleFrustum,
     toggleModel,
+    toggleCamera,
     setResolution,
     resetCamera,
     saveCapture,

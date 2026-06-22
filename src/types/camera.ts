@@ -6,6 +6,7 @@ export interface CameraState {
   fov: number;
   near: number;  // m
   far: number;   // m
+  showCamera: boolean;
   showFrustum: boolean;
   showModel: boolean;
   resolution: [number, number];
