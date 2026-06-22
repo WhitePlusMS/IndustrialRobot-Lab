@@ -64,3 +64,8 @@ export interface IKSolverConfig {
   errorClampOri: number; // rad
   orientationScale: number; // mm/rad
 }
+
+/** Gizmo 操作轴 IK 处理器：绕过动画系统，直接求解 + 设置关节 */
+export interface GizmoIKHandle {
+  solveAndApply: (targetPose: Pose) => boolean;
+}

@@ -10,6 +10,8 @@ import { GLBRobotModel } from '@/lib/glb-robot-model';
 import { robotPoseBridge } from '@/lib/robot-pose-bridge';
 import type { CalibrationData } from '@/lib/robot-pose-bridge';
 import { solveIK, isReachable } from '@/lib/ik-solver';
+import { solveIKWithGizmoConfig } from '@/lib/transform-gizmo-utils';
+import type { GizmoIKHandle } from '@/types/robot';
 import { Matrix4x4 } from '@/lib/matrix4x4';
 import { degToRad, radToDeg } from '@/lib/math/angle';
 import { applyRotationIncrement, buildRotationFromEuler, rotationMatrixToEulerZYX } from '@/lib/math/rotation3d';
@@ -129,6 +131,20 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
     setJoints: applyJoints,
     setStatus,
   });
+
+  // Gizmo IK 处理器（ref 封装，依赖 applyJoints，须在其之后声明）
+  const gizmoIKRef = useRef<GizmoIKHandle | null>(null);
+  useEffect(() => {
+    gizmoIKRef.current = {
+      solveAndApply: (targetPose: Pose) => {
+        const current = displayJointsRef.current;
+        const result = solveIKWithGizmoConfig(targetPose, current, model, ranges as [number, number][]);
+        if (!result) return false;
+        applyJoints(result);
+        return true;
+      },
+    };
+  }, [model, ranges, applyJoints]);
 
   // 当前末端位姿（GLB 采样，mm / °）
   const endEffectorPose = useMemo<EndEffectorPose>(() => {
@@ -510,6 +526,7 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
     setStatus,
     isAnimating,
     isAnimatingRef,
+    gizmoIKRef,
     config,
   };
 }
