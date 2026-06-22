@@ -5,7 +5,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CoordinateSystem, JointAngles, Pose, RobotConfig, StatusType } from '@/types/robot';
 import { KUKA_LIKE, DEFAULT_JOINTS } from '@/lib/robot-config';
 import { useRobotPoseAPI } from './useRobotPoseAPI';
+import { SceneKinematicModel } from '@/lib/scene-kinematic-model';
 import { GLBRobotModel } from '@/lib/glb-robot-model';
+import { robotPoseBridge } from '@/lib/robot-pose-bridge';
+import type { CalibrationData } from '@/lib/robot-pose-bridge';
 import { solveIK, isReachable } from '@/lib/ik-solver';
 import { Matrix4x4 } from '@/lib/matrix4x4';
 import { degToRad, radToDeg } from '@/lib/math/angle';
@@ -75,9 +78,23 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
     }
   }, [displayJoints, externalTargetRef]);
 
-  // GLB 位姿采样能力与模型
+  // GLB 位姿采样能力（保留用于轨迹显示等实时需求）
   const poseApi = useRobotPoseAPI();
-  const model = useMemo(() => new GLBRobotModel(poseApi), [poseApi]);
+
+  // PoE 运动学模型：优先使用 bridge 标定数据，未就绪时退回 GLBRobotModel
+  const [calibrationData, setCalibrationData] = useState<CalibrationData | null>(
+    () => robotPoseBridge.getCalibration()
+  );
+  useEffect(() => {
+    const unsub = robotPoseBridge.subscribeCalibration(setCalibrationData);
+    return unsub;
+  }, []);
+
+  const model = useMemo(() => {
+    if (calibrationData) return new SceneKinematicModel(calibrationData);
+    // 回退：GLB 模型未加载完成时使用旧的场景采样式模型
+    return new GLBRobotModel(poseApi);
+  }, [calibrationData, poseApi]);
 
   // 统一设置关节角：更新 state、refs、外部 ref
   const applyJoints = useCallback(
