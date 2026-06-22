@@ -2,19 +2,13 @@
 import { useState } from 'react';
 import { Aperture, RotateCcw, Camera, Scan, Crosshair, Box } from 'lucide-react';
 import { CAMERA_RESOLUTIONS } from '@/lib/camera-config';
-import { useVirtualCameraContext } from '@/contexts/VirtualCameraContext';
-import type { CourseStep } from '@/lib/course-config';
+import type { OperationPanelData } from './OperationPanel';
 import CameraParamsCard from '@/components/camera/CameraParamsCard';
 import CapturePanel from '@/components/camera/CapturePanel';
 
-interface CameraOperationsProps {
-  currentStep: CourseStep;
-}
-
-export default function CameraOperations({ currentStep }: CameraOperationsProps) {
-  const stepId = currentStep.id;
+export default function CameraOperations(props: OperationPanelData) {
+  const stepId = props.currentStep.id;
   const [showCalibrationResult, setShowCalibrationResult] = useState(false);
-  const camera = useVirtualCameraContext();
 
   // 快捷视角：控制虚拟工业相机本身的位置与朝向
   const views = [
@@ -25,12 +19,12 @@ export default function CameraOperations({ currentStep }: CameraOperationsProps)
   ];
 
   const applyCameraView = (pos: [number, number, number], rot: [number, number, number]) => {
-    camera.setPositionAxis(0, pos[0]);
-    camera.setPositionAxis(1, pos[1]);
-    camera.setPositionAxis(2, pos[2]);
-    camera.setRotationAxis(0, rot[0]);
-    camera.setRotationAxis(1, rot[1]);
-    camera.setRotationAxis(2, rot[2]);
+    props.setCameraPositionAxis(0, pos[0]);
+    props.setCameraPositionAxis(1, pos[1]);
+    props.setCameraPositionAxis(2, pos[2]);
+    props.setCameraRotationAxis(0, rot[0]);
+    props.setCameraRotationAxis(1, rot[1]);
+    props.setCameraRotationAxis(2, rot[2]);
   };
 
   const handleCalibrate = () => {
@@ -38,8 +32,8 @@ export default function CameraOperations({ currentStep }: CameraOperationsProps)
   };
 
   // 模拟标定结果：内参与当前相机状态一致，外参直接读取虚拟相机位姿
-  const [cw, ch] = camera.cameraState.resolution;
-  const fx = (cw / 2) / Math.tan((camera.cameraState.fov * Math.PI) / 360);
+  const [cw, ch] = props.cameraState.resolution;
+  const fx = (cw / 2) / Math.tan((props.cameraState.fov * Math.PI) / 360);
   const fy = fx;
   const cx = cw / 2;
   const cy = ch / 2;
@@ -59,9 +53,9 @@ export default function CameraOperations({ currentStep }: CameraOperationsProps)
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={camera.toggleModel}
+                onClick={props.toggleCameraModel}
                 className={`py-2 text-[11px] font-semibold rounded-lg border shadow-sm flex items-center justify-center gap-1 transition-colors focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none ${
-                  camera.cameraState.showModel
+                  props.cameraState.showModel
                     ? 'bg-blue-600 text-white border-blue-600'
                     : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                 }`}
@@ -71,9 +65,9 @@ export default function CameraOperations({ currentStep }: CameraOperationsProps)
               </button>
               <button
                 type="button"
-                onClick={camera.toggleFrustum}
+                onClick={props.toggleCameraFrustum}
                 className={`py-2 text-[11px] font-semibold rounded-lg border shadow-sm flex items-center justify-center gap-1 transition-colors focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none ${
-                  camera.cameraState.showFrustum
+                  props.cameraState.showFrustum
                     ? 'bg-blue-600 text-white border-blue-600'
                     : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                 }`}
@@ -89,21 +83,21 @@ export default function CameraOperations({ currentStep }: CameraOperationsProps)
       {/* camera-params：内外参综合调节 */}
       {stepId === 'camera-params' && (
         <CameraParamsCard
-          cameraState={camera.cameraState}
-          posStep={camera.posStep}
-          onPosStepChange={camera.setPosStep}
-          rotStep={camera.rotStep}
-          onRotStepChange={camera.setRotStep}
-          fovStep={camera.fovStep}
-          onFovStepChange={camera.setFovStep}
-          setPositionAxis={camera.setPositionAxis}
-          setRotationAxis={camera.setRotationAxis}
-          setFov={camera.setFov}
-          setNear={camera.setNear}
-          setFar={camera.setFar}
-          toggleFrustum={camera.toggleFrustum}
-          toggleModel={camera.toggleModel}
-          resetCamera={camera.resetCamera}
+          cameraState={props.cameraState}
+          posStep={props.cameraPosStep}
+          onPosStepChange={props.onCameraPosStepChange}
+          rotStep={props.cameraRotStep}
+          onRotStepChange={props.onCameraRotStepChange}
+          fovStep={props.cameraFovStep}
+          onFovStepChange={props.onCameraFovStepChange}
+          setPositionAxis={props.setCameraPositionAxis}
+          setRotationAxis={props.setCameraRotationAxis}
+          setFov={props.setCameraFov}
+          setNear={props.setCameraNear}
+          setFar={props.setCameraFar}
+          toggleFrustum={props.toggleCameraFrustum}
+          toggleModel={props.toggleCameraModel}
+          resetCamera={props.resetCamera}
         />
       )}
 
@@ -111,12 +105,12 @@ export default function CameraOperations({ currentStep }: CameraOperationsProps)
       {stepId === 'camera-pose' && (
         <div className="space-y-3">
           {[
-            { label: '位置 X', value: camera.cameraState.position[0], min: -5, max: 5, step: 0.1, axis: 0 as const, unit: 'm', setter: camera.setPositionAxis },
-            { label: '位置 Y', value: camera.cameraState.position[1], min: -5, max: 5, step: 0.1, axis: 1 as const, unit: 'm', setter: camera.setPositionAxis },
-            { label: '位置 Z', value: camera.cameraState.position[2], min: -5, max: 5, step: 0.1, axis: 2 as const, unit: 'm', setter: camera.setPositionAxis },
-            { label: '朝向 Rx', value: camera.cameraState.rotation[0], min: -360, max: 360, step: 1, axis: 0 as const, unit: '°', setter: camera.setRotationAxis },
-            { label: '朝向 Ry', value: camera.cameraState.rotation[1], min: -360, max: 360, step: 1, axis: 1 as const, unit: '°', setter: camera.setRotationAxis },
-            { label: '朝向 Rz', value: camera.cameraState.rotation[2], min: -360, max: 360, step: 1, axis: 2 as const, unit: '°', setter: camera.setRotationAxis },
+            { label: '位置 X', value: props.cameraState.position[0], min: -5, max: 5, step: 0.1, axis: 0 as const, unit: 'm', setter: props.setCameraPositionAxis },
+            { label: '位置 Y', value: props.cameraState.position[1], min: -5, max: 5, step: 0.1, axis: 1 as const, unit: 'm', setter: props.setCameraPositionAxis },
+            { label: '位置 Z', value: props.cameraState.position[2], min: -5, max: 5, step: 0.1, axis: 2 as const, unit: 'm', setter: props.setCameraPositionAxis },
+            { label: '朝向 Rx', value: props.cameraState.rotation[0], min: -360, max: 360, step: 1, axis: 0 as const, unit: '°', setter: props.setCameraRotationAxis },
+            { label: '朝向 Ry', value: props.cameraState.rotation[1], min: -360, max: 360, step: 1, axis: 1 as const, unit: '°', setter: props.setCameraRotationAxis },
+            { label: '朝向 Rz', value: props.cameraState.rotation[2], min: -360, max: 360, step: 1, axis: 2 as const, unit: '°', setter: props.setCameraRotationAxis },
           ].map((item) => (
             <div key={item.label} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
               <div className="flex items-center justify-between mb-2">
@@ -138,7 +132,7 @@ export default function CameraOperations({ currentStep }: CameraOperationsProps)
             </div>
           ))}
 
-          {/* 快捷视角 */}
+          {/* 快捷视角：直接控制虚拟工业相机 */}
           <div className="grid grid-cols-4 gap-2">
             {views.map((view) => (
               <button
@@ -154,7 +148,7 @@ export default function CameraOperations({ currentStep }: CameraOperationsProps)
 
           <button
             type="button"
-            onClick={() => camera.resetCamera()}
+            onClick={() => props.resetCamera()}
             className="w-full py-3 text-[13px] font-semibold rounded-xl text-white bg-gradient-to-r from-green-500 to-green-600 border border-green-600 shadow-sm hover:from-green-600 hover:to-green-700 flex items-center justify-center gap-2 focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:outline-none"
           >
             <RotateCcw className="w-4 h-4" />
@@ -173,7 +167,7 @@ export default function CameraOperations({ currentStep }: CameraOperationsProps)
                 视场角 FOV
               </label>
               <span className="font-mono text-sm font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
-                {camera.cameraState.fov.toFixed(1)}°
+                {props.cameraState.fov.toFixed(1)}°
               </span>
             </div>
             <input
@@ -181,8 +175,8 @@ export default function CameraOperations({ currentStep }: CameraOperationsProps)
               min={10}
               max={120}
               step={1}
-              value={camera.cameraState.fov}
-              onChange={(e) => camera.setFov(parseFloat(e.target.value))}
+              value={props.cameraState.fov}
+              onChange={(e) => props.setCameraFov(parseFloat(e.target.value))}
               className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
             />
             <div className="flex items-center justify-between text-[11px] text-slate-400 mt-2">
@@ -198,13 +192,13 @@ export default function CameraOperations({ currentStep }: CameraOperationsProps)
             </div>
             <div className="flex flex-wrap gap-2">
               {CAMERA_RESOLUTIONS.map(([w, h]) => {
-                const active = camera.cameraState.resolution[0] === w && camera.cameraState.resolution[1] === h;
+                const active = props.cameraState.resolution[0] === w && props.cameraState.resolution[1] === h;
                 return (
                   <button
                     type="button"
                     key={`${w}x${h}`}
                     aria-pressed={active}
-                    onClick={() => camera.setResolution(w, h)}
+                    onClick={() => props.setCameraResolution(w, h)}
                     className={`px-2 py-1 text-[11px] rounded-sm border focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none ${
                       active
                         ? 'bg-blue-600 text-white border-blue-600'
@@ -234,10 +228,10 @@ export default function CameraOperations({ currentStep }: CameraOperationsProps)
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={camera.toggleFrustum}
+                  onClick={props.toggleCameraFrustum}
                   className="flex-1 py-2 text-[11px] font-semibold rounded-lg border shadow-sm transition-colors focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
                 >
-                  {camera.cameraState.showFrustum ? '隐藏视野锥' : '显示视野锥'}
+                  {props.cameraState.showFrustum ? '隐藏视野锥' : '显示视野锥'}
                 </button>
                 <button
                   type="button"
@@ -256,10 +250,10 @@ export default function CameraOperations({ currentStep }: CameraOperationsProps)
                   <div>[0, 0, 1]</div>
                   <div className="font-semibold text-slate-700 pt-1">外参（虚拟相机）：</div>
                   <div>
-                    位置: [{camera.cameraState.position.map((v) => v.toFixed(3)).join(', ')}] m
+                    位置: [{props.cameraState.position.map((v) => v.toFixed(3)).join(', ')}] m
                   </div>
                   <div>
-                    朝向: [{camera.cameraState.rotation.map((v) => v.toFixed(1)).join(', ')}] °
+                    朝向: [{props.cameraState.rotation.map((v) => v.toFixed(1)).join(', ')}] °
                   </div>
                   <div className="pt-1 text-green-600 font-semibold">标定完成</div>
                   <div className="text-[10px] text-slate-500 not-italic font-sans leading-relaxed">
@@ -271,10 +265,10 @@ export default function CameraOperations({ currentStep }: CameraOperationsProps)
           </div>
 
           <CapturePanel
-            cameraState={camera.cameraState}
-            captureResult={camera.captureResult}
-            onCapture={camera.saveCapture}
-            onResolutionChange={camera.setResolution}
+            cameraState={props.cameraState}
+            captureResult={props.captureResult}
+            onCapture={props.onCapture}
+            onResolutionChange={props.setCameraResolution}
           />
         </>
       )}

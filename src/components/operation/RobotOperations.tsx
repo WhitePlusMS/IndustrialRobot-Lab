@@ -1,21 +1,14 @@
 // src/components/operation/RobotOperations.tsx
-// 机器人操作面板 — 直接读取 RobotContext，不再通过 props 传递
-import { useRobotContext } from '@/contexts/RobotContext';
-import { useSceneViewport } from '@/contexts/SceneViewportContext';
+import type { OperationPanelData } from './OperationPanel';
 import JointAngleCard from '@/components/JointAngleCard';
 import PoseControlCard from '@/components/PoseControlCard';
 import PositionTargetCard from '@/components/PositionTargetCard';
 import WaypointPanel from '@/components/WaypointPanel';
-import type { CourseStep } from '@/lib/course-config';
+import { useSceneViewport } from '@/contexts/SceneViewportContext';
 import { Eye, EyeOff, Grip } from 'lucide-react';
 
-interface RobotOperationsProps {
-  currentStep: CourseStep;
-}
-
-export default function RobotOperations({ currentStep }: RobotOperationsProps) {
-  const stepId = currentStep.id;
-  const robot = useRobotContext();
+export default function RobotOperations(props: OperationPanelData) {
+  const stepId = props.currentStep.id;
   const viewport = useSceneViewport();
 
   const isStructureStep = stepId === 'robot-structure';
@@ -34,17 +27,17 @@ export default function RobotOperations({ currentStep }: RobotOperationsProps) {
   ];
 
   const handleJointCardClick = (index: number) => {
-    robot.setHighlightedJoint(robot.highlightedJoint === index ? null : index);
+    props.setHighlightedJoint(props.highlightedJoint === index ? null : index);
   };
 
-  const isSuckerVisible = robot.selectedTool === '吸盘';
+  const isSuckerVisible = props.selectedTool === '吸盘';
   const handleToggleSucker = () => {
-    robot.setSelectedTool(isSuckerVisible ? '无' : '吸盘');
+    props.setSelectedTool(isSuckerVisible ? '无' : '吸盘');
   };
 
   return (
     <div className="space-y-4">
-      {/* 坐标系显示与模式切换 */}
+      {/* 坐标系显示与模式切换：机器臂模块通用 */}
       <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
         <div className="flex items-center justify-between">
           <p className="text-sm font-bold text-slate-800">坐标系可视化</p>
@@ -71,7 +64,7 @@ export default function RobotOperations({ currentStep }: RobotOperationsProps) {
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2">
             {jointCards.map(({ j, name, index }) => {
-              const active = robot.highlightedJoint === index;
+              const active = props.highlightedJoint === index;
               return (
                 <button
                   key={j}
@@ -119,33 +112,33 @@ export default function RobotOperations({ currentStep }: RobotOperationsProps) {
         </div>
       )}
 
-      {/* 单关节 / 多关节步骤 */}
+      {/* 单关节 / 多关节步骤：复用 JointAngleCard 不卡顿逻辑，按教学需要锁定部分关节 */}
       {(isSingleJointStep || isMultiJointStep) && (
         <JointAngleCard
-          joints={robot.joints}
-          config={robot.config}
-          jointStep={robot.jointStep}
-          onJointStepChange={robot.setJointStep}
-          onAdjustJoint={robot.adjustJoint}
-          onSetJoint={robot.setJoint}
-          sliderTargetRef={robot.sliderTargetRef}
-          onReset={robot.resetJoints}
-          onRandom={robot.randomJoints}
+          joints={props.joints}
+          config={props.config}
+          jointStep={props.jointStep}
+          onJointStepChange={props.onJointStepChange}
+          onAdjustJoint={props.onAdjustJoint}
+          onSetJoint={props.onSetJoint}
+          sliderTargetRef={props.sliderTargetRef}
+          onReset={props.onReset}
+          onRandom={props.onRandom}
           collapsible={false}
           enabledJoints={isSingleJointStep ? [0] : [1, 2]}
         />
       )}
 
-      {/* 坐标系步骤 */}
+      {/* 坐标系步骤：通过位姿控制方向键体验 World/Tool 坐标系差异 */}
       {isCoordinateStep && (
         <PoseControlCard
-          coordinateSystem={robot.coordinateSystem}
-          onCoordinateChange={robot.setCoordinateSystem}
-          posStep={robot.posStep}
-          onPosStepChange={robot.setPosStep}
-          rotStep={robot.rotStep}
-          onRotStepChange={robot.setRotStep}
-          onMoveDirection={robot.moveDirection}
+          coordinateSystem={props.coordinateSystem}
+          onCoordinateChange={props.onCoordinateChange}
+          posStep={props.posStep}
+          onPosStepChange={props.onPosStepChange}
+          rotStep={props.rotStep}
+          onRotStepChange={props.onRotStepChange}
+          onMoveDirection={props.onMoveDirection}
         />
       )}
 
@@ -153,22 +146,23 @@ export default function RobotOperations({ currentStep }: RobotOperationsProps) {
       {isCartesianStep && (
         <>
           <PositionTargetCard
-            currentGLBPosition={robot.glbPosition}
-            onGoToPosition={robot.goToPosition}
-            disabled={robot.status === 'moving'}
+            currentGLBPosition={props.currentGLBPosition}
+            onGoToPosition={props.onGoToPosition}
+            disabled={props.status === 'moving'}
           />
           <PoseControlCard
-            coordinateSystem={robot.coordinateSystem}
-            onCoordinateChange={robot.setCoordinateSystem}
-            posStep={robot.posStep}
-            onPosStepChange={robot.setPosStep}
-            rotStep={robot.rotStep}
-            onRotStepChange={robot.setRotStep}
-            onMoveDirection={robot.moveDirection}
+            coordinateSystem={props.coordinateSystem}
+            onCoordinateChange={props.onCoordinateChange}
+            posStep={props.posStep}
+            onPosStepChange={props.onPosStepChange}
+            rotStep={props.rotStep}
+            onRotStepChange={props.onRotStepChange}
+            onMoveDirection={props.onMoveDirection}
           />
-          <WaypointPanel currentJoints={robot.joints} onGotoWaypoint={robot.goToJoints} />
+          <WaypointPanel currentJoints={props.joints} onGotoWaypoint={props.onGotoWaypoint} />
         </>
       )}
+
     </div>
   );
 }
