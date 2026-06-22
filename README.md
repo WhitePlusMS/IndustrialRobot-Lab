@@ -1,186 +1,101 @@
-# 六轴机械臂正逆运动学 3D 仿真系统
+[English](README.md) | [中文](README.zh.md)
 
-本项目是一套基于浏览器的六轴机械臂运动学仿真平台，支持正运动学实时计算、Jacobian 阻尼最小二乘逆运动学求解、以及完整的 3D 可视化交互。系统为纯前端应用，记忆点等教学数据通过浏览器 localStorage 持久化。
+# IndustrialRobot-Lab · 机臂实验室
 
----
+> An interactive learning workbench for industrial robotics. It decomposes a six-axis robotic arm into observable, operable, step-by-step experiments — covering forward and inverse kinematics, camera vision, grasping simulation, palletizing, and more — making abstract kinematics math直观可见.
 
-## 系统架构
+🌐 **Live Demo:** [https://whiteplusms.github.io/IndustrialRobot-Lab/](https://whiteplusms.github.io/IndustrialRobot-Lab/)
 
-本项目为纯前端应用，无需后端服务：
+*© 2026 WhitePlusMS*
 
-**前端层（React + TypeScript + Three.js）**
-- 声明式 3D 渲染管线，基于 React Three Fiber 构建
-- 自定义数学库处理 4x4 齐次变换矩阵运算
-- 工业风格的用户界面面板，支持实时关节调节与位姿控制
-- 运动平滑引擎，提供单击缓动动画与长按连续触发两种交互模式
-- 记忆点通过浏览器 localStorage 本地持久化
+## Overview
 
----
+A browser-based, pure front-end industrial robot simulation platform built around a realistic KUKA six-axis GLB model. It blends interactive 3D visualization with structured teaching modules (~180 min of curriculum) and a free-practice sandbox for experimentation.
 
-## 核心算法体系
+### Core Capabilities
 
-### 改进型 Denavit-Hartenberg（DH）参数法
+| Module | Features |
+|--------|----------|
+| **Forward Kinematics** | Modified DH parameter chain, 4×4 homogeneous transform matrices, end-effector pose (position + ZYX Euler angles) |
+| **Inverse Kinematics** | Jacobian-based Levenberg-Marquardt damped least squares, dual-strategy degradation (6-DOF → 3-DOF fallback), singularity detection |
+| **Joint & Pose Control** | Six-axis joint sliders with 4 step sizes; Cartesian position/orientation controls in World & Tool frames; long-press continuous triggering |
+| **Waypoint System** | Save & recall joint configurations, set home positions, localStorage persistence |
+| **Virtual Camera** | Industrial camera model with adjustable intrinsics/extrinsics, lens & frustum visualization, photo capture (color / segmentation / depth map) |
+| **Gripper & Grasping** | Vacuum sucker end-effector with physics simulation (attach, lift, free-fall, ground collision), spawn area fence |
+| **Palletizing** | Coming soon — multi-box pick-and-place, pattern generation, cycle optimization |
+| **Action Sequence Programming** | Drag-and-drop visual sequence editor, 10 step types, full-run & single-step debugging with execution logs |
+| **Teaching Curriculum** | 3 modules, 15+ guided steps — Robot Basics / Camera System / Grasping Practice — with task descriptions, check items, key terms, and scene-linked highlights |
 
-采用 Modified DH（改进 DH）参数约定描述六轴机械臂的连杆几何关系。每个关节由四个参数定义：连杆扭转角、连杆长度、关节偏置、关节转角。通过齐次变换矩阵的链式乘法，从基座坐标系到末端执行器坐标系建立完整的正向运动学映射。
+## Tech Stack
 
-系统内置 MG400 工业机械臂的简化参数模型，涵盖六轴旋转关节的完整 DH 参数表。
+| Layer | Technology |
+|------|-----------|
+| Framework | React 19 + Vite 7 |
+| Language | TypeScript 5 |
+| 3D Rendering | Three.js + @react-three/fiber + @react-three/drei |
+| Styling | Tailwind CSS 3 + shadcn/ui (New York) |
+| Linear Algebra | ml-matrix (SVD, matrix inversion) |
+| State | React Context API + custom hooks |
+| Persistence | browser localStorage |
+| Testing | Vitest |
 
-### 正向运动学
+## Architecture Highlights
 
-正向运动学模块负责根据给定的六维关节角度，计算末端执行器在世界坐标系中的位置和姿态。流程为：依次将每个关节的 DH 变换矩阵连乘，得到从基座到末端的累积变换矩阵，然后从中提取三维位置向量和三维旋转姿态（采用 ZYX 欧拉角表示）。
+- **Pure frontend, no backend** — All kinematics, IK solving, and physics run in the browser; zero server dependencies.
+- **GLB model as ground truth** — The Jacobian matrix is estimated by numerically perturbing joints in the actual 3D scene, so kinematics match the visual representation exactly.
+- **Dual-degradation IK** — If 6-DOF (position + orientation) IK fails, automatically falls back to 3-DOF position-only IK; never silently fails.
+- **RAF animation engine** — Type-based non-restart optimization: repeated calls to the same animation type only update targets without restarting the RAF loop, eliminating frame-gap stuttering.
+- **Frame-level interpolation** — Joint sliders and camera controls use ref + `useFrame` interpolation, bypassing React re-renders for 60fps smooth interaction.
+- **Structured pedagogy** — Each guided step includes task description, operation steps, self-check items, observation points, key terms, and theory links.
 
-### 逆运动学（Jacobian DLS 方法）
-
-逆运动学是整个系统的核心计算模块，采用 Jacobian 阻尼最小二乘法实现实时数值求解。
-
-**求解流程**：
-- 在当前关节配置下计算空间 Jacobian 矩阵，其每一列描述对应关节对末端位置和姿态的微分影响
-- 构建位姿误差向量（位置误差 + 姿态误差）
-- 使用阻尼最小二乘法求解关节增量，通过引入阻尼因子避免矩阵奇异导致的数值不稳定
-- 迭代更新关节角度直至误差收敛或达到最大迭代次数
-- 求解过程中自动执行关节限位检查，防止超出物理可行范围
-
-**双策略降级机制**：
-系统同时实现了 6DOF 位姿控制模式和 3DOF 位置控制模式。当 6DOF 求解失败时（目标位姿在工作空间外或处于奇异构型附近），自动降级为仅控制末端位置的三自由度求解，确保交互的连续性和可用性。
-
-### 奇异点检测
-
-基于 Jacobian 矩阵的条件数进行奇异点判断。当条件数超过预设阈值时，系统判定当前构型接近奇异点，并通过 UI 状态栏向用户发出警告，防止在不可控区域进行位姿调节。
-
----
-
-## 功能模块
-
-### 3D 视口
-
-- 基于 Three.js 的 WebGL 渲染，使用 PerspectiveCamera 和 OrbitControls 实现自由视角浏览
-- 机械臂模型由底座、六个连杆圆柱体、六个关节轴圆柱体和末端夹爪组成，采用金属质感材质
-- 支持工作台、网格地面、基座/末端坐标系、运动轨迹线的独立显隐控制
-- 预设正视、侧视、俯视三种标准视角
-- 实时跟随关节数据更新 3D 模型姿态
-
-### 关节角度控制面板
-
-- 六轴独立调节，每个关节显示当前角度值和允许范围
-- 支持四种步进精度（0.1 / 1 / 5 / 10 度）
-- **单击**：触发带 easeInOutCubic 缓动的 400ms 过渡动画
-- **长按**：300ms 延迟后进入连续触发模式，每 80ms 执行一次增量调节，带角速度限制保护
-- 超限角度以红色警示标识
-- 一键重置零位 / 随机生成关节配置
-
-### 位姿控制面板
-
-- 支持 World 世界坐标系和 Tool 工具坐标系两种操作模式
-- 三轴位置调节（X / Y / Z）和三轴姿态调节（RX / RY / RZ）
-- 位置步进支持 0.1 / 1 / 10 / 50 mm，姿态步进支持 0.1 / 1 / 5 / 10 度
-- 每个方向按钮支持长按连续触发
-- 底层调用 Jacobian DLS 逆运动学求解器实时计算目标关节角度
-- 关节限位保护和奇异点检测开关
-
-### 记忆点管理系统
-
-- 将当前六轴关节配置保存为命名记忆点
-- 一键回退到已保存的关节状态（带平滑过渡动画）
-- 支持设置/返回原点功能
-- 记忆点数据保存在浏览器 localStorage 中
-
-### 状态与数据面板
-
-- 顶部实时显示当前末端位姿（位置 + 姿态）
-- 底部状态栏显示系统状态（就绪 / 计算中 / 运动仿真 / 奇异点警告 / 目标不可达 / 关节超限）
-- 关节角度浮窗实时同步六轴数值
-
----
-
-## 运动平滑引擎
-
-系统内置了专门的运动插值模块，处理所有涉及关节角度变化的交互：
-
-**单击动画模式**：采用 easeInOutCubic 插值函数，在 400ms 内完成从当前角度到目标角度的平滑过渡，启动和停止阶段具有自然的加减速效果。
-
-**长按连续模式**：当用户长按按钮超过 300ms 阈值后，系统以固定频率（约 12.5 次/秒）连续发送增量指令。为防止角度突变，设置了最大角速度限制（120 度/秒），确保运动平稳可控。
-
-**目标追踪模式**：对于逆运动学求解返回的目标关节角度，系统同样采用带速度限制的平滑追赶策略，使末端执行器的位姿变化在视觉上流畅自然。
-
----
-
-## 技术栈
-
-| 层级 | 技术选型 |
-|------|---------|
-| 前端框架 | React 19 + TypeScript + Vite |
-| 3D 渲染 | Three.js + React Three Fiber + Drei |
-| UI 组件 | Tailwind CSS + shadcn/ui |
-| 状态管理 | React Hooks（useState / useCallback / useRef） |
-| 本地存储 | localStorage |
-
----
-
-## 本地开发
+## Getting Started
 
 ```bash
-# 安装依赖
 npm install
-
-# 启动开发服务器
 npm run dev
-
-# 类型检查
-npm run check
-
-# 构建生产包
-npm run build
 ```
 
-开发服务器默认启动在 http://localhost:18081。
+Open `http://localhost:18081` in your browser. Switch between **Guided Teaching** (left panel) and **Free Practice** (right panel) modes.
 
----
-
-## 项目结构
+## Project Structure
 
 ```
 src/
-  components/          # UI 组件
-    RobotScene.tsx     # 3D 视口与机械臂渲染
-    JointAngleCard.tsx # 关节角度控制面板
-    PoseControlCard.tsx# 位姿控制面板
-    DirectionButton.tsx# 方向按钮（支持长按）
-    LongPressButton.tsx# 通用长按按钮
-    StatusBar.tsx      # 底部状态栏
-    DataOverlay.tsx    # 实时数据浮窗
-    ViewportHUD.tsx    # 3D 视口 HUD
-    WaypointPanel.tsx  # 记忆点管理面板
-    DHParamOverlay.tsx # DH 参数浮层
-  hooks/
-    useRobotKinematics.ts  # 核心运动学状态管理 Hook
-    useWaypoints.ts        # 记忆点本地存储 Hook
-  lib/
-    matrix4x4.ts       # 4x4 齐次变换矩阵运算库
-    kinematics.ts      # 正运动学模块
-    ik-solver.ts       # 逆运动学求解器（Jacobian DLS）
-    robot-config.ts    # 机械臂 DH 参数配置
-    motion-smoothing.ts# 运动平滑插值引擎
-    waypoint-storage.ts# 记忆点 localStorage 存储
-  types/
-    robot.ts           # 运动学相关类型定义
-  App.tsx              # 主页面布局
+  lib/                    # Core algorithms
+    kinematics.ts             # Forward kinematics (DH transform chain)
+    ik-solver.ts              # Inverse kinematics (LM-DLS)
+    matrix4x4.ts              # 4×4 homogeneous transform matrix
+    robot-config.ts           # KUKA-like DH parameters
+    glb-robot-model.ts        # GLB-based model (Jacobian from 3D scene)
+    motion-smoothing.ts       # Easing functions & joint interpolation
+    motion-planner.ts         # Cartesian space step-wise motion planning
+    capture-engine.ts         # Color / segmentation / depth capture
+    waypoint-storage.ts       # localStorage waypoint persistence
+    course-config.ts          # Complete teaching curriculum
+    camera-config.ts          # Shared camera resolution constants
+  components/             # React components
+    GLBRobotArm.tsx           # GLB model loader & joint manipulator
+    RobotScene.tsx            # 3D scene composition
+    JointAngleCard.tsx        # Joint control panel
+    PoseControlCard.tsx       # Cartesian pose control
+    DirectionButton.tsx       # Long-press capable step buttons
+    WaypointPanel.tsx         # Waypoint management UI
+    DataOverlay.tsx           # Real-time pose display
+    StatusBar.tsx             # Bottom status bar
+    camera/                   # Virtual camera components
+    operation/                # Operation panels (Robot, Camera, Grasp, Free)
+    learning/                 # Learning panel (steps, explanations, theory)
+    sequence/                 # Sequence editor
+  hooks/                  # React hooks
+    useRobot.ts               # Core robot control
+    useMotion.ts              # RAF animation engine
+    useVirtualCamera.ts       # Camera state management
+    useSuckerControl.ts       # Sucker physics & attachment
+    useActionSequence.ts      # Sequence execution engine
+    useWaypoints.ts           # Waypoint storage wrapper
+  contexts/               # React Context providers
 ```
 
----
+## License
 
-## 支持的机械臂模型
-
-当前版本内置 MG400 四轴/六轴工业机械臂的简化 DH 参数模型，主要规格如下：
-
-- 6 个旋转关节，均配有角度限位
-- 最大工作半径约 440 mm
-- 支持基座高度自定义
-- 各连杆独立配色，便于 3D 视口中区分
-
----
-
-## 注意事项
-
-- 逆运动学求解属于数值迭代方法，在奇异构型附近可能出现收敛缓慢或无法收敛的情况，此时系统会自动降级为位置-only 模式
-- 3D 渲染依赖 WebGL，请确保浏览器已启用硬件加速
-- 记忆点数据保存在浏览器本地，清除浏览器数据会丢失
+All Rights Reserved. This project is a proprietary educational product — see [LICENSE](LICENSE) for details.
