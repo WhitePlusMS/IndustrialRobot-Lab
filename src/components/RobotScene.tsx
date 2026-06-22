@@ -32,6 +32,7 @@ const DEFAULT_CAMERA_STATE: CameraState = {
   fov: 60,
   near: 0.1,
   far: 10,
+  showCamera: true,
   showFrustum: true,
   showModel: true,
   resolution: [640, 480],
@@ -176,6 +177,40 @@ function EffectLoop({
   return null;
 }
 
+/**
+ * 相机连续值插值（位置/朝向/FOV/裁剪面）。
+ * 布尔值与分辨率不插值，直接沿用 current。
+ * 提取为纯函数使插值逻辑可独立测试，消除三层状态副本的手动同步。
+ */
+function interpolateCameraContinuous(
+  current: CameraState,
+  target: CameraState,
+  factor: number
+): Pick<CameraState, 'position' | 'rotation' | 'fov' | 'near' | 'far'> {
+  const position: [number, number, number] = [...current.position];
+  for (let i = 0; i < 3; i++) {
+    const diff = target.position[i] - current.position[i];
+    position[i] = Math.abs(diff) > 0.0001 ? current.position[i] + diff * factor : target.position[i];
+  }
+
+  const rotation: [number, number, number] = [...current.rotation];
+  for (let i = 0; i < 3; i++) {
+    let diff = target.rotation[i] - current.rotation[i];
+    while (diff > 180) diff -= 360;
+    while (diff < -180) diff += 360;
+    rotation[i] = Math.abs(diff) > 0.01 ? current.rotation[i] + diff * factor : target.rotation[i];
+  }
+
+  const fovDiff = target.fov - current.fov;
+  const fov = Math.abs(fovDiff) > 0.01 ? current.fov + fovDiff * factor : target.fov;
+  const nearDiff = target.near - current.near;
+  const near = Math.abs(nearDiff) > 0.001 ? current.near + nearDiff * factor : target.near;
+  const farDiff = target.far - current.far;
+  const far = Math.abs(farDiff) > 0.01 ? current.far + farDiff * factor : target.far;
+
+  return { position, rotation, fov, near, far };
+}
+
 // 场景内容
 function SceneContent({
   joints,
@@ -248,103 +283,41 @@ function SceneContent({
   }, [cameraPosition, camera, prefersReducedMotion]);
 
   // 虚拟工业相机状态：3D 层使用 ref 做插值，避免滑块拖动时 React 高频重绘导致瞬移
-  const currentCameraRef = useRef<CameraState>(
-    cameraState ? { ...cameraState } : { ...DEFAULT_CAMERA_STATE }
-  );
-  const displayCameraRef = useRef<CameraState>(
+  const cameraRef = useRef<CameraState>(
     cameraState ? { ...cameraState } : { ...DEFAULT_CAMERA_STATE }
   );
 
-  // cameraState 变化时同步当前 ref（如按钮点击、手动输入、reset）
+  // cameraState 变化时同步 ref（如按钮点击、手动输入、reset）
   useEffect(() => {
     if (cameraState) {
-      currentCameraRef.current = { ...cameraState };
-      displayCameraRef.current = { ...cameraState };
+      cameraRef.current = { ...cameraState };
     }
   }, [cameraState]);
 
-  // 每帧把 currentCameraRef 向 slider target ref 插值，直接操作 Three.js 对象绕过 React
+  // 每帧向 slider target ref 做连续值插值（位置/朝向/FOV/裁剪面），直接操作 Three.js 对象绕过 React
   useFrame((_, delta) => {
     if (!cameraSliderTargetRef?.current) return;
 
     const target = cameraSliderTargetRef.current;
-    const current = currentCameraRef.current;
-    const factor = Math.min(delta * 60, 1); // 高密度目标更新下几乎即时追上，同时保留一帧级平滑
+    const current = cameraRef.current;
+    const factor = Math.min(delta * 60, 1);
 
-    let changed = false;
+    const interpolated = interpolateCameraContinuous(current, target, factor);
 
-    // 位置线性插值
-    const nextPos: [number, number, number] = [...current.position];
-    for (let i = 0; i < 3; i++) {
-      const diff = target.position[i] - current.position[i];
-      if (Math.abs(diff) > 0.0001) {
-        nextPos[i] = current.position[i] + diff * factor;
-        changed = true;
-      } else {
-        nextPos[i] = target.position[i];
-      }
-    }
-
-    // 朝向按最短路径插值
-    const nextRot: [number, number, number] = [...current.rotation];
-    for (let i = 0; i < 3; i++) {
-      let diff = target.rotation[i] - current.rotation[i];
-      while (diff > 180) diff -= 360;
-      while (diff < -180) diff += 360;
-      if (Math.abs(diff) > 0.01) {
-        nextRot[i] = current.rotation[i] + diff * factor;
-        changed = true;
-      } else {
-        nextRot[i] = target.rotation[i];
-      }
-    }
-
-    // FOV / near / far 线性插值
-    let nextFov = current.fov;
-    const fovDiff = target.fov - current.fov;
-    if (Math.abs(fovDiff) > 0.01) {
-      nextFov = current.fov + fovDiff * factor;
-      changed = true;
-    } else {
-      nextFov = target.fov;
-    }
-
-    let nextNear = current.near;
-    const nearDiff = target.near - current.near;
-    if (Math.abs(nearDiff) > 0.001) {
-      nextNear = current.near + nearDiff * factor;
-      changed = true;
-    } else {
-      nextNear = target.near;
-    }
-
-    let nextFar = current.far;
-    const farDiff = target.far - current.far;
-    if (Math.abs(farDiff) > 0.01) {
-      nextFar = current.far + farDiff * factor;
-      changed = true;
-    } else {
-      nextFar = target.far;
-    }
-
-    if (changed) {
-      const next: CameraState = {
-        ...current,
-        position: nextPos,
-        rotation: nextRot,
-        fov: nextFov,
-        near: nextNear,
-        far: nextFar,
-      };
-      currentCameraRef.current = next;
-      displayCameraRef.current = next;
+    // 任意连续值有变化时才更新 ref
+    if (interpolated.position.some((v, i) => v !== current.position[i])
+        || interpolated.rotation.some((v, i) => v !== current.rotation[i])
+        || interpolated.fov !== current.fov
+        || interpolated.near !== current.near
+        || interpolated.far !== current.far) {
+      cameraRef.current = { ...current, ...interpolated };
     }
   });
 
-  // 为避免滑块拖动时 React 每帧重绘导致瞬移，相机状态在 useFrame 中通过 ref 插值更新。
-  // 此处读取 ref 仅用于向 UI 展示当前相机参数，属于有意为之的性能优化。
-  // eslint-disable-next-line react-hooks/refs
-  const displayCameraState = cameraSliderTargetRef ? displayCameraRef.current : cameraState;
+  // cameraDisplay = 插值后的连续值 + 从 cameraState prop 直读的布尔值（React 实时，无滞后）
+  const cameraDisplay = cameraSliderTargetRef
+    ? { ...cameraRef.current, showModel: cameraState?.showModel ?? DEFAULT_CAMERA_STATE.showModel, showFrustum: cameraState?.showFrustum ?? DEFAULT_CAMERA_STATE.showFrustum }
+    : cameraState;
 
   return (
     <SceneRendererProviderInner>
@@ -430,28 +403,28 @@ function SceneContent({
       <DemoPartsRenderer parts={demoParts ?? []} />
 
       {/* 外部相机模型 */}
-      {showCamera && displayCameraState && (
+      {showCamera && cameraDisplay && (
         <group userData={{ isCameraModel: true }}>
           <CameraModel
-            position={displayCameraState.position}
-            rotation={displayCameraState.rotation}
-            fov={displayCameraState.fov}
-            near={displayCameraState.near}
-            far={displayCameraState.far}
-            showFrustum={displayCameraState.showFrustum}
-            showModel={displayCameraState.showModel}
+            position={cameraDisplay.position}
+            rotation={cameraDisplay.rotation}
+            fov={cameraDisplay.fov}
+            near={cameraDisplay.near}
+            far={cameraDisplay.far}
+            showModel={cameraDisplay.showModel}
+            showFrustum={cameraDisplay.showFrustum}
           />
         </group>
       )}
 
       {/* 相机视锥体地面投影虚线框 */}
-      {showCamera && displayCameraState && displayCameraState.showFrustum && (
+      {showCamera && cameraDisplay && cameraDisplay.showFrustum && (
         <CameraGroundProjection
-          position={displayCameraState.position}
-          rotation={displayCameraState.rotation}
-          fov={displayCameraState.fov}
-          near={displayCameraState.near}
-          far={displayCameraState.far}
+          position={cameraDisplay.position}
+          rotation={cameraDisplay.rotation}
+          fov={cameraDisplay.fov}
+          near={cameraDisplay.near}
+          far={cameraDisplay.far}
         />
       )}
 
@@ -479,7 +452,8 @@ function SceneContent({
 
 export default function RobotScene(props: RobotSceneProps) {
   const { highlightedJoint } = useRobotContext();
-  const { showCoordinateSystems, showCamera } = useSceneViewport();
+  const { showCoordinateSystems } = useSceneViewport();
+  const showCamera = props.cameraState?.showCamera ?? DEFAULT_CAMERA_STATE.showCamera;
 
   return (
     <div className="w-full h-full" style={{ touchAction: 'manipulation' }}>
