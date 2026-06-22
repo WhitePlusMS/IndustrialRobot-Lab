@@ -14,6 +14,7 @@ import { robotPoseBridge } from '@/lib/robot-pose-bridge';
 import type { RobotPoseAPI } from '@/lib/robot-pose-bridge';
 import type { Pose } from '@/types/robot';
 import { quaternionToRotationMatrix, rotationMatrixToEulerZYX } from '@/lib/math/rotation3d';
+import { highlightJoint, unhighlightJoint } from '@/lib/joint-highlight';
 import {
   JOINT_NAMES,
   JOINT_AXES,
@@ -187,94 +188,18 @@ function collectJointMeshes(root: THREE.Group): THREE.Mesh[][] {
 }
 
 // ============================================================
-// 关节高亮
+// 关节高亮（委托给 joint-highlight 模块）
 // ============================================================
 
-const OUTLINE_COLOR = new THREE.Color('#FBBF24');
-const OUTLINE_MATERIAL = new THREE.MeshBasicMaterial({
-  color: OUTLINE_COLOR,
-  side: THREE.BackSide,
-  depthTest: true,
-  transparent: false,
-  opacity: 1.0,
-});
+const highlightMeshRef = useRef<THREE.Mesh | null>(null);
 
-function createOutline(mesh: THREE.Mesh, name: string): THREE.Mesh {
-  const geometry = mesh.geometry.clone();
-  const outline = new THREE.Mesh(geometry, OUTLINE_MATERIAL.clone());
-  outline.name = name;
-  outline.scale.setScalar(1.06);
-  outline.renderOrder = 999;
-  return outline;
-}
-
-function isEmissiveMaterial(
-  material: THREE.Material
-): material is THREE.MeshStandardMaterial | THREE.MeshPhysicalMaterial {
-  return 'emissive' in material && material.emissive instanceof THREE.Color;
-}
-
-function isColorMaterial(
-  material: THREE.Material
-): material is THREE.MeshBasicMaterial | THREE.MeshLambertMaterial | THREE.MeshPhongMaterial {
-  return 'color' in material && material.color instanceof THREE.Color;
-}
-
-function highlightMesh(mesh: THREE.Mesh, outlineName: string) {
-  unhighlightMesh(mesh, outlineName);
-
-  const originalMaterial = mesh.material;
-  mesh.userData.originalMaterial = originalMaterial;
-
-  const clonedMaterial: THREE.Material | THREE.Material[] = Array.isArray(originalMaterial)
-    ? originalMaterial.map((m) => m.clone())
-    : originalMaterial.clone();
-
-  const applyHighlight = (material: THREE.Material) => {
-    if (isEmissiveMaterial(material)) {
-      material.color.set(OUTLINE_COLOR);
-      material.emissive.set(OUTLINE_COLOR);
-      material.emissiveIntensity = (material.emissiveIntensity || 0) + 2.5;
-    } else if (isColorMaterial(material)) {
-      material.color.set(OUTLINE_COLOR);
-    }
-  };
-
-  if (Array.isArray(clonedMaterial)) {
-    clonedMaterial.forEach(applyHighlight);
-  } else {
-    applyHighlight(clonedMaterial);
+const handleHighlight = useCallback((mesh: THREE.Mesh) => {
+  if (highlightMeshRef.current && highlightMeshRef.current !== mesh) {
+    unhighlightJoint(highlightMeshRef.current);
   }
-
-  mesh.material = clonedMaterial;
-
-  const outline = createOutline(mesh, outlineName);
-  mesh.add(outline);
-
-  mesh.userData.isHighlighted = true;
-}
-
-function unhighlightMesh(mesh: THREE.Mesh, outlineName: string) {
-  const outlines = mesh.children.filter((child) => child.name === outlineName);
-  outlines.forEach((outline) => {
-    mesh.remove(outline);
-    if (outline instanceof THREE.Mesh) {
-      outline.geometry.dispose();
-      if (outline.material instanceof THREE.Material) {
-        outline.material.dispose();
-      } else if (Array.isArray(outline.material)) {
-        outline.material.forEach((m) => m.dispose());
-      }
-    }
-  });
-
-  if (mesh.userData.originalMaterial !== undefined) {
-    mesh.material = mesh.userData.originalMaterial;
-    mesh.userData.originalMaterial = undefined;
-  }
-
-  mesh.userData.isHighlighted = false;
-}
+  highlightMeshRef.current = mesh;
+  highlightJoint(mesh);
+}, []);
 
 // ============================================================
 // 坐标系
@@ -423,9 +348,9 @@ export default function GLBRobotArm({
 
       meshes.forEach((mesh) => {
         if (shouldHighlight) {
-          highlightMesh(mesh, 'HighlightOutline');
+          handleHighlight(mesh);
         } else {
-          unhighlightMesh(mesh, 'HighlightOutline');
+          unhighlightJoint(mesh);
         }
       });
     });
