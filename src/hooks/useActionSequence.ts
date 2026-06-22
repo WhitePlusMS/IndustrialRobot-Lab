@@ -1,6 +1,5 @@
 // src/hooks/useActionSequence.ts
 import { useState, useCallback, useRef, useEffect, type MutableRefObject } from 'react';
-import * as THREE from 'three';
 import { forwardKinematics } from '@/lib/kinematics';
 import type { RobotConfig, JointAngles } from '@/types/robot';
 import type {
@@ -10,16 +9,13 @@ import type {
   SequenceStatus,
 } from '@/types/sequence';
 import { createDefaultContext, createDefaultStep } from '@/types/sequence';
-import { captureColorPhoto, captureSegmentationPhoto } from '@/lib/capture-engine';
 import type { RobotPoseAPI } from '@/lib/robot-pose-bridge';
 import type { SceneRendererAPI } from '@/contexts/SceneRendererContext';
 import { useRobotPoseAPI } from './useRobotPoseAPI';
 import { useSceneRendererAPI } from './useSceneRendererAPI';
 import type { CameraState } from '@/types/camera';
 import type { Waypoint } from '@/hooks/useRobot';
-
-const SUCKER_LENGTH = 25;
-const BOX_HALF_SIZE = 40;
+import { dispatchStep } from '@/lib/sequence-steps';
 
 export interface SequenceRobotAPI {
   config: RobotConfig;
@@ -85,248 +81,26 @@ export interface StepExecutorAPI {
   sceneRendererApi: SceneRendererAPI | null;
 }
 
+
 /** 返回 true=成功, false=失败(应停止序列) */
 async function executeStep(step: ActionStep, api: StepExecutorAPI): Promise<boolean> {
-  const {
-    log, robot, ctxRef, setCtx, cameraState, onSuckerOn, onSuckerOff, onForceAttachBox, onResetBox,
-    abortRef, waypoints, onStepStatusChange, stepIndex, onCaptureSave, robotPoseApi, sceneRendererApi,
-  } = api;
-
-  if (abortRef.current) return false;
-
-  onStepStatusChange(stepIndex, 'running');
-
-  const fail = (msg: string) => {
-    log('error', msg);
-    onStepStatusChange(stepIndex, 'error', msg);
-    return false;
-  };
-
-  switch (step.type) {
-    case '生成箱子': {
-      const spawn = step.params.boxSpawn;
-      if (!spawn) {
-        return fail('未配置箱子生成参数');
-      }
-
-      if (spawn.mode === 'fixed') {
-        const pos = spawn.fixedPosition ?? [300, 40, 200];
-        log('info', `生成箱子(固定): (${pos[0]}, ${pos[1]}, ${pos[2]}) mm`);
-        const newCtx: SeqContext = {
-          ...ctxRef.current,
-          boxPose: { position: pos, rotation: [0, 0, 0] as [number, number, number] },
-        };
-        setCtx(newCtx);
-        ctxRef.current = newCtx;
-        log('success', '箱子已生成（固定位置）');
-        onStepStatusChange(stepIndex, 'success');
-        return true;
-      }
-
-      // random 模式
-      const cx = spawn.randomCenter?.[0] ?? 300;
-      const cz = spawn.randomCenter?.[1] ?? 200;
-      const rx = (spawn.randomRangeX ?? 150);
-      const rz = (spawn.randomRangeZ ?? 150);
-      const minH = spawn.minHeight ?? 200;
-      const maxH = spawn.maxHeight ?? 500;
-      const restingH = spawn.restingHeight ?? 200;
-
-      const randX = cx + (Math.random() * 2 - 1) * rx;
-      const randZ = cz + (Math.random() * 2 - 1) * rz;
-      const randY = minH + Math.random() * (maxH - minH);
-      const dropPos: [number, number, number] = [Math.round(randX), Math.round(randY), Math.round(randZ)];
-
-      log('info', `生成箱子(随机): (${dropPos[0]}, ${dropPos[1]}, ${dropPos[2]}) mm → 自由落体至 ${restingH}mm`);
-
-      // 触发 3D 场景中的掉落动画，传递停止高度
-      api.onSpawnBox(dropPos, restingH);
-
-      const newCtx: SeqContext = {
-        ...ctxRef.current,
-        boxPose: {
-          position: [dropPos[0], restingH, dropPos[2]] as [number, number, number],
-          rotation: [0, 0, 0] as [number, number, number],
-        },
-      };
-      setCtx(newCtx);
-      ctxRef.current = newCtx;
-      log('success', `箱子已生成（随机位置，落至 ${restingH}mm 悬停）`);
-      onStepStatusChange(stepIndex, 'success');
-      return true;
-    }
-
-    case '拍照': {
-      log('info', '执行拍照...');
-      if (!sceneRendererApi) {
-        return fail('渲染器未就绪，无法拍照');
-      }
-      const { renderer, scene } = sceneRendererApi;
-      const captureCamera = new THREE.PerspectiveCamera(
-        cameraState.fov,
-        cameraState.resolution[0] / cameraState.resolution[1],
-        cameraState.near,
-        cameraState.far
-      );
-      captureCamera.position.set(
-        cameraState.position[0], cameraState.position[1], cameraState.position[2]
-      );
-      captureCamera.rotation.set(
-        (cameraState.rotation[0] * Math.PI) / 180,
-        (cameraState.rotation[1] * Math.PI) / 180,
-        (cameraState.rotation[2] * Math.PI) / 180,
-        'XYZ'
-      );
-      captureCamera.updateProjectionMatrix();
-      captureCamera.updateMatrixWorld();
-
-      const photoScene = scene.clone();
-      photoScene.traverse((obj: THREE.Object3D) => {
-        if (obj.userData?.isCameraModel) obj.visible = false;
-      });
-
-      try {
-        const colorURL = captureColorPhoto(renderer, photoScene, captureCamera, cameraState.resolution);
-        const segResult = captureSegmentationPhoto(renderer, photoScene, captureCamera, cameraState.resolution);
-        onCaptureSave({ color: colorURL, segmentation: segResult.dataURL });
-        log('success', '拍照完成（彩色+分割）');
-      } catch (e: unknown) {
-        const message = e instanceof Error ? e.message : String(e);
-        return fail(`拍照失败: ${message}`);
-      }
-      onStepStatusChange(stepIndex, 'success');
-      return true;
-    }
-
-    case '移动到箱子上方': {
-      if (!ctxRef.current.boxPose) {
-        return fail('未生成箱子，无法移动');
-      }
-      log('info', '移动到箱子上方...');
-      const bp = ctxRef.current.boxPose.position;
-      const appH = step.params.approachHeight ?? 50;
-      // 目标：场景坐标（米），箱子上方（吸盘+接近高度）
-      if (!robot.goToPosition(
-        bp[0] / 1000,
-        (bp[1] + BOX_HALF_SIZE + SUCKER_LENGTH + appH) / 1000,
-        bp[2] / 1000,
-      )) {
-        return fail('IK 无解：无法到达箱子上方');
-      }
-      await robot.waitForAnimation();
-      if (abortRef.current) return false;
-      log('success', '到达箱子上方');
-      onStepStatusChange(stepIndex, 'success');
-      return true;
-    }
-
-    case '下降到箱面': {
-      if (!ctxRef.current.boxPose) {
-        return fail('未生成箱子，无法下降');
-      }
-      log('info', '下降到箱面...');
-      const bp2 = ctxRef.current.boxPose.position;
-      const rot = robot.getCurrentRotation();
-      const tz: [number, number, number] = [rot[0][2], rot[1][2], rot[2][2]];
-      // 吸盘尖端 → 箱子顶部中心（场景米）
-      if (!robot.goToPosition(
-        (bp2[0] + tz[0] * SUCKER_LENGTH) / 1000,
-        (bp2[1] + BOX_HALF_SIZE + tz[1] * SUCKER_LENGTH) / 1000,
-        (bp2[2] + tz[2] * SUCKER_LENGTH) / 1000,
-      )) {
-        return fail('IK 无解：无法下降到箱面');
-      }
-      await robot.waitForAnimation();
-      if (abortRef.current) return false;
-      log('success', '接触箱面');
-      onStepStatusChange(stepIndex, 'success');
-      return true;
-    }
-
-    case '吸盘开启': {
-      log('info', '吸盘开启...');
-      onSuckerOn();
-      onForceAttachBox(); // 强制吸附（上一步已确保吸盘接触箱面）
-      const newCtx = { ...ctxRef.current, suckerOn: true };
-      setCtx(newCtx);
-      ctxRef.current = newCtx;
-      log('success', '吸盘已开启，箱子已吸附');
-      onStepStatusChange(stepIndex, 'success');
-      return true;
-    }
-
-    case '吸盘关闭': {
-      log('info', '吸盘关闭...');
-      onSuckerOff();
-      const newCtx2 = { ...ctxRef.current, suckerOn: false };
-      setCtx(newCtx2);
-      ctxRef.current = newCtx2;
-      log('success', '吸盘已关闭，箱子释放');
-      onStepStatusChange(stepIndex, 'success');
-      return true;
-    }
-
-    case '抬升': {
-      log('info', '抬升中...');
-      const glbResult = robotPoseApi.getFlangeMatrix();
-      if (!glbResult) return fail('无法读取 GLB 法兰位置');
-      const liftH = step.params.liftHeight ?? 100;
-      if (!robot.goToPosition(
-        glbResult.position[0],
-        glbResult.position[1] + liftH / 1000,
-        glbResult.position[2],
-      )) {
-        return fail('IK 无解：无法抬升');
-      }
-      await robot.waitForAnimation();
-      if (abortRef.current) return false;
-      log('success', '抬升完成');
-      onStepStatusChange(stepIndex, 'success');
-      return true;
-    }
-
-    case '移动到目标位姿': {
-      const name = step.params.memoryPointName;
-      if (!name) {
-        return fail('未选择记忆点');
-      }
-      const wp = waypoints.find((w) => w.name === name);
-      if (!wp) {
-        return fail(`记忆点"${name}"不存在`);
-      }
-      log('info', `移动到目标位姿: ${name}`);
-      robot.goToJoints([...wp.joints] as JointAngles);
-      await robot.waitForAnimation();
-      if (abortRef.current) return false;
-      log('success', `到达目标位姿: ${name}`);
-      onStepStatusChange(stepIndex, 'success');
-      return true;
-    }
-
-    case '归位': {
-      log('info', '归位中...');
-      const zero: JointAngles = [0, 0, 0, 0, 0, 0];
-      robot.goToJoints(zero);
-      await robot.waitForAnimation();
-      if (abortRef.current) return false;
-      onResetBox(); // 归位后隐藏箱子
-      log('success', '归位完成');
-      onStepStatusChange(stepIndex, 'success');
-      return true;
-    }
-
-    case '等待': {
-      const duration = step.params.waitDuration ?? 1000;
-      log('info', `等待 ${duration}ms...`);
-      await new Promise((resolve) => setTimeout(resolve, duration));
-      if (abortRef.current) return false;
-      log('success', '等待结束');
-      onStepStatusChange(stepIndex, 'success');
-      return true;
-    }
-  }
-
-  return true;
+  const { robot, cameraState, robotPoseApi, sceneRendererApi } = api;
+  return dispatchStep(step.type, {
+    step,
+    stepIndex: api.stepIndex,
+    deps: { robot, cameraState, robotPoseApi, sceneRendererApi },
+    ctx: { ctxRef: api.ctxRef, setCtx: api.setCtx, abortRef: api.abortRef, waypoints: api.waypoints },
+    callbacks: {
+      log: api.log,
+      onStepStatusChange: api.onStepStatusChange,
+      onSuckerOn: api.onSuckerOn,
+      onSuckerOff: api.onSuckerOff,
+      onForceAttachBox: api.onForceAttachBox,
+      onSpawnBox: api.onSpawnBox,
+      onResetBox: api.onResetBox,
+      onCaptureSave: api.onCaptureSave,
+    },
+  });
 }
 
 export function useActionSequence(
