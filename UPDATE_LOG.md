@@ -1,5 +1,87 @@
 # 更新日志
 
+## 2026-06-20 位姿控制方向键连续点击/长按动画卡顿修复
+
+- **问题**：连续点击或长按方向键时，每次调用都 `cancelAnimationFrame` + `requestAnimationFrame` 重启动画，导致帧间隙卡顿；长按姿态操作使用缓动动画（固定 400ms），与连续触发不兼容
+- **修复**：
+  - `useMotion.ts` 新增 `activeAnimTypeRef` 跟踪活跃动画类型；同类型重复调用时仅更新目标 ref，不重启 RAF 循环，消除帧间隙
+  - `finishAnimation` / `markUnreachable` / `stopAnimation` 重置 `activeAnimTypeRef = 'none'`
+  - `moveDirection` 长按姿态操作改用 `startSpeedLimitedAnimation`（连续追目标），单击保持 `startEasedAnimation`（缓动曲线）
+  - `moveDirection` 位置操作统一 `ikAnimDuration`，长按不再用 50ms 短间隔
+- 涉及文件：`useMotion.ts`、`useRobot.ts`
+
+## 2026-06-20 位姿控制方向键运动卡死修复
+
+- **问题**：教学模式下 `PoseControlCard` / `JointAngleCard` 的方向键点击后机械臂一直处于"运动中"，界面反复刷新直至卡死
+- **原因**：`RobotOperations` / `GraspOperations` 中额外传了 `disabled={props.status === 'moving'}`，与 `FreeOperationPanel` 行为不一致。`DirectionButton` 在 disabled 切换过程中长按定时器清理时机不可控，导致动画循环被反复重入
+- **修复**：移除 `RobotOperations` 和 `GraspOperations` 中 `PoseControlCard` 和 `JointAngleCard` 的 `disabled` prop，与 `FreeOperationPanel` 完全一致
+- 涉及文件：`RobotOperations.tsx`、`GraspOperations.tsx`、`DirectionButton.tsx`
+
+## 2026-06-20 教学全流程缺陷并发修复（以学生视角）
+
+以学生视角全流程复核机械臂、相机系统、抓取实训三个模块，并发修改右侧操作区与左侧讲解中的问题。
+
+- **机械臂**
+  - `PoseControlCard` / `JointAngleCard` 新增 `disabled` prop，机械臂运动期间禁用方向键/关节滑块/输入/重置随机
+  - `RobotOperations` 删除顶部重复 World/Tool 切换按钮；删除单关节步骤的"检查答案"按钮及相关校验逻辑
+  - `RobotOperations` 在 `robot-structure` 步骤增加"在 3D 场景中显示吸盘"按钮，可直接显示/隐藏末端吸盘
+  - `course-config.ts` 删除 `ValidationType` 与 `CourseStep.validation` 字段
+- **相机**
+  - 删除 `camera-model` 重复的"成像平面"按钮
+  - `camera-calibration` "显示标定板"改为"显示视野锥"，标定结果增加完成提示与说明
+  - `CameraParamsCard` 增加内参/外参分区标题；分辨率统一使用 `CAMERA_RESOLUTIONS`
+- **抓取**
+  - `grasp-attach` 增加放置区参考卡片与"移动到放置区"按钮；开启吸盘增加箱子状态检查
+  - `grasp-approach` 增加位姿/笛卡尔手动控制
+  - `grasp-spawn` 拆分为固定/随机生成
+  - `grasp-sequence` 未选择记忆点时禁用运行并提示
+- **共享**
+  - `PositionTargetCard` 输入单位统一为 mm（内部转换为 m）
+  - `course-config.ts` 修复 `robot-multi-joint` 文案，清理 `grasp-approach`/`grasp-attach` 的重复内容
+  - 新增 `src/lib/camera-config.ts` 共享分辨率常量
+- **验证**：`npm run check` 通过；本次修改的所有文件 ESLint 通过
+
+## 2026-06-20 合并"相关知识"到"步骤讲解"
+
+- 左侧 `LearningPanel` 移除"相关知识" Tab，子 Tab 只保留"学习步骤"和"步骤讲解"
+- `StepExplanation.tsx` 新增"本步相关知识"卡片，按 `relatedTheoryIds` 排序并标蓝
+- 效果：学生在"步骤讲解"内即可看到术语、相关知识、目标和注意事项，流程更连贯
+
+## 2026-06-20 教学文案与联动高亮
+
+- 重写 3 个模块共 15 个步骤的教学内容，增加"关键术语""操作步骤""重点观察""完成检查"
+- 新增 `TeachingGuidePanel` 作为右侧唯一教学引导区
+- 实现步骤与 3D 场景联动：点击关节卡片可在 3D 中高亮对应关节
+
+## 2026-06-19 World/Tool 坐标系可视化
+
+- `RobotScene` 中基坐标系与工具坐标系受统一开关控制
+- World 模式下工具坐标系与世界坐标系同向；Tool 模式下跟随末端法兰旋转
+- `ViewportHUD` "坐标系"按钮同步控制两者显隐
+
+## 2026-06-19 相机/机械臂/抓取面板修复
+
+- `CameraParamsCard` 改为滑块样式，并增加"内参矩阵 K"只读展示
+- 相机快捷视角改为控制虚拟工业相机本身
+- `JointAngleCard` 增加 `enabledJoints` 与 `collapsible` 支持
+- `RobotOperations` 教学步骤改用 `JointAngleCard` / `PoseControlCard`
+- 抓取默认箱子位置调整到可达区域；`grasp-approach` 增加"移动到箱子上方"按钮
+
+## 2026-06-18 架构重构与性能优化
+
+- Context + Provider 分层：新增 `RobotContext`、`VirtualCameraContext`、`SuckerContext` 等
+- `OperationPanel` 外部接口从 74+ props 收敛为 2 个
+- 统一 IK 引擎，删除 DH 数值后备逻辑
+- 滑块拖动改为 ref + `useFrame` 插值，解决卡顿与瞬移
+- 移除后端，记忆点改为浏览器 localStorage 存储
+
+## 2026-06-18 教学版界面与自由练习模式
+
+- 左侧新增 `LearningPanel`，右侧新增 `OperationPanel`
+- 自由练习模式采用 Tab 结构：机器人控制 / 相机控制 / 动作编排
+- 操作卡片视觉统一升级为白色卡片 + blue/slate 主题
+- 修复折叠条样式、侧边栏折叠联动等问题
+
 ## 2026-06-17 - 按 Web Interface Guidelines 优化界面可访问性与语义化
 
 ### 修改
@@ -1118,7 +1200,6 @@ GLB 模型异步加载 + React 严格模式双重挂载时，`useEffect` 更新 
 - 破坏性操作（删除、清空）增加 `confirm()` 二次确认
 - UI 状态（Tab）通过 URL SearchParams 持久化
 - 遵循"最简原则"，不引入新依赖，不破坏现有功能
-# 更新说明
 
 ## [2026-05-07] 教学模式设计文档 v5.2 — ASCII → 组件化样式描述
 
@@ -1340,7 +1421,7 @@ GLB 模型异步加载 + React 严格模式双重挂载时，`useEffect` 更新 
 
 ---
 
-# 更新说明 - 移除Kimi OAuth鉴权系统
+## 移除Kimi OAuth鉴权系统
 
 ## 删除文件
 
