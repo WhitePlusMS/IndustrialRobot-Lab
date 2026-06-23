@@ -3,6 +3,7 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { ModuleId, CourseStep, LearningMode } from '@/lib/course-config';
 import type { RobotConfig, JointAngles, CoordinateSystem, StatusType } from '@/types/robot';
+import type { TaskPoseConstraintProfile } from '@/types/robot';
 import type { CameraState, CaptureResult } from '@/types/camera';
 import type { ActionStep, SequenceLog, SequenceStatus } from '@/types/sequence';
 import type { Waypoint } from '@/hooks/useRobot';
@@ -51,7 +52,7 @@ export interface RobotPanelData {
   onRotStepChange: (v: number) => void;
   onMoveDirection: (axis: 'x' | 'y' | 'z' | 'rx' | 'ry' | 'rz', sign: 1 | -1, isLongPress: boolean) => void;
   onGotoWaypoint: (joints: JointAngles) => void;
-  onGoToPosition: (x: number, y: number, z: number, rx?: number, ry?: number, rz?: number) => boolean;
+  onGoToPosition: (x: number, y: number, z: number, rx?: number, ry?: number, rz?: number, profile?: TaskPoseConstraintProfile) => boolean;
   currentGLBPosition: [number, number, number] | null;
   status: StatusType;
   highlightedJoint: number | null;

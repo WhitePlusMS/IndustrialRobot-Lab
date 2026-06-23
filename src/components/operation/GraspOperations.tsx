@@ -9,7 +9,7 @@ import PoseControlCard from '@/components/PoseControlCard';
 import PositionTargetCard from '@/components/PositionTargetCard';
 import { BOX_HALF_SIZE, SUCKER_LENGTH, APPROACH_HEIGHT } from '@/hooks/useSuckerControl';
 import SuckerDemoModal from '@/components/learning/SuckerDemoModal';
-import { buildGraspApproachPose } from '@/lib/grasp-planning';
+import { buildGraspApproachPose, buildPlacePose } from '@/lib/grasp-planning';
 import {
   DEFAULT_SEQUENCE_PLACE_ORIENTATION_DEG,
   DEFAULT_SEQUENCE_PLACE_POSITION_M,
@@ -103,28 +103,24 @@ export default function GraspOperations(props: OperationPanelData) {
       approachPose.rx,
       approachPose.ry,
       approachPose.rz,
+      approachPose.profile,
     );
   };
 
   const handleMoveToPlacePose = () => {
-    const exactPoseMoved = props.onGoToPosition(
-      DEFAULT_SEQUENCE_PLACE_POSITION_M[0],
-      DEFAULT_SEQUENCE_PLACE_POSITION_M[1],
-      DEFAULT_SEQUENCE_PLACE_POSITION_M[2],
-      DEFAULT_SEQUENCE_PLACE_ORIENTATION_DEG[0],
-      DEFAULT_SEQUENCE_PLACE_ORIENTATION_DEG[1],
-      DEFAULT_SEQUENCE_PLACE_ORIENTATION_DEG[2],
+    const placePose = buildPlacePose(
+      DEFAULT_SEQUENCE_PLACE_POSITION_M,
+      DEFAULT_SEQUENCE_PLACE_ORIENTATION_DEG,
     );
 
-    if (exactPoseMoved) {
-      return;
-    }
-
-    console.warn('[GraspOperations] 预设放置位姿完整姿态无解，回退到同坐标位置优先放置');
     props.onGoToPosition(
-      DEFAULT_SEQUENCE_PLACE_POSITION_M[0],
-      DEFAULT_SEQUENCE_PLACE_POSITION_M[1],
-      DEFAULT_SEQUENCE_PLACE_POSITION_M[2],
+      placePose.targetXM,
+      placePose.targetYM,
+      placePose.targetZM,
+      placePose.rx,
+      placePose.ry,
+      placePose.rz,
+      placePose.profile,
     );
   };
 

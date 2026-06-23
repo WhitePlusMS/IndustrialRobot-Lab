@@ -16,6 +16,7 @@ import { useSceneRendererAPI } from './useSceneRendererAPI';
 import type { CameraState } from '@/types/camera';
 import type { Waypoint } from '@/hooks/useRobot';
 import type { BoxState } from '@/hooks/useSuckerControl';
+import type { TaskPoseConstraintProfile } from '@/types/robot';
 import {
   createDefaultGraspSequence,
   DEFAULT_SEQUENCE_PLACE_PRESET_NAME,
@@ -26,7 +27,7 @@ export interface SequenceRobotAPI {
   config: RobotConfig;
   goToJoints: (joints: JointAngles) => void;
   /** GLB 场景坐标定位（m）：优先 GLB 数值 IK，降级 DH 位置 IK */
-  goToPosition: (x: number, y: number, z: number, rx?: number, ry?: number, rz?: number) => boolean;
+  goToPosition: (x: number, y: number, z: number, rx?: number, ry?: number, rz?: number, profile?: TaskPoseConstraintProfile) => boolean;
   isMotionQueueIdle: () => boolean;
   stopAnimation: () => void;
   isAnimating: boolean;
@@ -42,7 +43,7 @@ export function buildSequenceRobotAPI(
     config: RobotConfig;
     joints: JointAngles;
     goToJoints: (joints: JointAngles) => void;
-    goToPosition: (x: number, y: number, z: number, rx?: number, ry?: number, rz?: number) => boolean;
+    goToPosition: (x: number, y: number, z: number, rx?: number, ry?: number, rz?: number, profile?: TaskPoseConstraintProfile) => boolean;
     isMotionQueueIdle: () => boolean;
     stopAnimation: () => void;
     isAnimating: boolean;

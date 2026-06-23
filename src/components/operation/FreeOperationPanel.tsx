@@ -184,6 +184,7 @@ function SequenceTab(props: OperationPanelData) {
       approachPose.rx,
       approachPose.ry,
       approachPose.rz,
+      approachPose.profile,
     );
   };
 

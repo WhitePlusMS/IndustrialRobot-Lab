@@ -31,6 +31,39 @@ export interface Pose {
   rotation: number[][];
 }
 
+export interface TaskPoseConstraintProfile {
+  name: string;
+  positionToleranceMm: number;
+  orientationToleranceRad: number;
+  allowPositionFallback: boolean;
+  orientationMode: 'strict' | 'relaxed' | 'ignore';
+}
+
+export interface GoalJointSolution {
+  joints: JointAngles;
+  poseErrorMm: number;
+  orientationErrorRad: number;
+  source: 'full_pose' | 'position_fallback' | 'position_only';
+  seed: JointAngles;
+  profile: TaskPoseConstraintProfile;
+}
+
+export type JointPathSegmentType =
+  | 'direct_joint_path'
+  | 'lift_then_move_then_settle'
+  | 'orientation_settle_at_goal';
+
+export interface JointPathPlanSegment {
+  type: JointPathSegmentType;
+  joints: JointAngles;
+}
+
+export interface JointPathPlan {
+  planType: 'direct_joint_path' | 'lift_then_move_then_settle';
+  segments: JointPathPlanSegment[];
+  waypointJoints: JointAngles[];
+}
+
 export type CoordinateSystem = 'World' | 'Tool';
 
 export type StatusType =

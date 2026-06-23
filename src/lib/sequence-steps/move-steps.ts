@@ -2,7 +2,7 @@
 // 运动相关序列步骤：移动到箱子上方、下降、抬升、移动到记忆点
 import type { StepExecutorParams } from './types';
 import type { JointAngles } from '@/types/robot';
-import { buildGraspApproachPose, buildGraspContactPose } from '@/lib/grasp-planning';
+import { buildGraspApproachPose, buildGraspContactPose, buildLiftPose, buildPlacePose } from '@/lib/grasp-planning';
 import { ATTACH_THRESHOLD, BOX_HALF_SIZE } from '@/hooks/useSuckerControl';
 import {
   DEFAULT_SEQUENCE_PLACE_ORIENTATION_DEG,
@@ -43,6 +43,7 @@ export async function executeMoveAboveBox({ step, stepIndex, deps, ctx, callback
     approachPose.rx,
     approachPose.ry,
     approachPose.rz,
+    approachPose.profile,
   )) {
     log('error', 'IK 无解：无法到达箱子上方');
     onStepStatusChange(stepIndex, 'error', 'IK 无解');
@@ -78,6 +79,7 @@ export async function executeDescendToBox({ step, stepIndex, deps, ctx, callback
     contactPose.rx,
     contactPose.ry,
     contactPose.rz,
+    contactPose.profile,
   )) {
     log('error', 'IK 无解：无法下降到箱面');
     onStepStatusChange(stepIndex, 'error', 'IK 无解');
@@ -137,6 +139,7 @@ export async function executeDescendToBox({ step, stepIndex, deps, ctx, callback
       contactPose.rx,
       contactPose.ry,
       contactPose.rz,
+      contactPose.profile,
     )) {
       log('error', 'IK 无解：接触校正失败');
       onStepStatusChange(stepIndex, 'error', '接触校正失败');
@@ -181,7 +184,16 @@ export async function executeLift({ step, stepIndex, deps, ctx, callbacks }: Ste
   }
 
   const liftH = (step.params as { liftHeight?: number }).liftHeight ?? 100;
-  if (!robot.goToPosition(glbResult.position[0], glbResult.position[1] + liftH / 1000, glbResult.position[2])) {
+  const liftPose = buildLiftPose(glbResult.position, liftH);
+  if (!robot.goToPosition(
+    liftPose.targetXM,
+    liftPose.targetYM,
+    liftPose.targetZM,
+    liftPose.rx,
+    liftPose.ry,
+    liftPose.rz,
+    liftPose.profile,
+  )) {
     log('error', 'IK 无解：无法抬升');
     onStepStatusChange(stepIndex, 'error', 'IK 无解');
     return false;
@@ -207,30 +219,28 @@ export async function executeMoveToWaypoint({ step, stepIndex, deps, ctx, callba
   }
 
   if (name === DEFAULT_SEQUENCE_PLACE_PRESET_NAME) {
+    const placePose = buildPlacePose(
+      DEFAULT_SEQUENCE_PLACE_POSITION_M,
+      DEFAULT_SEQUENCE_PLACE_ORIENTATION_DEG,
+    );
     log(
       'info',
       `移动到目标位姿: ${DEFAULT_SEQUENCE_PLACE_PRESET_LABEL} [${DEFAULT_SEQUENCE_PLACE_POSITION_M[0].toFixed(4)}, ${DEFAULT_SEQUENCE_PLACE_POSITION_M[1].toFixed(4)}, ${DEFAULT_SEQUENCE_PLACE_POSITION_M[2].toFixed(4)}]m · [${DEFAULT_SEQUENCE_PLACE_ORIENTATION_DEG[0].toFixed(1)}, ${DEFAULT_SEQUENCE_PLACE_ORIENTATION_DEG[1].toFixed(1)}, ${DEFAULT_SEQUENCE_PLACE_ORIENTATION_DEG[2].toFixed(1)}]deg`
     );
     const exactPoseMoved = robot.goToPosition(
-      DEFAULT_SEQUENCE_PLACE_POSITION_M[0],
-      DEFAULT_SEQUENCE_PLACE_POSITION_M[1],
-      DEFAULT_SEQUENCE_PLACE_POSITION_M[2],
-      DEFAULT_SEQUENCE_PLACE_ORIENTATION_DEG[0],
-      DEFAULT_SEQUENCE_PLACE_ORIENTATION_DEG[1],
-      DEFAULT_SEQUENCE_PLACE_ORIENTATION_DEG[2],
+      placePose.targetXM,
+      placePose.targetYM,
+      placePose.targetZM,
+      placePose.rx,
+      placePose.ry,
+      placePose.rz,
+      placePose.profile,
     );
 
     if (!exactPoseMoved) {
-      log('warn', '预设放置位姿完整姿态无解，回退到同坐标位置优先放置');
-      if (!robot.goToPosition(
-        DEFAULT_SEQUENCE_PLACE_POSITION_M[0],
-        DEFAULT_SEQUENCE_PLACE_POSITION_M[1],
-        DEFAULT_SEQUENCE_PLACE_POSITION_M[2],
-      )) {
-        log('error', 'IK 无解：无法到达预设放置位姿');
-        onStepStatusChange(stepIndex, 'error', 'IK 无解');
-        return false;
-      }
+      log('error', 'IK 无解：无法到达预设放置位姿');
+      onStepStatusChange(stepIndex, 'error', 'IK 无解');
+      return false;
     }
 
     await robot.waitForAnimation();

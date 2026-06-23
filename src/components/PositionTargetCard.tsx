@@ -1,10 +1,11 @@
 // 笛卡尔空间绝对定位：输入目标坐标与姿态，IK 解算后驱动机械臂末端到达指定位姿
 import { useState, useCallback, useRef } from 'react';
 import { Crosshair } from 'lucide-react';
+import type { TaskPoseConstraintProfile } from '@/types/robot';
 
 interface PositionTargetCardProps {
   currentGLBPosition: [number, number, number] | null;
-  onGoToPosition: (x: number, y: number, z: number, rx?: number, ry?: number, rz?: number) => boolean;
+  onGoToPosition: (x: number, y: number, z: number, rx?: number, ry?: number, rz?: number, profile?: TaskPoseConstraintProfile) => boolean;
   disabled?: boolean;
 }
 
