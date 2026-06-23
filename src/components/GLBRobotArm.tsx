@@ -5,7 +5,7 @@
 // 职责：GLB加载、关节驱动、useFrame插值、位姿API注册、关节高亮、坐标轴渲染、工具管理
 // DH标定逻辑已提取到 src/hooks/useDHCalibration.ts + src/lib/dh-calibration.ts
 
-import { useEffect, useMemo, useRef, useCallback } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useGLTF } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -323,9 +323,6 @@ export default function GLBRobotArm({
 }: GLBRobotArmProps) {
   const { scene } = useGLTF('/models/KUKA_V1.glb');
   const { scene: r3fScene } = useThree();
-
-  // 关节高亮（委托给 joint-highlight 模块）
-  const highlightMeshRef = useRef<THREE.Mesh | null>(null);
 
   const arm = useMemo(() => {
     if (!scene) return null;

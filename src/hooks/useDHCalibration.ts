@@ -105,14 +105,10 @@ function extractZeroFlangePose(arm: THREE.Group): Pose {
 
   // 查找 J6 pivot 或快拆机器人端口
   const flangeNames = ['Pivot_快拆机器人端口', '快拆机器人端口'];
-  let flange: THREE.Object3D | null = null;
-
-  for (const name of flangeNames) {
-    arm.traverse((child) => {
-      if (child.name === name) flange = child;
-    });
-    if (flange) break;
-  }
+  const flange =
+    flangeNames
+      .map((name) => arm.getObjectByName(name))
+      .find((node): node is THREE.Object3D => node !== undefined) ?? null;
 
   let positionMm: [number, number, number] = [0, 0, 0];
   let rotation: number[][] = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];

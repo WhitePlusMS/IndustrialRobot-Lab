@@ -90,12 +90,9 @@ export function useSuckerControl({ joints, config, initialBoxPosition }: UseSuck
       }
 
       let suckerTip: [number, number, number];
-      let poseSource: 'glb' | 'dh-fallback' = 'dh-fallback';
-
       // 优先使用真实吸盘下表面中心，保证接触点和 3D 画面一致。
       const suckerContact = poseApi.getSuckerContactPose();
       if (suckerContact?.position) {
-        poseSource = 'glb';
         suckerTip = roundMmVector(suckerContact.position);
       } else {
         // 降级 DH FK
