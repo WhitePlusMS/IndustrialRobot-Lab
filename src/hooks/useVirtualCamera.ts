@@ -9,7 +9,7 @@ const DEFAULT_CAMERA_STATE: CameraState = {
   fov: 60,
   near: 0.1,                    // m
   far: 10,                      // m
-  showCamera: true,
+  showCamera: false,
   showFrustum: true,
   showModel: true,
   resolution: [640, 480],

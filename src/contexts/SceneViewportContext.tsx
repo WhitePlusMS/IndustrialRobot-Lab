@@ -31,20 +31,23 @@ interface SceneViewportContextValue {
   setCameraPositionAxis: (axis: 0 | 1 | 2, value: number) => void;
   setCameraView: (view: 'front' | 'side' | 'top' | 'free') => void;
   resetCamera: () => void;
+  /** 当前激活的视角预设 */
+  cameraView: 'front' | 'side' | 'top' | 'free';
 }
 
 const SceneViewportContext = createContext<SceneViewportContextValue | null>(null);
 
 export function SceneViewportProvider({ children }: { children: ReactNode }) {
-  const [showGrid, setShowGrid] = useState(true);
-  const [showTrajectory, setShowTrajectory] = useState(true);
+  const [showGrid, setShowGrid] = useState(false);
+  const [showTrajectory, setShowTrajectory] = useState(false);
   const [showDH, setShowDH] = useState(false);
-  const [showDataOverlay, setShowDataOverlay] = useState(true);
-  const [showCoordinateSystems, setShowCoordinateSystems] = useState(true);
+  const [showDataOverlay, setShowDataOverlay] = useState(false);
+  const [showCoordinateSystems, setShowCoordinateSystems] = useState(false);
   const [showTransformGizmo, setShowTransformGizmo] = useState(false);
   const [gizmoMode, setGizmoMode] = useState<GizmoMode>('translate');
   const [suppressHUD, setSuppressHUD] = useState(false);
   const [cameraPosition, setCameraPosition] = useState<[number, number, number]>(DEFAULT_SCENE_CAMERA_POSITION);
+  const [cameraView, setCameraViewState] = useState<'front' | 'side' | 'top' | 'free'>('free');
 
   const toggleGrid = useCallback(() => setShowGrid((v) => !v), []);
   const toggleTrajectory = useCallback(() => setShowTrajectory((v) => !v), []);
@@ -64,6 +67,7 @@ export function SceneViewportProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setCameraView = useCallback((view: 'front' | 'side' | 'top' | 'free') => {
+    setCameraViewState(view);
     switch (view) {
       case 'front':
         setCameraPosition([0, 1.5, 4]);
@@ -109,6 +113,7 @@ export function SceneViewportProvider({ children }: { children: ReactNode }) {
         setCameraPositionAxis,
         setCameraView,
         resetCamera,
+        cameraView,
       }}
     >
       {children}

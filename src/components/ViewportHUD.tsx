@@ -31,6 +31,8 @@ export default function ViewportHUD({
     toggleDataOverlay,
     toggleTransformGizmo,
     setGizmoMode,
+    setCameraView,
+    cameraView,
   } = useSceneViewport();
   const { cameraState, toggleCamera } = useVirtualCameraContext();
   const showCamera = cameraState.showCamera;
@@ -90,7 +92,12 @@ export default function ViewportHUD({
             type="button"
             key={btn.view}
             onClick={() => setCameraView(btn.view)}
-            className="px-2 py-0.5 text-xs font-medium text-[#1E293B] hover:bg-[#F3F4F6] rounded-sm transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none"
+            aria-pressed={cameraView === btn.view}
+            className={`px-2 py-0.5 text-xs font-medium rounded-sm transition-colors focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:outline-none ${
+              cameraView === btn.view
+                ? 'bg-[#2563EB] text-white'
+                : 'text-[#1E293B] hover:bg-[#F3F4F6]'
+            }`}
           >
             {btn.label}
           </button>
