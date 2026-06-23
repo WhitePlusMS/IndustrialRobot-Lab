@@ -518,7 +518,7 @@ export const courseModules: CourseModule[] = [
           <p>在视觉抓取流程中，相机会先拍摄工件图像，然后通过标定参数计算出工件在世界坐标系中的位置，最后将该位置传递给机械臂进行抓取。</p>
         `,
         goal: '能够拍摄彩色图像，并理解标定的基本流程和必要性。',
-        warning: '标定板需要清晰完整地出现在图像中，避免过曝、过暗或倾斜角度过大，否则标定结果会不准确。',
+        warning: '模拟标定直接从当前相机参数计算内外参，省略了标定板检测环节。真实标定时需拍摄棋盘格，确保图案清晰完整。',
         hint: '点击拍摄按钮，查看捕获的图像。',
         relatedTheoryIds: ['camera-calibration', 'intrinsics', 'extrinsics'],
         teachingGuide: {

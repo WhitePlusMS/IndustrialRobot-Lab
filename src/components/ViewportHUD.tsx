@@ -32,7 +32,8 @@ export default function ViewportHUD({
     toggleTransformGizmo,
     setGizmoMode,
   } = useSceneViewport();
-  const { showCamera, toggleCamera } = useVirtualCameraContext();
+  const { cameraState, toggleCamera } = useVirtualCameraContext();
+  const showCamera = cameraState.showCamera;
   const viewButtons = [
     { label: '正视', view: 'front' as const },
     { label: '侧视', view: 'side' as const },

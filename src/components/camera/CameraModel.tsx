@@ -29,34 +29,39 @@ export default function CameraModel({
   );
 
   return (
-    <group position={position} rotation={rotRad} visible={showModel}>
-      {/* 相机机身 */}
-      <mesh castShadow>
-        <boxGeometry args={[0.12, 0.1, 0.16]} />
-        <meshStandardMaterial color="#F59E0B" metalness={0.3} roughness={0.5} />
-      </mesh>
+    <>
+      {/* 相机机身 - 受 showModel 控制 */}
+      <group position={position} rotation={rotRad} visible={showModel}>
+        {/* 相机机身 */}
+        <mesh castShadow>
+          <boxGeometry args={[0.12, 0.1, 0.16]} />
+          <meshStandardMaterial color="#F59E0B" metalness={0.3} roughness={0.5} />
+        </mesh>
 
-      {/* 镜头 */}
-      <mesh position={[0, 0, -0.1]} castShadow>
-        <cylinderGeometry args={[0.04, 0.03, 0.05, 32]} />
-        <meshStandardMaterial color="#1F2937" metalness={0.3} roughness={0.5} />
-      </mesh>
+        {/* 镜头 */}
+        <mesh position={[0, 0, -0.1]} castShadow>
+          <cylinderGeometry args={[0.04, 0.03, 0.05, 32]} />
+          <meshStandardMaterial color="#1F2937" metalness={0.3} roughness={0.5} />
+        </mesh>
 
-      {/* 镜头前端玻璃 */}
-      <mesh position={[0, 0, -0.13]}>
-        <cylinderGeometry args={[0.03, 0.03, 0.005, 32]} />
-        <meshStandardMaterial color="#3B82F6" metalness={0.8} roughness={0.1} transparent opacity={0.6} />
-      </mesh>
+        {/* 镜头前端玻璃 */}
+        <mesh position={[0, 0, -0.13]}>
+          <cylinderGeometry args={[0.03, 0.03, 0.005, 32]} />
+          <meshStandardMaterial color="#3B82F6" metalness={0.8} roughness={0.1} transparent opacity={0.6} />
+        </mesh>
 
-      {/* 方向指示器 */}
-      <mesh position={[0, 0, -0.24]} rotation={[Math.PI / 2, 0, 0]}>
-        <coneGeometry args={[0.03, 0.1, 16]} />
-        <meshStandardMaterial color="#22C55E" emissive="#22C55E" emissiveIntensity={0.8} />
-      </mesh>
+        {/* 方向指示器 */}
+        <mesh position={[0, 0, -0.24]} rotation={[Math.PI / 2, 0, 0]}>
+          <coneGeometry args={[0.03, 0.1, 16]} />
+          <meshStandardMaterial color="#22C55E" emissive="#22C55E" emissiveIntensity={0.8} />
+        </mesh>
+      </group>
 
-      {/* 视野锥线框 */}
-      <FrustumLines fov={fov} near={near} far={far} aspect={aspect} visible={showFrustum} />
-    </group>
+      {/* 视野锥线框 - 独立受 showFrustum 控制，与相机模型解耦 */}
+      <group position={position} rotation={rotRad} visible={showFrustum}>
+        <FrustumLines fov={fov} near={near} far={far} aspect={aspect} />
+      </group>
+    </>
   );
 }
 
@@ -66,13 +71,11 @@ function FrustumLines({
   near,
   far,
   aspect,
-  visible,
 }: {
   fov: number;
   near: number;
   far: number;
   aspect: number;
-  visible: boolean;
 }) {
   const geometry = useMemo(() => {
     const fovRad = (fov * Math.PI) / 180;
@@ -110,7 +113,7 @@ function FrustumLines({
   }, [fov, near, far, aspect]);
 
   return (
-    <lineSegments geometry={geometry} visible={visible}>
+    <lineSegments geometry={geometry}>
       <lineBasicMaterial color="#00BCD4" transparent opacity={0.4} />
     </lineSegments>
   );

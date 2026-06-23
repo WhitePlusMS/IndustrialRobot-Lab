@@ -154,7 +154,7 @@ export default function CameraOperations(props: OperationPanelData) {
         />
       )}
 
-      {/* camera-fov：FOV + 分辨率 */}
+      {/* camera-fov：视场角 + 裁剪面 + 分辨率 */}
       {stepId === 'camera-fov' && (
         <>
           <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
@@ -179,6 +179,58 @@ export default function CameraOperations(props: OperationPanelData) {
             <div className="flex items-center justify-between text-[11px] text-slate-400 mt-2">
               <span>10°</span>
               <span>120°</span>
+            </div>
+          </div>
+
+          {/* 近远裁剪面 */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+            <div className="text-[11px] font-semibold text-slate-500 mb-3 flex items-center gap-1.5">
+              <Scan className="w-3.5 h-3.5" />
+              裁剪面
+            </div>
+            <div className="space-y-3">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11px] text-slate-500">近裁剪面 Near</label>
+                  <span className="font-mono text-xs font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+                    {props.cameraState.near.toFixed(2)} m
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={0.01}
+                  max={1}
+                  step={0.01}
+                  value={props.cameraState.near}
+                  onChange={(e) => props.setCameraNear(parseFloat(e.target.value))}
+                  className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                />
+                <div className="flex items-center justify-between text-[10px] text-slate-400 mt-0.5">
+                  <span>0.01 m</span>
+                  <span>1 m</span>
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11px] text-slate-500">远裁剪面 Far</label>
+                  <span className="font-mono text-xs font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+                    {props.cameraState.far.toFixed(0)} m
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={1}
+                  max={100}
+                  step={1}
+                  value={props.cameraState.far}
+                  onChange={(e) => props.setCameraFar(parseFloat(e.target.value))}
+                  className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                />
+                <div className="flex items-center justify-between text-[10px] text-slate-400 mt-0.5">
+                  <span>1 m</span>
+                  <span>100 m</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -218,7 +270,7 @@ export default function CameraOperations(props: OperationPanelData) {
             <div className="px-4 py-3 bg-slate-50/80 border-b border-slate-100">
               <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
                 <Crosshair className="w-3.5 h-3.5" />
-                标定
+                模拟标定
               </h3>
             </div>
             <div className="p-4 space-y-3">
@@ -252,7 +304,7 @@ export default function CameraOperations(props: OperationPanelData) {
                   <div>
                     朝向: [{props.cameraState.rotation.map((v) => v.toFixed(1)).join(', ')}] °
                   </div>
-                  <div className="pt-1 text-green-600 font-semibold">标定完成</div>
+                  <div className="pt-1 text-green-600 font-semibold">模拟标定完成</div>
                   <div className="text-[10px] text-slate-500 not-italic font-sans leading-relaxed">
                     以上为根据当前相机状态模拟的标定结果，实际标定需拍摄棋盘格标定板并提取角点。
                   </div>
