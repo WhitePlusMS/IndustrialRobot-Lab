@@ -9,6 +9,7 @@ import {
   rotationMatrixToEulerZYX,
 } from './math/rotation3d';
 import { KUKA_LIKE } from './robot-config';
+import { GIZMO_IK_PRESET } from './ik-config';
 
 /**
  * Gizmo 场景坐标(米) + 四元数 → IK 输入 Pose(mm + 旋转矩阵)
@@ -42,12 +43,5 @@ export function solveIKWithGizmoConfig(
   if (!jointRanges) {
     jointRanges = Object.values(KUKA_LIKE.dhParams).map((p) => p.thetaRange) as [number, number][];
   }
-  return solveIK(targetPose, currentJoints, model, {
-    maxIterations: 30,
-    posTolerance: 2.0,
-    oriTolerance: 0.02,
-    damping: 0.15,
-    maxStepRad: 0.15,
-    orientationScale: 200,
-  }, jointRanges);
+  return solveIK(targetPose, currentJoints, model, GIZMO_IK_PRESET, jointRanges);
 }

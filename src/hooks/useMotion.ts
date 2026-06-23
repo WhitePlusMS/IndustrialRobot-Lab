@@ -6,12 +6,21 @@ import type { JointAngles, Pose, RobotConfig, StatusType } from '@/types/robot';
 import type { RobotModel } from '@/lib/robot-model';
 import { DEFAULT_MOTION_CONFIG, lerpJoints } from '@/lib/motion-smoothing';
 import { solveCartesianPositionStep, solveCartesianStep } from '@/lib/motion-planner';
+import {
+  CARTESIAN_POSITION_ONLY_IK_PRESET,
+  CARTESIAN_STEP_IK_PRESET,
+} from '@/lib/ik-config';
+
+type CartesianOrientationMode =
+  | 'position_only'
+  | 'hold_current_orientation'
+  | 'full_pose';
 
 interface CartesianAnimationOptions {
   /** 动画时长（毫秒） */
   duration?: number;
-  /** 是否只控制位置（姿态保持当前） */
-  positionOnly?: boolean;
+  /** 笛卡尔动画的姿态约束策略 */
+  orientationMode?: CartesianOrientationMode;
 }
 
 interface UseMotionOptions {
@@ -90,7 +99,7 @@ export function useMotion({
   // 笛卡尔动画专用 refs
   const cartesianStartPoseRef = useRef<Pose | null>(null);
   const cartesianTargetPoseRef = useRef<Pose | null>(null);
-  const cartesianPositionOnlyRef = useRef(false);
+  const cartesianOrientationModeRef = useRef<CartesianOrientationMode>('full_pose');
 
   // 状态恢复定时器，避免旧定时器覆盖新状态
   const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -129,7 +138,7 @@ export function useMotion({
     activeAnimTypeRef.current = 'none';
     cartesianStartPoseRef.current = null;
     cartesianTargetPoseRef.current = null;
-    cartesianPositionOnlyRef.current = false;
+    cartesianOrientationModeRef.current = 'full_pose';
     clearStatusTimer();
   }, [clearStatusTimer]);
 
@@ -222,22 +231,14 @@ export function useMotion({
 
     const jointRanges = Object.values(config.dhParams).map((p) => p.thetaRange) as [number, number][];
 
-    if (cartesianPositionOnlyRef.current) {
+    if (cartesianOrientationModeRef.current === 'position_only') {
       nextJoints = solveCartesianPositionStep(targetPose.position, currentJoints, model, {
-        damping: 0.5,
-        maxStepDeg: 2,
-        toleranceMm: 1,
+        ...CARTESIAN_POSITION_ONLY_IK_PRESET,
         jointRanges,
       });
     } else {
       const result = solveCartesianStep(targetPose, currentJoints, model, {
-        damping: 0.5,
-        maxStepDeg: 2,
-        orientationScale: 300,
-        positionClampMm: 10,
-        orientationClampRad: 0.1,
-        toleranceMm: 1,
-        oriToleranceRad: 0.03,
+        ...CARTESIAN_STEP_IK_PRESET,
         jointRanges,
       });
       nextJoints = result?.joints ?? null;
@@ -276,7 +277,7 @@ export function useMotion({
       animDurationRef.current = duration;
       cartesianStartPoseRef.current = null;
       cartesianTargetPoseRef.current = null;
-      cartesianPositionOnlyRef.current = false;
+      cartesianOrientationModeRef.current = 'full_pose';
       activeAnimTypeRef.current = 'joint-eased';
       isAnimatingRef.current = true;
       setIsAnimating(true);
@@ -300,7 +301,7 @@ export function useMotion({
       lastTimeRef.current = 0;
       cartesianStartPoseRef.current = null;
       cartesianTargetPoseRef.current = null;
-      cartesianPositionOnlyRef.current = false;
+      cartesianOrientationModeRef.current = 'full_pose';
       activeAnimTypeRef.current = 'joint-speed';
       isAnimatingRef.current = true;
       setIsAnimating(true);
@@ -325,7 +326,7 @@ export function useMotion({
       lastTimeRef.current = 0;
       cartesianStartPoseRef.current = null;
       cartesianTargetPoseRef.current = null;
-      cartesianPositionOnlyRef.current = false;
+      cartesianOrientationModeRef.current = 'full_pose';
       activeAnimTypeRef.current = 'joint-coordinated';
       isAnimatingRef.current = true;
       setIsAnimating(true);
@@ -341,7 +342,7 @@ export function useMotion({
       const duration = options.duration ?? cfgRef.current.ikAnimDuration;
 
       cartesianTargetPoseRef.current = targetPose;
-      cartesianPositionOnlyRef.current = options.positionOnly ?? false;
+      cartesianOrientationModeRef.current = options.orientationMode ?? 'full_pose';
 
       if (activeAnimTypeRef.current === 'cartesian') {
         return;
