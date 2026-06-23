@@ -1,13 +1,14 @@
 // src/App.tsx
 // 根组件：组合各领域 Provider；AppContent 只负责读取 Context 并渲染页面骨架
 import { useState, useEffect } from 'react';
-import { LearningProvider, useLearning } from '@/contexts/LearningContext';
-import { SceneViewportProvider, useSceneViewport } from '@/contexts/SceneViewportContext';
-import { RobotProvider, useRobotContext } from '@/contexts/RobotContext';
-import { VirtualCameraProvider, useVirtualCameraContext } from '@/contexts/VirtualCameraContext';
-import { SuckerProvider, useSuckerContext } from '@/contexts/SuckerContext';
-import { DemoPartsProvider, useDemoPartsContext } from '@/contexts/DemoPartsContext';
-import { SequenceProvider, useSequenceContext } from '@/contexts/SequenceContext';
+import { useLearning } from '@/contexts/LearningContext';
+import { useSceneViewport } from '@/contexts/SceneViewportContext';
+import { useRobotContext } from '@/contexts/RobotContext';
+import { useVirtualCameraContext } from '@/contexts/VirtualCameraContext';
+import { useSuckerContext } from '@/contexts/SuckerContext';
+import { useDemoPartsContext } from '@/contexts/DemoPartsContext';
+import { useSequenceContext } from '@/contexts/SequenceContext';
+import { AppProviders } from '@/contexts/AppProviders';
 import Header from '@/components/layout/Header';
 import LearningPanel from '@/components/learning/LearningPanel';
 import OperationPanel from '@/components/operation/OperationPanel';
@@ -19,21 +20,9 @@ import DHParamOverlay from '@/components/DHParamOverlay';
 
 export default function App() {
   return (
-    <LearningProvider>
-      <SceneViewportProvider>
-        <RobotProvider>
-          <VirtualCameraProvider>
-            <SuckerProvider>
-              <DemoPartsProvider>
-                <SequenceProvider>
-                  <AppContent />
-                </SequenceProvider>
-              </DemoPartsProvider>
-            </SuckerProvider>
-          </VirtualCameraProvider>
-        </RobotProvider>
-      </SceneViewportProvider>
-    </LearningProvider>
+    <AppProviders>
+      <AppContent />
+    </AppProviders>
   );
 }
 
