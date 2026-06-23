@@ -84,6 +84,16 @@ function buildPositionOnlyAltSeeds(
   ] as JointAngles[];
 }
 
+function dedupeJointSeeds(seeds: JointAngles[]): JointAngles[] {
+  const seen = new Set<string>();
+  return seeds.filter((seed) => {
+    const key = seed.map((value) => Math.round(value * 10) / 10).join(',');
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 /** 把关节角限制到配置行程 */
 function clampJointsToRanges(joints: JointAngles, config: RobotConfig): JointAngles {
   const ranges = Object.values(config.dhParams).map((p) => p.thetaRange);
@@ -553,7 +563,11 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
   );
 
   const solveDirectPositionOnly = useCallback(
-    (targetPosition: [number, number, number], seedJoints: JointAngles): JointAngles | null => {
+    (
+      targetPosition: [number, number, number],
+      seedJoints: JointAngles,
+      lockedAltSeeds?: JointAngles[]
+    ): JointAngles | null => {
       const primarySolution = solvePositionOnlyIK(
         targetPosition,
         seedJoints,
@@ -570,7 +584,7 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
         return primarySolution;
       }
 
-      const altSeeds = buildPositionOnlyAltSeeds(seedJoints, targetPosition);
+      const altSeeds = lockedAltSeeds ?? buildPositionOnlyAltSeeds(seedJoints, targetPosition);
       for (const altSeed of altSeeds) {
         console.log('[useRobot] goToPosition try position-only alt seed', {
           seed: altSeed,
@@ -622,27 +636,14 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
       startPosition: [number, number, number],
       targetPosition: [number, number, number],
       seedJoints: JointAngles,
-      depth = 0,
-      maxDepth = 5
+      lockedAltSeeds: JointAngles[]
     ): GoToPositionPlanResult | null => {
-      const directSolution = solveDirectPositionOnly(targetPosition, seedJoints);
+      const directSolution = solveDirectPositionOnly(targetPosition, seedJoints, lockedAltSeeds);
       if (directSolution) {
         return {
           waypointJoints: [directSolution],
-          depthUsed: depth,
+          depthUsed: 0,
         };
-      }
-
-      if (depth >= maxDepth) {
-        if (depth === maxDepth) {
-          console.warn('[useRobot] planPositionOnlyWaypoints hit max depth', {
-            startPositionMm: startPosition,
-            targetPositionMm: targetPosition,
-            seedJointsDeg: seedJoints,
-            maxDepth,
-          });
-        }
-        return null;
       }
 
       const midpointPosition: [number, number, number] = [
@@ -651,31 +652,46 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
         lerpScalar(startPosition[2], targetPosition[2], 0.5),
       ];
 
-      const firstHalf = planPositionOnlyWaypoints(
-        startPosition,
+      console.warn('[useRobot] planPositionOnlyWaypoints direct solve failed, try single midpoint split', {
+        startPositionMm: startPosition,
+        targetPositionMm: targetPosition,
+        midpointPositionMm: midpointPosition,
+        seedJointsDeg: seedJoints,
+      });
+
+      const midpointSolution = solveDirectPositionOnly(
         midpointPosition,
         seedJoints,
-        depth + 1,
-        maxDepth
+        lockedAltSeeds
       );
-      if (!firstHalf) return null;
+      if (!midpointSolution) {
+        console.warn('[useRobot] planPositionOnlyWaypoints midpoint solve failed', {
+          midpointPositionMm: midpointPosition,
+          seedJointsDeg: seedJoints,
+        });
+        return null;
+      }
 
-      const midJoints = firstHalf.waypointJoints[firstHalf.waypointJoints.length - 1];
-      const midPoseReached = model.forwardKinematics(midJoints);
+      const midPoseReached = model.forwardKinematics(midpointSolution);
       if (!midPoseReached) return null;
 
-      const secondHalf = planPositionOnlyWaypoints(
-        midPoseReached.position,
+      const targetSolution = solveDirectPositionOnly(
         targetPosition,
-        midJoints,
-        depth + 1,
-        maxDepth
+        midpointSolution,
+        lockedAltSeeds
       );
-      if (!secondHalf) return null;
+      if (!targetSolution) {
+        console.warn('[useRobot] planPositionOnlyWaypoints target solve still failed after single midpoint split', {
+          targetPositionMm: targetPosition,
+          midpointReachedPositionMm: midPoseReached.position,
+          midpointJointsDeg: midpointSolution,
+        });
+        return null;
+      }
 
       return {
-        waypointJoints: [...firstHalf.waypointJoints, ...secondHalf.waypointJoints],
-        depthUsed: Math.max(firstHalf.depthUsed, secondHalf.depthUsed),
+        waypointJoints: [midpointSolution, targetSolution],
+        depthUsed: 1,
       };
     },
     [model, solveDirectPositionOnly]
@@ -686,7 +702,7 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
       startPose: Pose,
       targetPosition: [number, number, number],
       seedJoints: JointAngles,
-      maxDepth = 6
+      lockedAltSeeds: JointAngles[]
     ): GoToPositionPlanResult | null => {
       const transitHeight = Math.max(startPose.position[1], targetPosition[1]) + POSITION_TRANSIT_LIFT_MM;
       const transitPoints: [number, number, number][] = [
@@ -712,15 +728,13 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
           currentPosition,
           transitPoint,
           currentSeed,
-          0,
-          maxDepth
+          lockedAltSeeds
         );
         if (!segmentPlan) {
           console.error('[useRobot] planElevatedTransitPositionWaypoints segment failed', {
             fromPositionMm: currentPosition,
             toPositionMm: transitPoint,
             seedJointsDeg: currentSeed,
-            maxDepth,
           });
           return null;
         }
@@ -759,29 +773,13 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
       startPose: Pose,
       targetPose: Pose,
       seedJoints: JointAngles,
-      depth = 0,
-      maxDepth = 3
     ): GoToPositionPlanResult | null => {
       const directSolution = solveDirectOrientationAtCurrentPosition(targetPose, seedJoints);
       if (directSolution) {
         return {
           waypointJoints: [directSolution],
-          depthUsed: depth,
+          depthUsed: 0,
         };
-      }
-
-      if (depth >= maxDepth) {
-        if (depth === maxDepth) {
-          console.warn('[useRobot] planOrientationWaypoints hit max depth', {
-            currentPositionMm: startPose.position,
-            currentEulerRad: startPose.euler,
-            targetPositionMm: targetPose.position,
-            targetEulerRad: targetPose.euler,
-            seedJointsDeg: seedJoints,
-            maxDepth,
-          });
-        }
-        return null;
       }
 
       const midpointEuler = lerpEulerShortest(startPose.euler, targetPose.euler, 0.5);
@@ -791,31 +789,33 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
         rotation: buildRotationFromEuler(midpointEuler),
       };
 
-      const firstHalf = planOrientationWaypoints(
-        startPose,
+      console.warn('[useRobot] planOrientationWaypoints direct solve failed, try single midpoint split', {
+        currentPositionMm: startPose.position,
+        currentEulerRad: startPose.euler,
+        targetPositionMm: targetPose.position,
+        targetEulerRad: targetPose.euler,
+        midpointEulerRad: midpointEuler,
+        seedJointsDeg: seedJoints,
+      });
+
+      const midpointSolution = solveDirectOrientationAtCurrentPosition(
         midpointPose,
         seedJoints,
-        depth + 1,
-        maxDepth
       );
-      if (!firstHalf) return null;
+      if (!midpointSolution) return null;
 
-      const midJoints = firstHalf.waypointJoints[firstHalf.waypointJoints.length - 1];
-      const midPoseReached = model.forwardKinematics(midJoints);
+      const midPoseReached = model.forwardKinematics(midpointSolution);
       if (!midPoseReached) return null;
 
-      const secondHalf = planOrientationWaypoints(
-        midPoseReached,
+      const targetSolution = solveDirectOrientationAtCurrentPosition(
         targetPose,
-        midJoints,
-        depth + 1,
-        maxDepth
+        midpointSolution
       );
-      if (!secondHalf) return null;
+      if (!targetSolution) return null;
 
       return {
-        waypointJoints: [...firstHalf.waypointJoints, ...secondHalf.waypointJoints],
-        depthUsed: Math.max(firstHalf.depthUsed, secondHalf.depthUsed),
+        waypointJoints: [midpointSolution, targetSolution],
+        depthUsed: 1,
       };
     },
     [model, solveDirectOrientationAtCurrentPosition]
@@ -827,31 +827,27 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
       targetPose: Pose,
       seedJoints: JointAngles,
       hasExplicitOrientation: boolean,
-      depth = 0,
-      maxDepth = 5
+      lockedAltSeeds: JointAngles[]
     ): GoToPositionPlanResult | null => {
       const directSolution = solveDirectGoToPosition(targetPose, seedJoints, hasExplicitOrientation);
       if (directSolution) {
         return {
           waypointJoints: [directSolution],
-          depthUsed: depth,
+          depthUsed: 0,
         };
       }
 
       if (!hasExplicitOrientation) {
-        console.warn('[useRobot] planGoToPositionWaypoints direct position-only solve failed, fallback to split', {
+        console.warn('[useRobot] planGoToPositionWaypoints direct position-only solve failed, fallback to single midpoint split', {
           startPositionMm: startPose.position,
           targetPositionMm: targetPose.position,
           seedJointsDeg: seedJoints,
-          depth,
-          maxDepth,
         });
         const splitPlan = planPositionOnlyWaypoints(
           startPose.position,
           targetPose.position,
           seedJoints,
-          depth,
-          maxDepth
+          lockedAltSeeds
         );
         if (splitPlan) {
           return splitPlan;
@@ -866,7 +862,7 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
           startPose,
           targetPose.position,
           seedJoints,
-          Math.max(maxDepth, 6)
+          lockedAltSeeds
         );
       }
 
@@ -876,21 +872,18 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
         targetPositionMm: targetPose.position,
         targetEulerRad: targetPose.euler,
         seedJointsDeg: seedJoints,
-        depth,
-        maxDepth,
       });
 
       const positionPlan = planPositionOnlyWaypoints(
         startPose.position,
         targetPose.position,
         seedJoints,
-        depth,
-        maxDepth
+        lockedAltSeeds
       ) ?? planElevatedTransitPositionWaypoints(
         startPose,
         targetPose.position,
         seedJoints,
-        Math.max(maxDepth, 6)
+        lockedAltSeeds
       );
       if (!positionPlan) {
         console.error('[useRobot] planGoToPositionWaypoints position phase failed', {
@@ -922,8 +915,6 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
         poseAtTargetPosition,
         targetPose,
         poseAtTargetPositionJoints,
-        0,
-        Math.max(2, Math.min(3, maxDepth))
       );
       if (!orientationPlan) {
         console.error('[useRobot] planGoToPositionWaypoints orientation phase failed', {
@@ -1014,6 +1005,10 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
         hasExplicitOrientation,
       });
 
+      const lockedAltSeeds = dedupeJointSeeds(
+        buildPositionOnlyAltSeeds(currentJoints, targetPos)
+      );
+
       const directSolution = solveDirectGoToPosition(targetPose, currentJoints, hasExplicitOrientation);
       let waypointPlan: GoToPositionPlanResult | null = null;
 
@@ -1036,6 +1031,7 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
           targetPose,
           currentJoints,
           hasExplicitOrientation,
+          lockedAltSeeds,
         );
       }
 
@@ -1058,6 +1054,7 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
         directSolved: directSolution !== null,
         waypointCount: waypointPlan.waypointJoints.length,
         splitDepthUsed: waypointPlan.depthUsed,
+        lockedSeedCount: lockedAltSeeds.length,
         firstWaypointDeg: firstWaypoint,
       });
       startCoordinatedAnimation(firstWaypoint);
