@@ -1,13 +1,15 @@
 // src/components/operation/GraspOperations.tsx
 // 抓取实训右侧操作面板：按步骤提供吸盘显示、生成物体、一键接近、吸盘开关、动作序列
-import { useEffect } from 'react';
-import { Box, Power, PowerOff, Grip, MoveUp, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { Box, Power, PowerOff, Grip, MoveUp, AlertCircle, Play } from 'lucide-react';
 import type { OperationPanelData } from './OperationPanel';
 import SequenceEditor from '@/components/sequence/SequenceEditor';
 import PoseControlCard from '@/components/PoseControlCard';
 import PositionTargetCard from '@/components/PositionTargetCard';
 import { BOX_HALF_SIZE, SUCKER_LENGTH, APPROACH_HEIGHT } from '@/hooks/useSuckerControl';
 import { createDefaultGraspSequence } from '@/types/sequence';
+import SuckerDemoModal from '@/components/learning/SuckerDemoModal';
 
 const boxStateText: Record<string, string> = {
   NONE: '无物体',
@@ -21,6 +23,7 @@ const boxStateText: Record<string, string> = {
 export default function GraspOperations(props: OperationPanelData) {
   const stepId = props.currentStep.id;
   const { sequenceSteps, setSequenceSteps, waypoints } = props;
+  const [showSuckerDemo, setShowSuckerDemo] = useState(false);
 
   const isSuckerVisible = props.selectedTool === '吸盘';
   const handleToggleSucker = () => {
@@ -105,6 +108,21 @@ export default function GraspOperations(props: OperationPanelData) {
           >
             {isSuckerVisible ? '隐藏吸盘' : '在 3D 场景中显示吸盘'}
           </button>
+
+          {/* 真空吸盘原理演示 */}
+          <div className="pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setShowSuckerDemo(true)}
+              className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-blue-500 text-white text-xs font-semibold rounded-xl shadow-sm hover:from-blue-700 hover:to-blue-600 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+            >
+              <Play className="w-3.5 h-3.5" />
+              演示真空吸盘原理
+            </button>
+            <p className="text-[10px] text-slate-400 text-center mt-1">
+              点击按钮打开互动演示，手动操作吸盘体验真空吸附
+            </p>
+          </div>
         </div>
       )}
 
@@ -113,7 +131,7 @@ export default function GraspOperations(props: OperationPanelData) {
         <div className="space-y-3">
           <button
             type="button"
-            onClick={() => props.spawnBox([400, 200, 250], 50)}
+            onClick={() => props.spawnBox([1000, 350, 0], 200)}
             className="w-full py-3 text-[13px] font-semibold rounded-xl text-slate-700 bg-white border border-slate-200 shadow-sm hover:bg-slate-50 active:bg-slate-100 flex items-center justify-center gap-2"
           >
             <Box className="w-4 h-4" />
@@ -122,7 +140,7 @@ export default function GraspOperations(props: OperationPanelData) {
           <button
             type="button"
             onClick={() =>
-              props.spawnBox([300 + Math.random() * 200, 200, 200 + Math.random() * 200], 50)
+              props.spawnBox([850 + Math.random() * 300, 350, -150 + Math.random() * 300], 200)
             }
             className="w-full py-3 text-[13px] font-semibold rounded-xl text-slate-700 bg-white border border-slate-200 shadow-sm hover:bg-slate-50 active:bg-slate-100 flex items-center justify-center gap-2"
           >
@@ -293,6 +311,13 @@ export default function GraspOperations(props: OperationPanelData) {
           />
         </div>
       )}
+
+      {/* 真空吸盘原理演示弹窗（Portal 到 body，确保渲染在最顶层） */}
+      {showSuckerDemo &&
+        createPortal(
+          <SuckerDemoModal onClose={() => setShowSuckerDemo(false)} />,
+          document.body
+        )}
     </div>
   );
 }

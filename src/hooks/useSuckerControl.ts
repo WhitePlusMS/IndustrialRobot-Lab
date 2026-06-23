@@ -6,7 +6,7 @@ import { useRobotPoseAPI } from './useRobotPoseAPI';
 import type { RobotConfig, JointAngles } from '@/types/robot';
 
 export const SUCKER_LENGTH = 25;
-export const BOX_SIZE = 80;
+export const BOX_SIZE = 120;
 export const BOX_HALF_SIZE = BOX_SIZE / 2;
 export const ATTACH_THRESHOLD = 15;
 export const APPROACH_HEIGHT = 50;

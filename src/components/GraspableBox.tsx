@@ -4,8 +4,8 @@ import { useMemo } from 'react';
 import * as THREE from 'three';
 import type { BoxState } from '@/hooks/useSuckerControl';
 
-// 箱子尺寸：80mm → 0.08m
-const BOX_M = 0.08;
+// 箱子尺寸：120mm → 0.12m
+const BOX_M = 0.12;
 const BOX_HALF_M = BOX_M / 2;
 
 interface GraspableBoxProps {

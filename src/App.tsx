@@ -96,18 +96,25 @@ function AppContent() {
             checkAttachment={sucker.checkAttachment}
             updateBoxFollow={sucker.updateBoxFollow}
             applyGravity={sucker.applyGravity}
-            spawnFence={sequence.steps.find((s) => s.type === '生成箱子')?.params?.boxSpawn ?? null}
+            spawnFence={
+              sequence.steps.find((s) => s.type === '生成箱子')?.params?.boxSpawn
+              ?? (learning.currentStep?.id === 'grasp-spawn'
+                ? { mode: 'random' as const, randomCenter: [1000, 0] as [number, number], randomRangeX: 150, randomRangeZ: 150, restingHeight: 200, minHeight: 350, maxHeight: 450 }
+                : null)
+            }
             demoParts={demoParts.parts}
           />
 
-          <ViewportHUD
-            onSaveOrigin={robot.saveOrigin}
-            onGoToOrigin={robot.goToOrigin}
-            onGoToZero={robot.goToZero}
-            hasOrigin={robot.originJoints !== null}
-          />
+          {!viewport.suppressHUD && (
+            <ViewportHUD
+              onSaveOrigin={robot.saveOrigin}
+              onGoToOrigin={robot.goToOrigin}
+              onGoToZero={robot.goToZero}
+              hasOrigin={robot.originJoints !== null}
+            />
+          )}
 
-          {viewport.showDataOverlay && (
+          {viewport.showDataOverlay && !viewport.suppressHUD && (
             <DataOverlay
               coordinateSystem={robot.coordinateSystem}
               position={robot.endEffectorPose.position}

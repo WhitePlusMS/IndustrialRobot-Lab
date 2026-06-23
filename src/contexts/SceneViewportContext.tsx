@@ -16,6 +16,9 @@ interface SceneViewportContextValue {
   showCoordinateSystems: boolean;
   showTransformGizmo: boolean;
   gizmoMode: GizmoMode;
+  /** 演示弹窗打开时隐藏视口内所有 HUD */
+  suppressHUD: boolean;
+  setSuppressHUD: (v: boolean) => void;
   toggleGrid: () => void;
   toggleTrajectory: () => void;
   toggleDH: () => void;
@@ -40,6 +43,7 @@ export function SceneViewportProvider({ children }: { children: ReactNode }) {
   const [showCoordinateSystems, setShowCoordinateSystems] = useState(true);
   const [showTransformGizmo, setShowTransformGizmo] = useState(false);
   const [gizmoMode, setGizmoMode] = useState<GizmoMode>('translate');
+  const [suppressHUD, setSuppressHUD] = useState(false);
   const [cameraPosition, setCameraPosition] = useState<[number, number, number]>(DEFAULT_SCENE_CAMERA_POSITION);
 
   const toggleGrid = useCallback(() => setShowGrid((v) => !v), []);
@@ -91,6 +95,8 @@ export function SceneViewportProvider({ children }: { children: ReactNode }) {
         showCoordinateSystems,
         showTransformGizmo,
         gizmoMode,
+        suppressHUD,
+        setSuppressHUD,
         toggleGrid,
         toggleTrajectory,
         toggleDH,
