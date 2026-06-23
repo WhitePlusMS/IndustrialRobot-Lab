@@ -9,7 +9,7 @@
 import type { JointAngles, Pose } from '@/types/robot';
 import type { RobotModel } from './robot-model';
 import type { CalibrationData } from './robot-pose-bridge';
-import { orientationError, rotationMatrixToEulerZYX } from './math/rotation3d';
+import { rotationMatrixToEulerZYX } from './math/rotation3d';
 
 // ========== 内部纯函数 ==========
 
@@ -119,7 +119,7 @@ export class SceneKinematicModel implements RobotModel {
 
   forwardKinematics(jointsDeg: JointAngles): Pose | null {
     const calib = this.calib;
-    if (!calib.available || jointsDeg.length !== calib.joints.length) return null;
+    if (!calib.available || jointsDeg.length < calib.joints.length) return null;
 
     let T = identitySE3();
 

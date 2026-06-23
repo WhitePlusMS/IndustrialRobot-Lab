@@ -1,7 +1,7 @@
 // src/lib/math/rotation3d.test.ts
 import { describe, it, expect } from 'vitest';
 import {
-  mat3Mul, mat3Transpose,
+  mat3Mul,
   quaternionToRotationMatrix, rotationMatrixToEulerZYX,
   buildRotationFromEuler, buildAxisRotation,
   orientationError, applyRotationIncrement,

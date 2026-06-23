@@ -84,5 +84,5 @@ export const robotPoseBridge = new RobotPoseBridge();
 
 // 暴露到 window 供浏览器调试（与 import 实例无关）
 if (typeof window !== 'undefined') {
-  (window as Record<string, unknown>).__robotPoseBridge = robotPoseBridge;
+  (window as Window & typeof globalThis & { __robotPoseBridge?: RobotPoseBridge }).__robotPoseBridge = robotPoseBridge;
 }

@@ -1,5 +1,6 @@
 // src/lib/robot-model.ts
-// RobotModel 接口：将 FK 与 Jacobian 来源抽象，本应用仅使用 GLB 实现
+// RobotModel 接口：将 FK 与 Jacobian 来源抽象。
+// 当前业务优先使用 PoE 标定模型，标定未就绪时回退到 GLB 采样模型。
 
 import type { JointAngles, Pose } from '@/types/robot';
 

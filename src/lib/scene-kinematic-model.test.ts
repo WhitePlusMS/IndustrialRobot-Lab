@@ -1,7 +1,8 @@
 // src/lib/scene-kinematic-model.test.ts
 // PoE 解析运动学模型测试 — 验证 FK + 解析 Jacobian + IK 闭环
 import { describe, it, expect } from 'vitest';
-import type { CalibrationData, JointCalibData } from './robot-pose-bridge';
+import type { CalibrationData } from './robot-pose-bridge';
+import type { JointAngles } from '@/types/robot';
 import { SceneKinematicModel } from './scene-kinematic-model';
 import { solveIK } from './ik-solver';
 
@@ -55,11 +56,13 @@ function sixJointTestData(): CalibrationData {
   };
 }
 
-// ============================================================
-// IK 闭环测试 — 用 PoE 模型替换旧 DH mock
-// ============================================================
-
-import { solveIK, solvePositionOnlyIK } from './ik-solver';
+function padJoints(...values: number[]): JointAngles {
+  const joints: JointAngles = [0, 0, 0, 0, 0, 0];
+  values.slice(0, joints.length).forEach((value, index) => {
+    joints[index] = value;
+  });
+  return joints;
+}
 
 describe('IK with SceneKinematicModel (PoE)', () => {
   // 用接近真实场景的标定数据（基于 GLBRobotArm 控制台日志 + 实测轴）
@@ -93,23 +96,23 @@ describe('IK with SceneKinematicModel (PoE)', () => {
 
   it('零位 IK：当前姿态就是目标姿态', () => {
     const model = new SceneKinematicModel(sixJointTestData());
-    const current = [0, 0, 0, 0, 0, 0] as readonly number[];
-    const pose = model.forwardKinematics([...current])!;
-    const result = solveIK(pose, [...current], model);
+    const current: JointAngles = [0, 0, 0, 0, 0, 0];
+    const pose = model.forwardKinematics(current)!;
+    const result = solveIK(pose, current, model);
     expect(result).not.toBeNull();
     result!.forEach((v, i) => expect(v).toBeCloseTo(current[i], 3));
   });
 
   it('场景近似标定 IK：3/4 测试姿态收敛（标定精度不足时不强制全部通过）', () => {
     const model = new SceneKinematicModel(sceneLikeCalibration());
-    const testAngles = [
+    const testAngles: JointAngles[] = [
       [0, -30, 60, 0, 0, 0],
       [45, -20, 45, 0, 0, 0],
       [0, 0, 0, 0, 0, 0],
     ];
     let converged = 0;
     for (const target of testAngles) {
-      const pose = model.forwardKinematics(target as number[]);
+      const pose = model.forwardKinematics(target);
       if (!pose) continue;
       const result = solveIK(pose, [0, 0, 0, 0, 0, 0], model, {
         maxIterations: 200, posTolerance: 1, oriTolerance: 0.01, damping: 0.1,
@@ -131,7 +134,7 @@ describe('IK with SceneKinematicModel (PoE)', () => {
 
   it('6关节合成标定 IK 全部收敛（验证 Jacobian 无退化）', () => {
     const model = new SceneKinematicModel(sixJointTestData());
-    const testAngles = [
+    const testAngles: JointAngles[] = [
       [0, -30, 60, 0, 0, 0],
       [45, -20, 45, 0, 0, 0],
       [-60, -30, 60, 30, 0, 0],
@@ -139,9 +142,9 @@ describe('IK with SceneKinematicModel (PoE)', () => {
       [0, -60, 45, 0, 15, 0],
     ];
     for (const target of testAngles) {
-      const pose = model.forwardKinematics(target as number[]);
+      const pose = model.forwardKinematics(target);
       expect(pose).not.toBeNull();
-      const result = solveIK(pose!, target.map(() => 0), model, {
+      const result = solveIK(pose!, [0, 0, 0, 0, 0, 0], model, {
         maxIterations: 200, posTolerance: 1, oriTolerance: 0.01, damping: 0.1,
       });
       expect(result).not.toBeNull();
@@ -177,7 +180,7 @@ describe('SceneKinematicModel', () => {
   describe('forwardKinematics (PoE FK)', () => {
     it('单关节 零位: 末端 = zeroFlangePose [100,0,0]', () => {
       const m = new SceneKinematicModel(singleJointZ());
-      const r = m.forwardKinematics([0]);
+      const r = m.forwardKinematics(padJoints(0));
       expect(r).not.toBeNull();
       expect(r!.position[0]).toBeCloseTo(100, 5);
       expect(r!.position[1]).toBeCloseTo(0, 5);
@@ -186,7 +189,7 @@ describe('SceneKinematicModel', () => {
 
     it('单关节 Z轴@原点 转90°: [100,0,0] → [0,100,0]', () => {
       const m = new SceneKinematicModel(singleJointZ());
-      const r = m.forwardKinematics([90]);
+      const r = m.forwardKinematics(padJoints(90));
       expect(r).not.toBeNull();
       expect(r!.position[0]).toBeCloseTo(0, 5);
       expect(r!.position[1]).toBeCloseTo(100, 5);
@@ -195,7 +198,7 @@ describe('SceneKinematicModel', () => {
 
     it('单关节 Z轴@原点 转180°: [100,0,0] → [-100,0,0]', () => {
       const m = new SceneKinematicModel(singleJointZ());
-      const r = m.forwardKinematics([180]);
+      const r = m.forwardKinematics(padJoints(180));
       expect(r).not.toBeNull();
       expect(r!.position[0]).toBeCloseTo(-100, 5);
       expect(r!.position[1]).toBeCloseTo(0, 1);
@@ -204,7 +207,7 @@ describe('SceneKinematicModel', () => {
 
     it('双关节 Z+Y 转90°+90°，结果有限', () => {
       const m = new SceneKinematicModel(twoJointZY());
-      const r = m.forwardKinematics([90, 90]);
+      const r = m.forwardKinematics(padJoints(90, 90));
       expect(r).not.toBeNull();
       expect(r!.position.every(v => isFinite(v))).toBe(true);
       const trace = r!.rotation[0][0] + r!.rotation[1][1] + r!.rotation[2][2];
@@ -224,7 +227,7 @@ describe('SceneKinematicModel', () => {
   describe('estimateJacobian (解析 Jacobian)', () => {
     it('单关节 Z轴@原点: Jacobian 列 = [ω×(p-q); ω] · (π/180)', () => {
       const m = new SceneKinematicModel(singleJointZ());
-      const J = m.estimateJacobian([0]);
+      const J = m.estimateJacobian(padJoints(0));
       expect(J).not.toBeNull();
       expect(J!.length).toBe(6);
       expect(J![0].length).toBe(1);
@@ -241,7 +244,7 @@ describe('SceneKinematicModel', () => {
 
     it('Jacobian 在非零位时姿态行依然非零', () => {
       const m = new SceneKinematicModel(singleJointZ());
-      const J = m.estimateJacobian([45]);
+      const J = m.estimateJacobian(padJoints(45));
       expect(J).not.toBeNull();
       const oriNorm = Math.hypot(J![3][0], J![4][0], J![5][0]);
       expect(oriNorm).toBeGreaterThan(0.01);
