@@ -3,11 +3,11 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Box, Power, PowerOff, Grip, MoveUp, AlertCircle, Play } from 'lucide-react';
-import type { OperationPanelData } from './OperationPanel';
+import type { GraspOperationsProps } from './panel-types';
 import SequenceEditor from '@/components/sequence/SequenceEditor';
 import PoseControlCard from '@/components/PoseControlCard';
 import PositionTargetCard from '@/components/PositionTargetCard';
-import { BOX_HALF_SIZE, SUCKER_LENGTH, APPROACH_HEIGHT } from '@/hooks/useSuckerControl';
+import { SUCKER_LENGTH, APPROACH_HEIGHT } from '@/hooks/useSuckerControl';
 import SuckerDemoModal from '@/components/learning/SuckerDemoModal';
 import { buildGraspApproachPose, buildPlacePose } from '@/lib/grasp-planning';
 import {
@@ -25,7 +25,7 @@ const boxStateText: Record<string, string> = {
   RESTING: '静止',
 };
 
-export default function GraspOperations(props: OperationPanelData) {
+export default function GraspOperations(props: GraspOperationsProps) {
   const stepId = props.currentStep.id;
   const { sequenceSteps, setSequenceSteps, waypoints } = props;
   const [showSuckerDemo, setShowSuckerDemo] = useState(false);

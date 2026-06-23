@@ -2,7 +2,7 @@
 // 自由练习模式右侧面板：方案 5 落地
 // 保留原 ControlPanel 的 Tab + 可折叠卡片结构，换用当前项目的新视觉风格
 import { useState } from 'react';
-import type { OperationPanelData } from './OperationPanel';
+import type { FreeOperationPanelProps } from './panel-types';
 import JointAngleCard from '@/components/JointAngleCard';
 import PoseControlCard from '@/components/PoseControlCard';
 import PositionTargetCard from '@/components/PositionTargetCard';
@@ -31,7 +31,7 @@ const boxStateText: Record<string, string> = {
   RESTING: '静止',
 };
 
-export default function FreeOperationPanel(props: OperationPanelData) {
+export default function FreeOperationPanel(props: FreeOperationPanelProps) {
   const [activeTab, setActiveTab] = useState<FreeTab>('robot');
 
   return (
@@ -66,7 +66,7 @@ export default function FreeOperationPanel(props: OperationPanelData) {
   );
 }
 
-function RobotTab(props: OperationPanelData) {
+function RobotTab(props: FreeOperationPanelProps) {
   const viewport = useSceneViewport();
   return (
     <div className="space-y-4">
@@ -126,7 +126,7 @@ function RobotTab(props: OperationPanelData) {
   );
 }
 
-function CameraTab(props: OperationPanelData) {
+function CameraTab(props: FreeOperationPanelProps) {
   return (
     <div className="space-y-4">
       <StatusBar>
@@ -167,7 +167,7 @@ function CameraTab(props: OperationPanelData) {
   );
 }
 
-function SequenceTab(props: OperationPanelData) {
+function SequenceTab(props: FreeOperationPanelProps) {
   const isSuckerVisible = props.selectedTool === '吸盘';
   const handleToggleSucker = () => {
     props.setSelectedTool(isSuckerVisible ? '无' : '吸盘');

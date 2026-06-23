@@ -2,11 +2,11 @@
 import { useState } from 'react';
 import { Aperture, Camera, Scan, Crosshair, Box } from 'lucide-react';
 import { CAMERA_RESOLUTIONS } from '@/lib/camera-config';
-import type { OperationPanelData } from './OperationPanel';
+import type { CameraOperationsProps } from './panel-types';
 import CameraParamsCard from '@/components/camera/CameraParamsCard';
 import CapturePanel from '@/components/camera/CapturePanel';
 
-export default function CameraOperations(props: OperationPanelData) {
+export default function CameraOperations(props: CameraOperationsProps) {
   const stepId = props.currentStep.id;
   const [showCalibrationResult, setShowCalibrationResult] = useState(false);
 

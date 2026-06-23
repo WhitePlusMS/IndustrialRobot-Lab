@@ -1,12 +1,6 @@
 // src/components/operation/OperationPanel.tsx
 // 右侧操作面板：从各 Context 读取数据，只保留折叠状态作为组件级 UI props
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import type { ModuleId, CourseStep, LearningMode } from '@/lib/course-config';
-import type { RobotConfig, JointAngles, CoordinateSystem, StatusType } from '@/types/robot';
-import type { TaskPoseConstraintProfile } from '@/types/robot';
-import type { CameraState, CaptureResult } from '@/types/camera';
-import type { ActionStep, SequenceLog, SequenceStatus } from '@/types/sequence';
-import type { Waypoint } from '@/hooks/useRobot';
 import { useLearning } from '@/contexts/LearningContext';
 import { useRobotContext } from '@/contexts/RobotContext';
 import { useVirtualCameraContext } from '@/contexts/VirtualCameraContext';
@@ -19,117 +13,24 @@ import CameraOperations from './CameraOperations';
 import GraspOperations from './GraspOperations';
 import FreeOperationPanel from './FreeOperationPanel';
 import TeachingGuidePanel from './TeachingGuidePanel';
+import type {
+  CameraOperationsProps,
+  CameraPanelData,
+  FreeOperationPanelProps,
+  GraspOperationsProps,
+  GraspPanelData,
+  LayoutPanelData,
+  OperationPanelData,
+  RobotOperationsProps,
+  RobotPanelData,
+  SceneCameraPanelData,
+  SequencePanelData,
+} from './panel-types';
 
 export interface OperationPanelProps {
   collapsed: boolean;
   onCollapse: () => void;
 }
-
-// 供内部子组件使用的聚合 props（保持子组件接口不变，减少侵入式修改）
-export interface LayoutPanelData {
-  currentModule: ModuleId;
-  currentStep: CourseStep;
-  mode: LearningMode;
-  collapsed: boolean;
-  onCollapse: () => void;
-}
-
-export interface RobotPanelData {
-  sliderTargetRef: React.MutableRefObject<JointAngles>;
-  joints: JointAngles;
-  config: RobotConfig;
-  jointStep: number;
-  onJointStepChange: (v: number) => void;
-  onAdjustJoint: (index: number, delta: number, isContinuous?: boolean) => void;
-  onSetJoint: (index: number, value: number) => void;
-  onReset: () => void;
-  onRandom: () => void;
-  coordinateSystem: CoordinateSystem;
-  onCoordinateChange: (cs: CoordinateSystem) => void;
-  posStep: number;
-  onPosStepChange: (v: number) => void;
-  rotStep: number;
-  onRotStepChange: (v: number) => void;
-  onMoveDirection: (axis: 'x' | 'y' | 'z' | 'rx' | 'ry' | 'rz', sign: 1 | -1, isLongPress: boolean) => void;
-  onGotoWaypoint: (joints: JointAngles) => void;
-  onGoToPosition: (x: number, y: number, z: number, rx?: number, ry?: number, rz?: number, profile?: TaskPoseConstraintProfile) => boolean;
-  currentGLBPosition: [number, number, number] | null;
-  status: StatusType;
-  highlightedJoint: number | null;
-  setHighlightedJoint: (index: number | null) => void;
-  selectedTool: string;
-  setSelectedTool: (tool: string) => void;
-}
-
-export interface CameraPanelData {
-  cameraState: CameraState;
-  captureResult: CaptureResult | null;
-  cameraPosStep: number;
-  onCameraPosStepChange: (v: number) => void;
-  cameraRotStep: number;
-  onCameraRotStepChange: (v: number) => void;
-  cameraFovStep: number;
-  onCameraFovStepChange: (v: number) => void;
-  setCameraPositionAxis: (axis: 0 | 1 | 2, value: number) => void;
-  setCameraRotationAxis: (axis: 0 | 1 | 2, value: number) => void;
-  setCameraFov: (v: number) => void;
-  setCameraNear: (v: number) => void;
-  setCameraFar: (v: number) => void;
-  toggleCameraFrustum: () => void;
-  toggleCameraModel: () => void;
-  setCameraResolution: (w: number, h: number) => void;
-  resetCamera: () => void;
-  setCameraPositionAxisTarget: (axis: 0 | 1 | 2, value: number) => void;
-  setCameraRotationAxisTarget: (axis: 0 | 1 | 2, value: number) => void;
-  setCameraFovTarget: (value: number) => void;
-  setCameraNearTarget: (value: number) => void;
-  setCameraFarTarget: (value: number) => void;
-  showCamera: boolean;
-  onCapture: (result: CaptureResult) => void;
-}
-
-export interface SceneCameraPanelData {
-  sceneCameraPosition: [number, number, number];
-  setSceneCameraPositionAxis: (axis: 0 | 1 | 2, value: number) => void;
-  setSceneCameraView: (view: 'front' | 'side' | 'top' | 'free') => void;
-  resetSceneCamera: () => void;
-}
-
-export interface SequencePanelData {
-  sequenceSteps: ActionStep[];
-  setSequenceSteps: (steps: ActionStep[]) => void;
-  loadDefaultSequence: () => void;
-  clearSequence: () => void;
-  suppressAutoDefaultLoad: boolean;
-  sequenceCurrentStep: number;
-  sequenceStatus: SequenceStatus;
-  sequenceLogs: SequenceLog[];
-  onSequenceAddStep: (type: ActionStep['type']) => void;
-  onSequenceRemoveStep: (index: number) => void;
-  onSequenceMoveStep: (index: number, direction: 'up' | 'down') => void;
-  onSequenceUpdateStep: (index: number, updates: Partial<ActionStep>) => void;
-  onSequenceRun: () => void;
-  onSequenceStep: () => void;
-  onSequenceStop: () => void;
-  onSequenceReset: () => void;
-  waypoints: Waypoint[];
-  captureImages: { color?: string; segmentation?: string; depth?: string };
-}
-
-export interface GraspPanelData {
-  suckerOn: boolean;
-  boxState: string;
-  boxPosition: [number, number, number];
-  onSpawnParts: (count: number, size: number) => void;
-  onClearParts: () => void;
-  hasDemoParts: boolean;
-  turnSuckerOn: () => void;
-  turnSuckerOff: () => void;
-  spawnBox: (position: [number, number, number], restingHeight?: number) => void;
-  resetBox: () => void;
-}
-
-export interface OperationPanelData extends LayoutPanelData, RobotPanelData, CameraPanelData, SceneCameraPanelData, SequencePanelData, GraspPanelData {}
 
 function useOperationPanelData(props: OperationPanelProps): OperationPanelData {
   const learning = useLearning();
@@ -266,6 +167,205 @@ function useOperationPanelData(props: OperationPanelProps): OperationPanelData {
 
 export default function OperationPanel(props: OperationPanelProps) {
   const data = useOperationPanelData(props);
+  const robotOperationsProps: RobotOperationsProps = {
+    currentModule: data.currentModule,
+    currentStep: data.currentStep,
+    mode: data.mode,
+    collapsed: data.collapsed,
+    onCollapse: data.onCollapse,
+    sliderTargetRef: data.sliderTargetRef,
+    joints: data.joints,
+    config: data.config,
+    jointStep: data.jointStep,
+    onJointStepChange: data.onJointStepChange,
+    onAdjustJoint: data.onAdjustJoint,
+    onSetJoint: data.onSetJoint,
+    onReset: data.onReset,
+    onRandom: data.onRandom,
+    coordinateSystem: data.coordinateSystem,
+    onCoordinateChange: data.onCoordinateChange,
+    posStep: data.posStep,
+    onPosStepChange: data.onPosStepChange,
+    rotStep: data.rotStep,
+    onRotStepChange: data.onRotStepChange,
+    onMoveDirection: data.onMoveDirection,
+    onGotoWaypoint: data.onGotoWaypoint,
+    onGoToPosition: data.onGoToPosition,
+    currentGLBPosition: data.currentGLBPosition,
+    status: data.status,
+    highlightedJoint: data.highlightedJoint,
+    setHighlightedJoint: data.setHighlightedJoint,
+    selectedTool: data.selectedTool,
+    setSelectedTool: data.setSelectedTool,
+  };
+  const cameraOperationsProps: CameraOperationsProps = {
+    currentModule: data.currentModule,
+    currentStep: data.currentStep,
+    mode: data.mode,
+    collapsed: data.collapsed,
+    onCollapse: data.onCollapse,
+    cameraState: data.cameraState,
+    captureResult: data.captureResult,
+    cameraPosStep: data.cameraPosStep,
+    onCameraPosStepChange: data.onCameraPosStepChange,
+    cameraRotStep: data.cameraRotStep,
+    onCameraRotStepChange: data.onCameraRotStepChange,
+    cameraFovStep: data.cameraFovStep,
+    onCameraFovStepChange: data.onCameraFovStepChange,
+    setCameraPositionAxis: data.setCameraPositionAxis,
+    setCameraRotationAxis: data.setCameraRotationAxis,
+    setCameraFov: data.setCameraFov,
+    setCameraNear: data.setCameraNear,
+    setCameraFar: data.setCameraFar,
+    toggleCameraFrustum: data.toggleCameraFrustum,
+    toggleCameraModel: data.toggleCameraModel,
+    setCameraResolution: data.setCameraResolution,
+    resetCamera: data.resetCamera,
+    setCameraPositionAxisTarget: data.setCameraPositionAxisTarget,
+    setCameraRotationAxisTarget: data.setCameraRotationAxisTarget,
+    setCameraFovTarget: data.setCameraFovTarget,
+    setCameraNearTarget: data.setCameraNearTarget,
+    setCameraFarTarget: data.setCameraFarTarget,
+    showCamera: data.showCamera,
+    onCapture: data.onCapture,
+  };
+  const graspOperationsProps: GraspOperationsProps = {
+    currentModule: data.currentModule,
+    currentStep: data.currentStep,
+    mode: data.mode,
+    collapsed: data.collapsed,
+    onCollapse: data.onCollapse,
+    sliderTargetRef: data.sliderTargetRef,
+    joints: data.joints,
+    config: data.config,
+    jointStep: data.jointStep,
+    onJointStepChange: data.onJointStepChange,
+    onAdjustJoint: data.onAdjustJoint,
+    onSetJoint: data.onSetJoint,
+    onReset: data.onReset,
+    onRandom: data.onRandom,
+    coordinateSystem: data.coordinateSystem,
+    onCoordinateChange: data.onCoordinateChange,
+    posStep: data.posStep,
+    onPosStepChange: data.onPosStepChange,
+    rotStep: data.rotStep,
+    onRotStepChange: data.onRotStepChange,
+    onMoveDirection: data.onMoveDirection,
+    onGotoWaypoint: data.onGotoWaypoint,
+    onGoToPosition: data.onGoToPosition,
+    currentGLBPosition: data.currentGLBPosition,
+    status: data.status,
+    highlightedJoint: data.highlightedJoint,
+    setHighlightedJoint: data.setHighlightedJoint,
+    selectedTool: data.selectedTool,
+    setSelectedTool: data.setSelectedTool,
+    suckerOn: data.suckerOn,
+    boxState: data.boxState,
+    boxPosition: data.boxPosition,
+    onSpawnParts: data.onSpawnParts,
+    onClearParts: data.onClearParts,
+    hasDemoParts: data.hasDemoParts,
+    turnSuckerOn: data.turnSuckerOn,
+    turnSuckerOff: data.turnSuckerOff,
+    spawnBox: data.spawnBox,
+    resetBox: data.resetBox,
+    sequenceSteps: data.sequenceSteps,
+    setSequenceSteps: data.setSequenceSteps,
+    loadDefaultSequence: data.loadDefaultSequence,
+    clearSequence: data.clearSequence,
+    suppressAutoDefaultLoad: data.suppressAutoDefaultLoad,
+    sequenceCurrentStep: data.sequenceCurrentStep,
+    sequenceStatus: data.sequenceStatus,
+    sequenceLogs: data.sequenceLogs,
+    onSequenceAddStep: data.onSequenceAddStep,
+    onSequenceRemoveStep: data.onSequenceRemoveStep,
+    onSequenceMoveStep: data.onSequenceMoveStep,
+    onSequenceUpdateStep: data.onSequenceUpdateStep,
+    onSequenceRun: data.onSequenceRun,
+    onSequenceStep: data.onSequenceStep,
+    onSequenceStop: data.onSequenceStop,
+    onSequenceReset: data.onSequenceReset,
+    waypoints: data.waypoints,
+    captureImages: data.captureImages,
+  };
+  const freeOperationPanelProps: FreeOperationPanelProps = {
+    sliderTargetRef: data.sliderTargetRef,
+    joints: data.joints,
+    config: data.config,
+    jointStep: data.jointStep,
+    onJointStepChange: data.onJointStepChange,
+    onAdjustJoint: data.onAdjustJoint,
+    onSetJoint: data.onSetJoint,
+    onReset: data.onReset,
+    onRandom: data.onRandom,
+    coordinateSystem: data.coordinateSystem,
+    onCoordinateChange: data.onCoordinateChange,
+    posStep: data.posStep,
+    onPosStepChange: data.onPosStepChange,
+    rotStep: data.rotStep,
+    onRotStepChange: data.onRotStepChange,
+    onMoveDirection: data.onMoveDirection,
+    onGotoWaypoint: data.onGotoWaypoint,
+    onGoToPosition: data.onGoToPosition,
+    currentGLBPosition: data.currentGLBPosition,
+    status: data.status,
+    highlightedJoint: data.highlightedJoint,
+    setHighlightedJoint: data.setHighlightedJoint,
+    selectedTool: data.selectedTool,
+    setSelectedTool: data.setSelectedTool,
+    cameraState: data.cameraState,
+    captureResult: data.captureResult,
+    cameraPosStep: data.cameraPosStep,
+    onCameraPosStepChange: data.onCameraPosStepChange,
+    cameraRotStep: data.cameraRotStep,
+    onCameraRotStepChange: data.onCameraRotStepChange,
+    cameraFovStep: data.cameraFovStep,
+    onCameraFovStepChange: data.onCameraFovStepChange,
+    setCameraPositionAxis: data.setCameraPositionAxis,
+    setCameraRotationAxis: data.setCameraRotationAxis,
+    setCameraFov: data.setCameraFov,
+    setCameraNear: data.setCameraNear,
+    setCameraFar: data.setCameraFar,
+    toggleCameraFrustum: data.toggleCameraFrustum,
+    toggleCameraModel: data.toggleCameraModel,
+    setCameraResolution: data.setCameraResolution,
+    resetCamera: data.resetCamera,
+    setCameraPositionAxisTarget: data.setCameraPositionAxisTarget,
+    setCameraRotationAxisTarget: data.setCameraRotationAxisTarget,
+    setCameraFovTarget: data.setCameraFovTarget,
+    setCameraNearTarget: data.setCameraNearTarget,
+    setCameraFarTarget: data.setCameraFarTarget,
+    showCamera: data.showCamera,
+    onCapture: data.onCapture,
+    sequenceSteps: data.sequenceSteps,
+    setSequenceSteps: data.setSequenceSteps,
+    loadDefaultSequence: data.loadDefaultSequence,
+    clearSequence: data.clearSequence,
+    suppressAutoDefaultLoad: data.suppressAutoDefaultLoad,
+    sequenceCurrentStep: data.sequenceCurrentStep,
+    sequenceStatus: data.sequenceStatus,
+    sequenceLogs: data.sequenceLogs,
+    onSequenceAddStep: data.onSequenceAddStep,
+    onSequenceRemoveStep: data.onSequenceRemoveStep,
+    onSequenceMoveStep: data.onSequenceMoveStep,
+    onSequenceUpdateStep: data.onSequenceUpdateStep,
+    onSequenceRun: data.onSequenceRun,
+    onSequenceStep: data.onSequenceStep,
+    onSequenceStop: data.onSequenceStop,
+    onSequenceReset: data.onSequenceReset,
+    waypoints: data.waypoints,
+    captureImages: data.captureImages,
+    suckerOn: data.suckerOn,
+    boxState: data.boxState,
+    boxPosition: data.boxPosition,
+    onSpawnParts: data.onSpawnParts,
+    onClearParts: data.onClearParts,
+    hasDemoParts: data.hasDemoParts,
+    turnSuckerOn: data.turnSuckerOn,
+    turnSuckerOff: data.turnSuckerOff,
+    spawnBox: data.spawnBox,
+    resetBox: data.resetBox,
+  };
 
   if (data.collapsed) {
     return (
@@ -300,13 +400,13 @@ export default function OperationPanel(props: OperationPanelProps) {
 
       <div className="flex-1 overflow-hidden">
         {data.mode === 'free' ? (
-          <FreeOperationPanel {...data} />
+          <FreeOperationPanel {...freeOperationPanelProps} />
         ) : (
           <div className="h-full overflow-y-auto p-5 space-y-4">
             <TeachingGuidePanel step={data.currentStep} />
-            {data.currentModule === 'robot' && <RobotOperations {...data} />}
-            {data.currentModule === 'camera' && <CameraOperations {...data} />}
-            {data.currentModule === 'grasp' && <GraspOperations {...data} />}
+            {data.currentModule === 'robot' && <RobotOperations {...robotOperationsProps} />}
+            {data.currentModule === 'camera' && <CameraOperations {...cameraOperationsProps} />}
+            {data.currentModule === 'grasp' && <GraspOperations {...graspOperationsProps} />}
           </div>
         )}
       </div>

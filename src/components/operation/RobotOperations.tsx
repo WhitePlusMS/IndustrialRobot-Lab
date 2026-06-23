@@ -1,5 +1,5 @@
 // src/components/operation/RobotOperations.tsx
-import type { OperationPanelData } from './OperationPanel';
+import type { RobotOperationsProps } from './panel-types';
 import JointAngleCard from '@/components/JointAngleCard';
 import PoseControlCard from '@/components/PoseControlCard';
 import PositionTargetCard from '@/components/PositionTargetCard';
@@ -7,7 +7,7 @@ import WaypointPanel from '@/components/WaypointPanel';
 import { useSceneViewport } from '@/contexts/SceneViewportContext';
 import { Eye, EyeOff, Grip } from 'lucide-react';
 
-export default function RobotOperations(props: OperationPanelData) {
+export default function RobotOperations(props: RobotOperationsProps) {
   const stepId = props.currentStep.id;
   const viewport = useSceneViewport();
 
