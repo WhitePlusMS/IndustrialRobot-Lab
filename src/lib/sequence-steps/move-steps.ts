@@ -57,7 +57,7 @@ export async function executeMoveAboveBox({ step, stepIndex, deps, ctx, callback
   return true;
 }
 
-export async function executeDescendToBox({ step, stepIndex, deps, ctx, callbacks }: StepExecutorParams): Promise<boolean> {
+export async function executeDescendToBox({ stepIndex, deps, ctx, callbacks }: StepExecutorParams): Promise<boolean> {
   const { robot, robotPoseApi } = deps;
   const { ctxRef, abortRef } = ctx;
   const { log, onStepStatusChange } = callbacks;

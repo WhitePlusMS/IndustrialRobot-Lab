@@ -34,7 +34,7 @@ export async function executeDeleteAllBoxes({ stepIndex, ctx, callbacks }: StepE
   return true;
 }
 
-export async function executeSpawnBox({ step, stepIndex, deps, ctx, callbacks }: StepExecutorParams): Promise<boolean> {
+export async function executeSpawnBox({ step, stepIndex, ctx, callbacks }: StepExecutorParams): Promise<boolean> {
   const { ctxRef, setCtx } = ctx;
   const { log, onStepStatusChange, onSpawnBox, getBoxState } = callbacks;
   const spawn = (step.params as { boxSpawn?: {
