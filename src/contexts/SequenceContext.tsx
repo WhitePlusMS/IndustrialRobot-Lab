@@ -30,6 +30,7 @@ export function SequenceProvider({ children }: { children: ReactNode }) {
     joints: robot.joints,
     goToJoints: robot.goToJoints,
     goToPosition: robot.goToPosition,
+    isMotionQueueIdle: robot.isMotionQueueIdle,
     stopAnimation: robot.stopAnimation,
     isAnimating: robot.isAnimating,
     isAnimatingRef: robot.isAnimatingRef,
@@ -40,9 +41,11 @@ export function SequenceProvider({ children }: { children: ReactNode }) {
     camera.cameraState,
     sucker.turnSuckerOn,
     sucker.turnSuckerOff,
-    sucker.forceAttachBox,
     sucker.spawnBox,
     sucker.resetBox,
+    sucker.resetBox,
+    sucker.getBoxState,
+    sucker.isBoxAttachedStable,
     waypoints
   );
 
@@ -50,8 +53,7 @@ export function SequenceProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (
       sequence.ctx.boxPose &&
-      sucker.boxState !== 'FALLING' &&
-      sucker.boxState !== 'ATTACHED'
+      sucker.boxState === 'FREE'
     ) {
       sucker.setBoxPositionExternal(sequence.ctx.boxPose.position);
     }

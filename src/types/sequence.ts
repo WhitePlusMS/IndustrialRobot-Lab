@@ -2,6 +2,7 @@
 
 /** 动作步骤类型 */
 export type ActionStepType =
+  | '删除所有箱子'
   | '生成箱子'
   | '拍照'
   | '移动到箱子上方'
@@ -12,6 +13,20 @@ export type ActionStepType =
   | '移动到目标位姿'
   | '归位'
   | '等待';
+
+export const DEFAULT_SEQUENCE_BOX_FIXED_POSITION: [number, number, number] = [-1000, 350, 0];
+export const DEFAULT_SEQUENCE_BOX_RANDOM_CENTER: [number, number] = [-975, 0];
+export const DEFAULT_SEQUENCE_BOX_RANDOM_RANGE_X = 125;
+export const DEFAULT_SEQUENCE_BOX_RANDOM_RANGE_Z = 100;
+export const DEFAULT_SEQUENCE_BOX_MIN_HEIGHT = 350;
+export const DEFAULT_SEQUENCE_BOX_MAX_HEIGHT = 450;
+export const DEFAULT_SEQUENCE_BOX_RESTING_HEIGHT = 200;
+export const DEFAULT_SEQUENCE_APPROACH_HEIGHT = 50;
+export const DEFAULT_SEQUENCE_LIFT_HEIGHT = 100;
+export const DEFAULT_SEQUENCE_PLACE_PRESET_NAME = '__DEFAULT_PLACE_POSE__';
+export const DEFAULT_SEQUENCE_PLACE_PRESET_LABEL = '预设放置位姿';
+export const DEFAULT_SEQUENCE_PLACE_POSITION_M: [number, number, number] = [0.1018, 1.1154, 1.1429];
+export const DEFAULT_SEQUENCE_PLACE_ORIENTATION_DEG: [number, number, number] = [-126.3, 87.8, -38.2];
 
 /** 箱子生成参数 */
 export interface BoxSpawnParams {
@@ -84,25 +99,26 @@ export function generateStepId(): string {
 
 export function createDefaultStep(type: ActionStepType): ActionStep {
   const defaults: Record<ActionStepType, ActionStepParams> = {
+    '删除所有箱子': {},
     '生成箱子': {
       boxSpawn: {
-        mode: 'random',
-        fixedPosition: [400, 120, 250],
-        randomCenter: [400, 250],
-        randomRangeX: 150,
-        randomRangeZ: 120,
-        minHeight: 300,
-        maxHeight: 600,
-        restingHeight: 50,
+        mode: 'fixed',
+        fixedPosition: DEFAULT_SEQUENCE_BOX_FIXED_POSITION,
+        randomCenter: DEFAULT_SEQUENCE_BOX_RANDOM_CENTER,
+        randomRangeX: DEFAULT_SEQUENCE_BOX_RANDOM_RANGE_X,
+        randomRangeZ: DEFAULT_SEQUENCE_BOX_RANDOM_RANGE_Z,
+        minHeight: DEFAULT_SEQUENCE_BOX_MIN_HEIGHT,
+        maxHeight: DEFAULT_SEQUENCE_BOX_MAX_HEIGHT,
+        restingHeight: DEFAULT_SEQUENCE_BOX_RESTING_HEIGHT,
       },
     },
     '拍照': {},
-    '移动到箱子上方': { approachHeight: 50 },
+    '移动到箱子上方': { approachHeight: DEFAULT_SEQUENCE_APPROACH_HEIGHT },
     '下降到箱面': {},
     '吸盘开启': {},
     '吸盘关闭': {},
-    '抬升': { liftHeight: 100 },
-    '移动到目标位姿': { memoryPointName: '' },
+    '抬升': { liftHeight: DEFAULT_SEQUENCE_LIFT_HEIGHT },
+    '移动到目标位姿': { memoryPointName: DEFAULT_SEQUENCE_PLACE_PRESET_NAME },
     '归位': {},
     '等待': { waitDuration: 1000 },
   };
@@ -117,12 +133,13 @@ export function createDefaultStep(type: ActionStepType): ActionStep {
 /** 预设抓取序列 */
 export function createDefaultGraspSequence(): ActionStep[] {
   return [
+    createDefaultStep('删除所有箱子'),
     createDefaultStep('生成箱子'),
     createDefaultStep('移动到箱子上方'),
     createDefaultStep('下降到箱面'),
     createDefaultStep('吸盘开启'),
     { ...createDefaultStep('抬升'), params: { liftHeight: 100 } },
-    { ...createDefaultStep('移动到目标位姿'), params: { memoryPointName: '' } },
+    { ...createDefaultStep('移动到目标位姿'), params: { memoryPointName: DEFAULT_SEQUENCE_PLACE_PRESET_NAME } },
     createDefaultStep('吸盘关闭'),
     createDefaultStep('归位'),
   ];

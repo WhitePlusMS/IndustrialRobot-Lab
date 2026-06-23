@@ -1,17 +1,17 @@
 // src/components/sequence/SequenceEditor.tsx
 import { useState, useRef, useEffect } from 'react';
 import type { ActionStep, SequenceLog, SequenceStatus } from '@/types/sequence';
-import { createDefaultGraspSequence } from '@/types/sequence';
 import type { Waypoint } from '@/hooks/useRobot';
 import SequenceStepList from './SequenceStepList';
 import SequenceStepParams from './SequenceStepParams';
 
 interface SequenceEditorProps {
   steps: ActionStep[];
-  setStepsList: (steps: ActionStep[]) => void;
   currentStepIndex: number;
   status: SequenceStatus;
   logs: SequenceLog[];
+  loadDefaultSequence: () => void;
+  clearSequence: () => void;
   addStep: (type: ActionStep['type']) => void;
   removeStep: (index: number) => void;
   moveStep: (index: number, direction: 'up' | 'down') => void;
@@ -28,10 +28,11 @@ interface SequenceEditorProps {
 
 export default function SequenceEditor({
   steps,
-  setStepsList,
   currentStepIndex,
   status,
   logs,
+  loadDefaultSequence,
+  clearSequence,
   addStep,
   removeStep,
   moveStep,
@@ -56,14 +57,20 @@ export default function SequenceEditor({
     }
   }, [logs, prefersReducedMotion]);
 
-  const loadDefaultSequence = () => {
-    setStepsList(createDefaultGraspSequence());
+  useEffect(() => {
+    if (selectedIndex >= steps.length) {
+      setSelectedIndex(-1);
+    }
+  }, [selectedIndex, steps.length]);
+
+  const handleLoadDefaultSequence = () => {
+    loadDefaultSequence();
     setSelectedIndex(-1);
   };
 
-  const clearSequence = () => {
+  const handleClearSequence = () => {
     if (!confirm('确定清空所有序列步骤？')) return;
-    setStepsList([]);
+    clearSequence();
     setSelectedIndex(-1);
   };
 
@@ -88,14 +95,14 @@ export default function SequenceEditor({
         <div className="flex gap-1">
           <button
             type="button"
-            onClick={loadDefaultSequence}
+            onClick={handleLoadDefaultSequence}
             className="flex-1 h-7 bg-blue-50 text-blue-600 text-[10px] font-medium rounded-sm border border-blue-200 hover:bg-blue-100 transition-colors"
           >
             加载默认抓取序列
           </button>
           <button
             type="button"
-            onClick={clearSequence}
+            onClick={handleClearSequence}
             className="h-7 px-2 bg-red-50 text-red-600 text-[10px] rounded-sm border border-red-200 hover:bg-red-100 transition-colors"
           >
             清空
@@ -133,10 +140,10 @@ export default function SequenceEditor({
         />
 
         {/* 播放控制 */}
-        {/* 如果存在未选择记忆点的"移动到目标位姿"步骤，给出红色提示 */}
+        {/* 如果存在未选择目标位姿的"移动到目标位姿"步骤，给出红色提示 */}
         {steps.some((s) => s.type === '移动到目标位姿' && !s.params.memoryPointName) && (
           <div className="flex items-start gap-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-            <span>请为所有"移动到目标位姿"步骤选择记忆点</span>
+            <span>请为所有"移动到目标位姿"步骤选择目标位姿</span>
           </div>
         )}
         <div className="grid grid-cols-4 gap-1">

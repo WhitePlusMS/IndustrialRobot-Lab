@@ -8,8 +8,13 @@ import SequenceEditor from '@/components/sequence/SequenceEditor';
 import PoseControlCard from '@/components/PoseControlCard';
 import PositionTargetCard from '@/components/PositionTargetCard';
 import { BOX_HALF_SIZE, SUCKER_LENGTH, APPROACH_HEIGHT } from '@/hooks/useSuckerControl';
-import { createDefaultGraspSequence } from '@/types/sequence';
 import SuckerDemoModal from '@/components/learning/SuckerDemoModal';
+import { buildGraspApproachPose } from '@/lib/grasp-planning';
+import {
+  DEFAULT_SEQUENCE_PLACE_ORIENTATION_DEG,
+  DEFAULT_SEQUENCE_PLACE_POSITION_M,
+  DEFAULT_SEQUENCE_PLACE_PRESET_NAME,
+} from '@/types/sequence';
 
 const boxStateText: Record<string, string> = {
   NONE: '无物体',
@@ -34,24 +39,18 @@ export default function GraspOperations(props: OperationPanelData) {
   useEffect(() => {
     if (stepId !== 'grasp-sequence') return;
 
-    // 如果还没有序列，加载默认序列，并默认选中第一个记忆点
-    if (sequenceSteps.length === 0) {
-      const defaultSteps = createDefaultGraspSequence();
-      if (waypoints.length > 0) {
-        const firstWaypoint = waypoints[0];
-        defaultSteps.forEach((s) => {
-          if (s.type === '移动到目标位姿') {
-            s.params.memoryPointName = firstWaypoint.name;
-          }
-        });
-      }
-      setSequenceSteps(defaultSteps);
+    // 首次进入且未被用户手动清空时，自动加载默认序列
+    if (sequenceSteps.length === 0 && !props.suppressAutoDefaultLoad) {
+      props.loadDefaultSequence();
       return;
     }
 
     // 如果记忆点发生变化，确保"移动到目标位姿"步骤仍然指向有效记忆点
     if (waypoints.length > 0) {
-      const validNames = new Set(waypoints.map((wp) => wp.name));
+      const validNames = new Set([
+        DEFAULT_SEQUENCE_PLACE_PRESET_NAME,
+        ...waypoints.map((wp) => wp.name),
+      ]);
       const needsUpdate = sequenceSteps.some(
         (s) =>
           s.type === '移动到目标位姿' &&
@@ -69,15 +68,64 @@ export default function GraspOperations(props: OperationPanelData) {
         );
       }
     }
-  }, [stepId, sequenceSteps, sequenceSteps.length, setSequenceSteps, waypoints]);
+  }, [
+    stepId,
+    sequenceSteps,
+    setSequenceSteps,
+    waypoints,
+    props.loadDefaultSequence,
+    props.suppressAutoDefaultLoad,
+  ]);
 
   // 一键移动到箱子上方（grasp-approach 步骤使用）
   const handleApproachBox = () => {
     if (props.boxState === 'NONE') return;
     const [bx, by, bz] = props.boxPosition;
-    // 目标：箱子上方 5cm（吸盘尖端位于箱面上方 APPROACH_HEIGHT 处）
-    const targetY = by + BOX_HALF_SIZE + SUCKER_LENGTH + APPROACH_HEIGHT;
-    props.onGoToPosition(bx / 1000, targetY / 1000, bz / 1000);
+    const approachPose = buildGraspApproachPose(props.boxPosition);
+    console.log('[GraspOperations] 移动到箱子上方', {
+      boxState: props.boxState,
+      boxPositionMm: { x: bx, y: by, z: bz },
+      targetPositionMm: { x: bx, y: approachPose.targetYMm, z: bz },
+      approachHeightMm: APPROACH_HEIGHT,
+      suckerLengthMm: SUCKER_LENGTH,
+      targetOrientationDeg: {
+        rx: approachPose.rx,
+        ry: approachPose.ry,
+        rz: approachPose.rz,
+      },
+      currentGLBPositionM: props.currentGLBPosition,
+      status: props.status,
+    });
+    props.onGoToPosition(
+      approachPose.targetXM,
+      approachPose.targetYM,
+      approachPose.targetZM,
+      approachPose.rx,
+      approachPose.ry,
+      approachPose.rz,
+    );
+  };
+
+  const handleMoveToPlacePose = () => {
+    const exactPoseMoved = props.onGoToPosition(
+      DEFAULT_SEQUENCE_PLACE_POSITION_M[0],
+      DEFAULT_SEQUENCE_PLACE_POSITION_M[1],
+      DEFAULT_SEQUENCE_PLACE_POSITION_M[2],
+      DEFAULT_SEQUENCE_PLACE_ORIENTATION_DEG[0],
+      DEFAULT_SEQUENCE_PLACE_ORIENTATION_DEG[1],
+      DEFAULT_SEQUENCE_PLACE_ORIENTATION_DEG[2],
+    );
+
+    if (exactPoseMoved) {
+      return;
+    }
+
+    console.warn('[GraspOperations] 预设放置位姿完整姿态无解，回退到同坐标位置优先放置');
+    props.onGoToPosition(
+      DEFAULT_SEQUENCE_PLACE_POSITION_M[0],
+      DEFAULT_SEQUENCE_PLACE_POSITION_M[1],
+      DEFAULT_SEQUENCE_PLACE_POSITION_M[2],
+    );
   };
 
   return (
@@ -131,7 +179,7 @@ export default function GraspOperations(props: OperationPanelData) {
         <div className="space-y-3">
           <button
             type="button"
-            onClick={() => props.spawnBox([1000, 350, 0], 200)}
+            onClick={() => props.spawnBox([-1000, 350, 0], 200)}
             className="w-full py-3 text-[13px] font-semibold rounded-xl text-slate-700 bg-white border border-slate-200 shadow-sm hover:bg-slate-50 active:bg-slate-100 flex items-center justify-center gap-2"
           >
             <Box className="w-4 h-4" />
@@ -140,7 +188,7 @@ export default function GraspOperations(props: OperationPanelData) {
           <button
             type="button"
             onClick={() =>
-              props.spawnBox([850 + Math.random() * 300, 350, -150 + Math.random() * 300], 200)
+              props.spawnBox([-1100 + Math.random() * 250, 350, -100 + Math.random() * 200], 200)
             }
             className="w-full py-3 text-[13px] font-semibold rounded-xl text-slate-700 bg-white border border-slate-200 shadow-sm hover:bg-slate-50 active:bg-slate-100 flex items-center justify-center gap-2"
           >
@@ -192,11 +240,11 @@ export default function GraspOperations(props: OperationPanelData) {
           <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
             <p className="text-sm font-bold text-slate-800">放置区参考</p>
             <p className="text-xs text-slate-500">
-              预设放置坐标：[-0.4, 0.3, 0.25] m
+              预设放置位姿：[0.102, 1.115, 1.143] m · [-126.3°, 87.8°, -38.2°]
             </p>
             <button
               type="button"
-              onClick={() => props.onGoToPosition(-0.4, 0.3, 0.25)}
+              onClick={handleMoveToPlacePose}
               disabled={props.status === 'moving'}
               className="w-full py-2.5 text-[13px] font-semibold rounded-xl text-white bg-gradient-to-r from-emerald-500 to-emerald-600 border border-emerald-600 shadow-sm hover:from-emerald-600 hover:to-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
@@ -207,13 +255,24 @@ export default function GraspOperations(props: OperationPanelData) {
 
           <button
             type="button"
-            onClick={props.turnSuckerOn}
+            onClick={() => {
+              console.log('[GraspOperations] 开启吸盘点击', {
+                boxState: props.boxState,
+                boxPositionMm: {
+                  x: props.boxPosition[0],
+                  y: props.boxPosition[1],
+                  z: props.boxPosition[2],
+                },
+                suckerOn: props.suckerOn,
+                currentGLBPositionM: props.currentGLBPosition,
+                status: props.status,
+              });
+              props.turnSuckerOn();
+            }}
             disabled={
               props.suckerOn ||
               props.boxState === 'NONE' ||
-              props.boxState === 'FALLING' ||
-              props.boxState === 'FREE' ||
-              props.boxState === 'RESTING'
+              props.boxState === 'FALLING'
             }
             className="w-full py-3 text-[13px] font-semibold rounded-xl text-white bg-gradient-to-r from-blue-500 to-blue-600 border border-blue-600 shadow-sm hover:from-blue-600 hover:to-blue-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
@@ -226,10 +285,10 @@ export default function GraspOperations(props: OperationPanelData) {
               <span>请先生成箱子并接近箱面。</span>
             </div>
           )}
-          {(props.boxState === 'FREE' || props.boxState === 'RESTING') && (
-            <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          {props.boxState === 'FREE' && (
+            <div className="flex items-start gap-2 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>请先移动到箱子上方让吸盘贴近箱面。</span>
+              <span>请确认吸盘已贴近箱面，然后开启吸盘进行吸附。</span>
             </div>
           )}
           <button
@@ -276,26 +335,16 @@ export default function GraspOperations(props: OperationPanelData) {
         </div>
       )}
 
-      {/* 动作序列： grasp-sequence 步骤显示，并在顶部给出记忆点引导 */}
+      {/* 动作序列： grasp-sequence 步骤显示 */}
       {stepId === 'grasp-sequence' && (
         <div className="space-y-3">
-          {stepId === 'grasp-sequence' && props.waypoints.length === 0 && (
-            <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <p className="font-medium">还没有记忆点</p>
-                <p>
-                  动作序列中的"移动到目标位姿"需要记忆点。请先到"末端位置控制"步骤，把机械臂移动到放置位置，然后在"记忆点管理"中保存一个点。
-                </p>
-              </div>
-            </div>
-          )}
           <SequenceEditor
             steps={props.sequenceSteps}
-            setStepsList={props.setSequenceSteps}
             currentStepIndex={props.sequenceCurrentStep}
             status={props.sequenceStatus}
             logs={props.sequenceLogs}
+            loadDefaultSequence={props.loadDefaultSequence}
+            clearSequence={props.clearSequence}
             addStep={props.onSequenceAddStep}
             removeStep={props.onSequenceRemoveStep}
             moveStep={props.onSequenceMoveStep}

@@ -1,5 +1,20 @@
 // src/components/sequence/SequenceStepParams.tsx
-import type { ActionStep } from '@/types/sequence';
+import {
+  DEFAULT_SEQUENCE_APPROACH_HEIGHT,
+  DEFAULT_SEQUENCE_BOX_FIXED_POSITION,
+  DEFAULT_SEQUENCE_BOX_MAX_HEIGHT,
+  DEFAULT_SEQUENCE_BOX_MIN_HEIGHT,
+  DEFAULT_SEQUENCE_BOX_RANDOM_CENTER,
+  DEFAULT_SEQUENCE_BOX_RANDOM_RANGE_X,
+  DEFAULT_SEQUENCE_BOX_RANDOM_RANGE_Z,
+  DEFAULT_SEQUENCE_BOX_RESTING_HEIGHT,
+  DEFAULT_SEQUENCE_LIFT_HEIGHT,
+  DEFAULT_SEQUENCE_PLACE_ORIENTATION_DEG,
+  DEFAULT_SEQUENCE_PLACE_POSITION_M,
+  DEFAULT_SEQUENCE_PLACE_PRESET_LABEL,
+  DEFAULT_SEQUENCE_PLACE_PRESET_NAME,
+  type ActionStep,
+} from '@/types/sequence';
 import type { Waypoint } from '@/hooks/useRobot';
 
 interface SequenceStepParamsProps {
@@ -82,11 +97,11 @@ export default function SequenceStepParams({
                       inputMode="decimal"
                       autoComplete="off"
                       aria-label={`箱子固定位置 ${axis}`}
-                      value={step.params.boxSpawn?.fixedPosition?.[i] ?? 0}
+                      value={step.params.boxSpawn?.fixedPosition?.[i] ?? DEFAULT_SEQUENCE_BOX_FIXED_POSITION[i]}
                       onChange={(e) => {
                         const n = safeNumber(e.target.value);
                         if (n === null) return;
-                        const pos = [...(step.params.boxSpawn?.fixedPosition ?? [0, 0, 0])] as [number, number, number];
+                        const pos = [...(step.params.boxSpawn?.fixedPosition ?? DEFAULT_SEQUENCE_BOX_FIXED_POSITION)] as [number, number, number];
                         pos[i] = n;
                         handleParamChange('boxSpawn', {
                           ...step.params.boxSpawn,
@@ -115,11 +130,11 @@ export default function SequenceStepParams({
                     inputMode="decimal"
                     autoComplete="off"
                     aria-label="随机生成中心 X"
-                    value={step.params.boxSpawn?.randomCenter?.[0] ?? 300}
+                    value={step.params.boxSpawn?.randomCenter?.[0] ?? DEFAULT_SEQUENCE_BOX_RANDOM_CENTER[0]}
                     onChange={(e) => {
                       const n = safeNumber(e.target.value);
                       if (n === null) return;
-                      const center = [...(step.params.boxSpawn?.randomCenter ?? [300, 200])] as [number, number];
+                      const center = [...(step.params.boxSpawn?.randomCenter ?? DEFAULT_SEQUENCE_BOX_RANDOM_CENTER)] as [number, number];
                       center[0] = n;
                       handleParamChange('boxSpawn', {
                         ...step.params.boxSpawn,
@@ -138,11 +153,11 @@ export default function SequenceStepParams({
                     inputMode="decimal"
                     autoComplete="off"
                     aria-label="随机生成中心 Z"
-                    value={step.params.boxSpawn?.randomCenter?.[1] ?? 200}
+                    value={step.params.boxSpawn?.randomCenter?.[1] ?? DEFAULT_SEQUENCE_BOX_RANDOM_CENTER[1]}
                     onChange={(e) => {
                       const n = safeNumber(e.target.value);
                       if (n === null) return;
-                      const center = [...(step.params.boxSpawn?.randomCenter ?? [300, 200])] as [number, number];
+                      const center = [...(step.params.boxSpawn?.randomCenter ?? DEFAULT_SEQUENCE_BOX_RANDOM_CENTER)] as [number, number];
                       center[1] = n;
                       handleParamChange('boxSpawn', {
                         ...step.params.boxSpawn,
@@ -161,7 +176,7 @@ export default function SequenceStepParams({
                     inputMode="decimal"
                     autoComplete="off"
                     aria-label="随机生成 X 范围"
-                    value={step.params.boxSpawn?.randomRangeX ?? 150}
+                    value={step.params.boxSpawn?.randomRangeX ?? DEFAULT_SEQUENCE_BOX_RANDOM_RANGE_X}
                     onChange={(e) => {
                       const n = safeNumber(e.target.value);
                       if (n === null) return;
@@ -182,7 +197,7 @@ export default function SequenceStepParams({
                     inputMode="decimal"
                     autoComplete="off"
                     aria-label="随机生成 Z 范围"
-                    value={step.params.boxSpawn?.randomRangeZ ?? 150}
+                    value={step.params.boxSpawn?.randomRangeZ ?? DEFAULT_SEQUENCE_BOX_RANDOM_RANGE_Z}
                     onChange={(e) => {
                       const n = safeNumber(e.target.value);
                       if (n === null) return;
@@ -203,7 +218,7 @@ export default function SequenceStepParams({
                     inputMode="decimal"
                     autoComplete="off"
                     aria-label="随机生成最小高度"
-                    value={step.params.boxSpawn?.minHeight ?? 200}
+                    value={step.params.boxSpawn?.minHeight ?? DEFAULT_SEQUENCE_BOX_MIN_HEIGHT}
                     onChange={(e) => {
                       const n = safeNumber(e.target.value);
                       if (n === null) return;
@@ -224,7 +239,7 @@ export default function SequenceStepParams({
                     inputMode="decimal"
                     autoComplete="off"
                     aria-label="随机生成最大高度"
-                    value={step.params.boxSpawn?.maxHeight ?? 800}
+                    value={step.params.boxSpawn?.maxHeight ?? DEFAULT_SEQUENCE_BOX_MAX_HEIGHT}
                     onChange={(e) => {
                       const n = safeNumber(e.target.value);
                       if (n === null) return;
@@ -250,7 +265,7 @@ export default function SequenceStepParams({
                   inputMode="decimal"
                   autoComplete="off"
                   aria-label="箱子停止高度"
-                  value={step.params.boxSpawn?.restingHeight ?? 200}
+                  value={step.params.boxSpawn?.restingHeight ?? DEFAULT_SEQUENCE_BOX_RESTING_HEIGHT}
                   onChange={(e) => {
                     const n = safeNumber(e.target.value);
                     if (n === null) return;
@@ -267,6 +282,9 @@ export default function SequenceStepParams({
               <div className="text-[9px] text-[#94A3B8]">
                 箱子在橙色围栏内随机生成，从 min~max 高度自由落体至停止高度悬停
               </div>
+              <div className="text-[9px] text-[#94A3B8]">
+                箱体尺寸固定为 120 mm x 120 mm x 120 mm
+              </div>
             </div>
           )}
         </div>
@@ -282,7 +300,7 @@ export default function SequenceStepParams({
               inputMode="decimal"
               autoComplete="off"
               aria-label="接近高度"
-              value={step.params.approachHeight ?? 50}
+              value={step.params.approachHeight ?? DEFAULT_SEQUENCE_APPROACH_HEIGHT}
               onChange={(e) => { const n = safeNumber(e.target.value); if (n !== null) handleParamChange('approachHeight', n); }}
               className="flex-1 h-6 px-1.5 text-[11px] font-mono border border-[#D1D5DB] rounded-sm bg-white"
               step={10} min={10} max={200}
@@ -302,7 +320,7 @@ export default function SequenceStepParams({
               inputMode="decimal"
               autoComplete="off"
               aria-label="抬升高度"
-              value={step.params.liftHeight ?? 100}
+              value={step.params.liftHeight ?? DEFAULT_SEQUENCE_LIFT_HEIGHT}
               onChange={(e) => { const n = safeNumber(e.target.value); if (n !== null) handleParamChange('liftHeight', n); }}
               className="flex-1 h-6 px-1.5 text-[11px] font-mono border border-[#D1D5DB] rounded-sm bg-white"
               step={10} min={10} max={500}
@@ -315,26 +333,25 @@ export default function SequenceStepParams({
       {/* 移动到目标位姿 */}
       {step.type === '移动到目标位姿' && (
         <div className="space-y-1">
-          <div className="text-[10px] text-[#64748B] font-medium">选择记忆点</div>
-          {waypoints.length === 0 ? (
-            <div className="text-[10px] text-[#DC2626]">
-              暂无记忆点，请先在"机器人控制"→"记忆点管理"中添加记忆点
-            </div>
-          ) : (
-            <select
-              aria-label="选择记忆点"
-              value={step.params.memoryPointName ?? ''}
-              onChange={(e) => handleParamChange('memoryPointName', e.target.value)}
-              className="w-full h-7 px-1.5 text-[11px] border border-[#D1D5DB] rounded-sm bg-white"
-            >
-              <option value="">-- 选择 --</option>
-              {waypoints.map((wp) => (
-                <option key={wp.name} value={wp.name}>
-                  {wp.name} [{wp.joints.map((j) => j.toFixed(0)).join(', ')}]
-                </option>
-              ))}
-            </select>
-          )}
+          <div className="text-[10px] text-[#64748B] font-medium">选择目标位姿</div>
+          <select
+            aria-label="选择目标位姿"
+            value={step.params.memoryPointName ?? DEFAULT_SEQUENCE_PLACE_PRESET_NAME}
+            onChange={(e) => handleParamChange('memoryPointName', e.target.value)}
+            className="w-full h-7 px-1.5 text-[11px] border border-[#D1D5DB] rounded-sm bg-white"
+          >
+            <option value={DEFAULT_SEQUENCE_PLACE_PRESET_NAME}>
+              {DEFAULT_SEQUENCE_PLACE_PRESET_LABEL} [0.102, 1.115, 1.143] m · [-126.3°, 87.8°, -38.2°]
+            </option>
+            {waypoints.map((wp) => (
+              <option key={wp.name} value={wp.name}>
+                {wp.name} [{wp.joints.map((j) => j.toFixed(0)).join(', ')}]
+              </option>
+            ))}
+          </select>
+          <div className="text-[9px] text-[#94A3B8]">
+            当前内建默认位姿：[{DEFAULT_SEQUENCE_PLACE_POSITION_M[0].toFixed(3)}, {DEFAULT_SEQUENCE_PLACE_POSITION_M[1].toFixed(3)}, {DEFAULT_SEQUENCE_PLACE_POSITION_M[2].toFixed(3)}] m · [{DEFAULT_SEQUENCE_PLACE_ORIENTATION_DEG[0].toFixed(1)}°, {DEFAULT_SEQUENCE_PLACE_ORIENTATION_DEG[1].toFixed(1)}°, {DEFAULT_SEQUENCE_PLACE_ORIENTATION_DEG[2].toFixed(1)}°]
+          </div>
         </div>
       )}
 
@@ -360,6 +377,7 @@ export default function SequenceStepParams({
 
       {/* 无参数步骤 */}
       {(step.type === '拍照' ||
+        step.type === '删除所有箱子' ||
         step.type === '下降到箱面' || step.type === '吸盘开启' ||
         step.type === '吸盘关闭' || step.type === '归位') && (
         <div className="text-[10px] text-[#94A3B8]">此步骤无需参数</div>

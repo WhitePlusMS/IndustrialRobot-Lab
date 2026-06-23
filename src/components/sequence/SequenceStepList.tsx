@@ -14,6 +14,7 @@ interface SequenceStepListProps {
 }
 
 const STEP_TYPE_OPTIONS: { label: string; value: ActionStepType; color: string }[] = [
+  { label: '删除所有箱子', value: '删除所有箱子', color: '#7C2D12' },
   { label: '生成箱子', value: '生成箱子', color: '#E65100' },
   { label: '拍照', value: '拍照', color: '#2563EB' },
   { label: '移动到箱子上方', value: '移动到箱子上方', color: '#059669' },

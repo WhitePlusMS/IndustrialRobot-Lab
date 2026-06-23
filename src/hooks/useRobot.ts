@@ -9,7 +9,7 @@ import { SceneKinematicModel } from '@/lib/scene-kinematic-model';
 import { GLBRobotModel } from '@/lib/glb-robot-model';
 import { robotPoseBridge } from '@/lib/robot-pose-bridge';
 import type { CalibrationData } from '@/lib/robot-pose-bridge';
-import { solveIK, isReachable } from '@/lib/ik-solver';
+import { solveIK, solvePositionOnlyIK, isReachable } from '@/lib/ik-solver';
 import { solveIKWithGizmoConfig } from '@/lib/transform-gizmo-utils';
 import type { GizmoIKHandle } from '@/types/robot';
 import { Matrix4x4 } from '@/lib/matrix4x4';
@@ -35,10 +35,78 @@ interface EndEffectorPose {
   rotation: number[][];
 }
 
+interface GoToPositionPlanResult {
+  waypointJoints: JointAngles[];
+  depthUsed: number;
+}
+
+const POSITION_TRANSIT_LIFT_MM = 250;
+
+function normalizeJointAngleDeg(angle: number): number {
+  let normalized = angle;
+  while (normalized > 180) normalized -= 360;
+  while (normalized < -180) normalized += 360;
+  return normalized;
+}
+
+function buildPositionOnlyAltSeeds(
+  seedJoints: JointAngles,
+  targetPosition: [number, number, number]
+): JointAngles[] {
+  const [j1, , , j4, , j6] = seedJoints;
+  const targetHeadingDeg = normalizeJointAngleDeg(
+    radToDeg(Math.atan2(targetPosition[1], targetPosition[0]))
+  );
+  const headingCandidates = [
+    targetHeadingDeg,
+    normalizeJointAngleDeg(targetHeadingDeg + 20),
+    normalizeJointAngleDeg(targetHeadingDeg - 20),
+    j1,
+    normalizeJointAngleDeg(j1 + 20),
+    normalizeJointAngleDeg(j1 - 20),
+  ];
+  const uniqueHeadingCandidates = Array.from(
+    new Set(headingCandidates.map((angle) => Math.round(angle * 10) / 10))
+  );
+
+  const seeds: JointAngles[] = [];
+  uniqueHeadingCandidates.forEach((heading) => {
+    seeds.push([heading, -30, 60, j4, 0, j6]);
+    seeds.push([heading, -45, 90, j4, 0, j6]);
+    seeds.push([heading, -15, 45, j4, 30, j6]);
+  });
+
+  return [
+    ...seeds,
+    [targetHeadingDeg, -35, 70, j4, 20, j6],
+    [normalizeJointAngleDeg(targetHeadingDeg + 35), -45, 90, j4, 20, j6],
+    [normalizeJointAngleDeg(targetHeadingDeg - 35), -45, 90, j4, 20, j6],
+  ] as JointAngles[];
+}
+
 /** 把关节角限制到配置行程 */
 function clampJointsToRanges(joints: JointAngles, config: RobotConfig): JointAngles {
   const ranges = Object.values(config.dhParams).map((p) => p.thetaRange);
   return joints.map((value, i) => Math.max(ranges[i][0], Math.min(ranges[i][1], value))) as JointAngles;
+}
+
+/** 线性插值标量 */
+function lerpScalar(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+/** 在两个欧拉角之间做最短路径插值，避免跨 ±pi 时绕大圈 */
+function lerpEulerShortest(
+  start: [number, number, number],
+  end: [number, number, number],
+  t: number
+): [number, number, number] {
+  return start.map((value, index) => {
+    let delta = end[index] - value;
+    while (delta > Math.PI) delta -= Math.PI * 2;
+    while (delta < -Math.PI) delta += Math.PI * 2;
+    return value + delta * t;
+  }) as [number, number, number];
 }
 
 /**
@@ -115,6 +183,9 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
 
   const getCurrentJoints = useCallback(() => displayJointsRef.current, []);
 
+  // goToPosition 自动分段执行队列：单击一次后按规划好的关键关节点顺序跑完整条路径
+  const goToPositionQueueRef = useRef<JointAngles[]>([]);
+
   // 动画循环（直接解构稳定回调，避免整个 motion 对象变化导致 command API 不必要重建）
   const {
     startEasedAnimation,
@@ -131,6 +202,23 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
     setJoints: applyJoints,
     setStatus,
   });
+
+  const flushNextGoToPositionWaypoint = useCallback(() => {
+    const next = goToPositionQueueRef.current.shift();
+    if (!next) return false;
+    startCoordinatedAnimation(next);
+    return true;
+  }, [startCoordinatedAnimation]);
+
+  useEffect(() => {
+    if (status !== 'complete') return;
+    if (goToPositionQueueRef.current.length === 0) return;
+    flushNextGoToPositionWaypoint();
+  }, [status, flushNextGoToPositionWaypoint]);
+
+  const isMotionQueueIdle = useCallback(() => {
+    return !isAnimatingRef.current && goToPositionQueueRef.current.length === 0;
+  }, [isAnimatingRef]);
 
   // Gizmo IK 处理器（ref 封装，依赖 applyJoints，须在其之后声明）
   const gizmoIKRef = useRef<GizmoIKHandle | null>(null);
@@ -423,24 +511,480 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
   // ===== 指定关节角 =====
   const goToJoints = useCallback(
     (target: JointAngles) => {
+      goToPositionQueueRef.current = [];
       startEasedAnimation([...target]);
     },
     [startEasedAnimation]
+  );
+
+  const solveDirectGoToPosition = useCallback(
+    (targetPose: Pose, seedJoints: JointAngles, hasExplicitOrientation: boolean): JointAngles | null => {
+      if (hasExplicitOrientation) {
+        return solveIK(
+          targetPose,
+          seedJoints,
+          model,
+          {
+            maxIterations: 120,
+            posTolerance: 0.8,
+            oriTolerance: 0.01,
+            damping: 0.15,
+            maxStepRad: 0.06,
+            orientationScale: 300,
+          },
+          ranges as [number, number][]
+        );
+      }
+
+      return solvePositionOnlyIK(
+        targetPose.position,
+        seedJoints,
+        model,
+        {
+          maxIterations: 120,
+          posTolerance: 0.8,
+          damping: 0.15,
+          maxStepRad: 0.06,
+        },
+        ranges as [number, number][]
+      );
+    },
+    [model, ranges]
+  );
+
+  const solveDirectPositionOnly = useCallback(
+    (targetPosition: [number, number, number], seedJoints: JointAngles): JointAngles | null => {
+      const primarySolution = solvePositionOnlyIK(
+        targetPosition,
+        seedJoints,
+        model,
+        {
+          maxIterations: 120,
+          posTolerance: 0.8,
+          damping: 0.15,
+          maxStepRad: 0.06,
+        },
+        ranges as [number, number][]
+      );
+      if (primarySolution) {
+        return primarySolution;
+      }
+
+      const altSeeds = buildPositionOnlyAltSeeds(seedJoints, targetPosition);
+      for (const altSeed of altSeeds) {
+        console.log('[useRobot] goToPosition try position-only alt seed', {
+          seed: altSeed,
+          targetPositionMm: targetPosition,
+        });
+        const altSolution = solvePositionOnlyIK(
+          targetPosition,
+          altSeed,
+          model,
+          {
+            maxIterations: 140,
+            posTolerance: 0.8,
+            damping: 0.15,
+            maxStepRad: 0.06,
+          },
+          ranges as [number, number][]
+        );
+        if (altSolution) {
+          return altSolution;
+        }
+      }
+
+      return null;
+    },
+    [model, ranges]
+  );
+
+  const solveDirectOrientationAtCurrentPosition = useCallback(
+    (targetPose: Pose, seedJoints: JointAngles): JointAngles | null =>
+      solveIK(
+        targetPose,
+        seedJoints,
+        model,
+        {
+          maxIterations: 120,
+          posTolerance: 0.8,
+          oriTolerance: 0.01,
+          damping: 0.15,
+          maxStepRad: 0.06,
+          orientationScale: 300,
+        },
+        ranges as [number, number][]
+      ),
+    [model, ranges]
+  );
+
+  const planPositionOnlyWaypoints = useCallback(
+    (
+      startPosition: [number, number, number],
+      targetPosition: [number, number, number],
+      seedJoints: JointAngles,
+      depth = 0,
+      maxDepth = 5
+    ): GoToPositionPlanResult | null => {
+      const directSolution = solveDirectPositionOnly(targetPosition, seedJoints);
+      if (directSolution) {
+        return {
+          waypointJoints: [directSolution],
+          depthUsed: depth,
+        };
+      }
+
+      if (depth >= maxDepth) {
+        if (depth === maxDepth) {
+          console.warn('[useRobot] planPositionOnlyWaypoints hit max depth', {
+            startPositionMm: startPosition,
+            targetPositionMm: targetPosition,
+            seedJointsDeg: seedJoints,
+            maxDepth,
+          });
+        }
+        return null;
+      }
+
+      const midpointPosition: [number, number, number] = [
+        lerpScalar(startPosition[0], targetPosition[0], 0.5),
+        lerpScalar(startPosition[1], targetPosition[1], 0.5),
+        lerpScalar(startPosition[2], targetPosition[2], 0.5),
+      ];
+
+      const firstHalf = planPositionOnlyWaypoints(
+        startPosition,
+        midpointPosition,
+        seedJoints,
+        depth + 1,
+        maxDepth
+      );
+      if (!firstHalf) return null;
+
+      const midJoints = firstHalf.waypointJoints[firstHalf.waypointJoints.length - 1];
+      const midPoseReached = model.forwardKinematics(midJoints);
+      if (!midPoseReached) return null;
+
+      const secondHalf = planPositionOnlyWaypoints(
+        midPoseReached.position,
+        targetPosition,
+        midJoints,
+        depth + 1,
+        maxDepth
+      );
+      if (!secondHalf) return null;
+
+      return {
+        waypointJoints: [...firstHalf.waypointJoints, ...secondHalf.waypointJoints],
+        depthUsed: Math.max(firstHalf.depthUsed, secondHalf.depthUsed),
+      };
+    },
+    [model, solveDirectPositionOnly]
+  );
+
+  const planElevatedTransitPositionWaypoints = useCallback(
+    (
+      startPose: Pose,
+      targetPosition: [number, number, number],
+      seedJoints: JointAngles,
+      maxDepth = 6
+    ): GoToPositionPlanResult | null => {
+      const transitHeight = Math.max(startPose.position[1], targetPosition[1]) + POSITION_TRANSIT_LIFT_MM;
+      const transitPoints: [number, number, number][] = [
+        [startPose.position[0], transitHeight, startPose.position[2]],
+        [targetPosition[0], transitHeight, targetPosition[2]],
+        targetPosition,
+      ];
+
+      let currentSeed = seedJoints;
+      let currentPosition = startPose.position;
+      const allWaypoints: JointAngles[] = [];
+      let maxDepthUsed = 0;
+
+      console.warn('[useRobot] planElevatedTransitPositionWaypoints start', {
+        startPositionMm: startPose.position,
+        targetPositionMm: targetPosition,
+        transitHeightMm: transitHeight,
+        seedJointsDeg: seedJoints,
+      });
+
+      for (const transitPoint of transitPoints) {
+        const segmentPlan = planPositionOnlyWaypoints(
+          currentPosition,
+          transitPoint,
+          currentSeed,
+          0,
+          maxDepth
+        );
+        if (!segmentPlan) {
+          console.error('[useRobot] planElevatedTransitPositionWaypoints segment failed', {
+            fromPositionMm: currentPosition,
+            toPositionMm: transitPoint,
+            seedJointsDeg: currentSeed,
+            maxDepth,
+          });
+          return null;
+        }
+
+        allWaypoints.push(...segmentPlan.waypointJoints);
+        maxDepthUsed = Math.max(maxDepthUsed, segmentPlan.depthUsed);
+
+        const reachedJoints = segmentPlan.waypointJoints[segmentPlan.waypointJoints.length - 1];
+        const reachedPose = model.forwardKinematics(reachedJoints);
+        if (!reachedPose) {
+          console.error('[useRobot] planElevatedTransitPositionWaypoints forwardKinematics failed', {
+            reachedJointsDeg: reachedJoints,
+          });
+          return null;
+        }
+
+        currentSeed = reachedJoints;
+        currentPosition = reachedPose.position;
+      }
+
+      console.log('[useRobot] planElevatedTransitPositionWaypoints success', {
+        waypointCount: allWaypoints.length,
+        depthUsed: maxDepthUsed,
+      });
+
+      return {
+        waypointJoints: allWaypoints,
+        depthUsed: maxDepthUsed,
+      };
+    },
+    [model, planPositionOnlyWaypoints]
+  );
+
+  const planOrientationWaypoints = useCallback(
+    (
+      startPose: Pose,
+      targetPose: Pose,
+      seedJoints: JointAngles,
+      depth = 0,
+      maxDepth = 3
+    ): GoToPositionPlanResult | null => {
+      const directSolution = solveDirectOrientationAtCurrentPosition(targetPose, seedJoints);
+      if (directSolution) {
+        return {
+          waypointJoints: [directSolution],
+          depthUsed: depth,
+        };
+      }
+
+      if (depth >= maxDepth) {
+        if (depth === maxDepth) {
+          console.warn('[useRobot] planOrientationWaypoints hit max depth', {
+            currentPositionMm: startPose.position,
+            currentEulerRad: startPose.euler,
+            targetPositionMm: targetPose.position,
+            targetEulerRad: targetPose.euler,
+            seedJointsDeg: seedJoints,
+            maxDepth,
+          });
+        }
+        return null;
+      }
+
+      const midpointEuler = lerpEulerShortest(startPose.euler, targetPose.euler, 0.5);
+      const midpointPose: Pose = {
+        position: targetPose.position,
+        euler: midpointEuler,
+        rotation: buildRotationFromEuler(midpointEuler),
+      };
+
+      const firstHalf = planOrientationWaypoints(
+        startPose,
+        midpointPose,
+        seedJoints,
+        depth + 1,
+        maxDepth
+      );
+      if (!firstHalf) return null;
+
+      const midJoints = firstHalf.waypointJoints[firstHalf.waypointJoints.length - 1];
+      const midPoseReached = model.forwardKinematics(midJoints);
+      if (!midPoseReached) return null;
+
+      const secondHalf = planOrientationWaypoints(
+        midPoseReached,
+        targetPose,
+        midJoints,
+        depth + 1,
+        maxDepth
+      );
+      if (!secondHalf) return null;
+
+      return {
+        waypointJoints: [...firstHalf.waypointJoints, ...secondHalf.waypointJoints],
+        depthUsed: Math.max(firstHalf.depthUsed, secondHalf.depthUsed),
+      };
+    },
+    [model, solveDirectOrientationAtCurrentPosition]
+  );
+
+  const planGoToPositionWaypoints = useCallback(
+    (
+      startPose: Pose,
+      targetPose: Pose,
+      seedJoints: JointAngles,
+      hasExplicitOrientation: boolean,
+      depth = 0,
+      maxDepth = 5
+    ): GoToPositionPlanResult | null => {
+      const directSolution = solveDirectGoToPosition(targetPose, seedJoints, hasExplicitOrientation);
+      if (directSolution) {
+        return {
+          waypointJoints: [directSolution],
+          depthUsed: depth,
+        };
+      }
+
+      if (!hasExplicitOrientation) {
+        console.warn('[useRobot] planGoToPositionWaypoints direct position-only solve failed, fallback to split', {
+          startPositionMm: startPose.position,
+          targetPositionMm: targetPose.position,
+          seedJointsDeg: seedJoints,
+          depth,
+          maxDepth,
+        });
+        const splitPlan = planPositionOnlyWaypoints(
+          startPose.position,
+          targetPose.position,
+          seedJoints,
+          depth,
+          maxDepth
+        );
+        if (splitPlan) {
+          return splitPlan;
+        }
+
+        console.warn('[useRobot] planGoToPositionWaypoints split position-only failed, try elevated transit', {
+          startPositionMm: startPose.position,
+          targetPositionMm: targetPose.position,
+          seedJointsDeg: seedJoints,
+        });
+        return planElevatedTransitPositionWaypoints(
+          startPose,
+          targetPose.position,
+          seedJoints,
+          Math.max(maxDepth, 6)
+        );
+      }
+
+      console.warn('[useRobot] planGoToPositionWaypoints direct full-pose solve failed, fallback to position-first plan', {
+        startPositionMm: startPose.position,
+        startEulerRad: startPose.euler,
+        targetPositionMm: targetPose.position,
+        targetEulerRad: targetPose.euler,
+        seedJointsDeg: seedJoints,
+        depth,
+        maxDepth,
+      });
+
+      const positionPlan = planPositionOnlyWaypoints(
+        startPose.position,
+        targetPose.position,
+        seedJoints,
+        depth,
+        maxDepth
+      ) ?? planElevatedTransitPositionWaypoints(
+        startPose,
+        targetPose.position,
+        seedJoints,
+        Math.max(maxDepth, 6)
+      );
+      if (!positionPlan) {
+        console.error('[useRobot] planGoToPositionWaypoints position phase failed', {
+          startPositionMm: startPose.position,
+          targetPositionMm: targetPose.position,
+          seedJointsDeg: seedJoints,
+        });
+        return null;
+      }
+
+      const poseAtTargetPositionJoints =
+        positionPlan.waypointJoints[positionPlan.waypointJoints.length - 1];
+      const poseAtTargetPosition = model.forwardKinematics(poseAtTargetPositionJoints);
+      if (!poseAtTargetPosition) {
+        console.error('[useRobot] planGoToPositionWaypoints forwardKinematics failed at target-position waypoint', {
+          poseAtTargetPositionJointsDeg: poseAtTargetPositionJoints,
+        });
+        return null;
+      }
+
+      console.log('[useRobot] planGoToPositionWaypoints position phase success', {
+        waypointCount: positionPlan.waypointJoints.length,
+        depthUsed: positionPlan.depthUsed,
+        reachedPositionMm: poseAtTargetPosition.position,
+        reachedEulerRad: poseAtTargetPosition.euler,
+      });
+
+      const orientationPlan = planOrientationWaypoints(
+        poseAtTargetPosition,
+        targetPose,
+        poseAtTargetPositionJoints,
+        0,
+        Math.max(2, Math.min(3, maxDepth))
+      );
+      if (!orientationPlan) {
+        console.error('[useRobot] planGoToPositionWaypoints orientation phase failed', {
+          reachedPositionMm: poseAtTargetPosition.position,
+          reachedEulerRad: poseAtTargetPosition.euler,
+          targetPositionMm: targetPose.position,
+          targetEulerRad: targetPose.euler,
+          poseAtTargetPositionJointsDeg: poseAtTargetPositionJoints,
+        });
+        return null;
+      }
+
+      console.log('[useRobot] planGoToPositionWaypoints orientation phase success', {
+        waypointCount: orientationPlan.waypointJoints.length,
+        depthUsed: orientationPlan.depthUsed,
+      });
+
+      return {
+        waypointJoints: [
+          ...positionPlan.waypointJoints,
+          ...orientationPlan.waypointJoints,
+        ],
+        depthUsed: Math.max(positionPlan.depthUsed, orientationPlan.depthUsed),
+      };
+    },
+    [
+      model,
+      planElevatedTransitPositionWaypoints,
+      planOrientationWaypoints,
+      planPositionOnlyWaypoints,
+      solveDirectGoToPosition,
+    ]
   );
 
   // ===== 绝对定位（GLB 视觉 IK，输入为场景坐标米）=====
   const goToPosition = useCallback(
     (x: number, y: number, z: number, rx?: number, ry?: number, rz?: number): boolean => {
       const targetPos: [number, number, number] = [x * 1000, y * 1000, z * 1000];
-      if (!isReachable(targetPos, model)) {
-        setStatus('unreachable');
-        setTimeout(() => setStatus('ready'), 1500);
-        return false;
+      const hasExplicitOrientation = rx !== undefined && ry !== undefined && rz !== undefined;
+      const reachable = isReachable(targetPos, model);
+
+      console.log('[useRobot] goToPosition start', {
+        targetPosMm: targetPos,
+        targetPosM: { x, y, z },
+        explicitOrientationDeg: hasExplicitOrientation ? { rx, ry, rz } : null,
+        reachable,
+        currentJointsDeg: displayJointsRef.current,
+      });
+
+      if (!reachable) {
+        console.warn('[useRobot] goToPosition isReachable() precheck failed, continue with real IK solve', {
+          targetPosMm: targetPos,
+        });
       }
 
       const currentJoints = displayJointsRef.current;
       const currentPose = model.forwardKinematics(currentJoints);
       if (!currentPose) {
+        console.warn('[useRobot] goToPosition currentPose unavailable', {
+          currentJointsDeg: currentJoints,
+        });
         setStatus('unreachable');
         setTimeout(() => setStatus('ready'), 1500);
         return false;
@@ -462,35 +1006,70 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
         rotation: targetRot,
       };
 
-      const solved = solveIK(
-        targetPose,
-        currentJoints,
-        model,
-        {
-          maxIterations: 100,
-          posTolerance: 0.5,
-          oriTolerance: 0.005,
-          damping: 0.15,
-          maxStepRad: 0.05,
-          orientationScale: 300,
-        },
-        ranges
-      );
+      console.log('[useRobot] goToPosition pose snapshot', {
+        currentPoseMm: currentPose.position,
+        currentPoseEulerRad: currentPose.euler,
+        targetPoseMm: targetPose.position,
+        targetPoseEulerRad: targetPose.euler,
+        hasExplicitOrientation,
+      });
 
-      if (!solved) {
+      const directSolution = solveDirectGoToPosition(targetPose, currentJoints, hasExplicitOrientation);
+      let waypointPlan: GoToPositionPlanResult | null = null;
+
+      if (directSolution) {
+        console.log('[useRobot] goToPosition direct solve success', {
+          solutionJointsDeg: directSolution,
+        });
+        waypointPlan = {
+          waypointJoints: [directSolution],
+          depthUsed: 0,
+        };
+      } else {
+        console.warn('[useRobot] goToPosition direct solve failed, start staged planning', {
+          targetPosMm: targetPos,
+          targetEulerRad: targetPose.euler,
+          currentJointsDeg: currentJoints,
+        });
+        waypointPlan = planGoToPositionWaypoints(
+          currentPose,
+          targetPose,
+          currentJoints,
+          hasExplicitOrientation,
+        );
+      }
+
+      if (!waypointPlan) {
+        console.error('[useRobot] goToPosition path planning failed', {
+          targetPosMm: targetPos,
+          hasExplicitOrientation,
+          currentJointsDeg: currentJoints,
+        });
         setStatus('unreachable');
         setTimeout(() => setStatus('ready'), 1500);
         return false;
       }
 
-      startCartesianAnimation(targetPose, {
-        duration: DEFAULT_MOTION_CONFIG.ikAnimDuration,
-        positionOnly: false,
+      const [firstWaypoint, ...remainingWaypoints] = waypointPlan.waypointJoints;
+      goToPositionQueueRef.current = remainingWaypoints.map((waypoint) => [...waypoint] as JointAngles);
+
+      console.log('[useRobot] goToPosition start planned animation', {
+        mode: hasExplicitOrientation ? 'pose' : 'position-only',
+        directSolved: directSolution !== null,
+        waypointCount: waypointPlan.waypointJoints.length,
+        splitDepthUsed: waypointPlan.depthUsed,
+        firstWaypointDeg: firstWaypoint,
       });
+      startCoordinatedAnimation(firstWaypoint);
       return true;
     },
-    [model, startCartesianAnimation]
+    [model, planGoToPositionWaypoints, solveDirectGoToPosition, startCoordinatedAnimation]
   );
+
+  const stopRobotAnimation = useCallback(() => {
+    goToPositionQueueRef.current = [];
+    stopAnimation();
+  }, [stopAnimation]);
 
   return {
     joints: displayJoints,
@@ -508,8 +1087,9 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
     randomJoints,
     goToJoints,
     goToPosition,
+    isMotionQueueIdle,
     glbPosition,
-    stopAnimation,
+    stopAnimation: stopRobotAnimation,
     coordinateSystem,
     setCoordinateSystem,
     jointStep,

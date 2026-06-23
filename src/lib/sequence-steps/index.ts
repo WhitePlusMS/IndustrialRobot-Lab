@@ -3,11 +3,12 @@
 import type { StepExecutorParams, StepResult } from './types';
 import { executeWait, executeSuctionOn, executeSuctionOff, executeGoHome } from './basic-steps';
 import { executeMoveAboveBox, executeDescendToBox, executeLift, executeMoveToWaypoint } from './move-steps';
-import { executeSpawnBox, executeCapture } from './scene-steps';
+import { executeSpawnBox, executeCapture, executeDeleteAllBoxes } from './scene-steps';
 
 type StepExecutor = (params: StepExecutorParams) => Promise<StepResult>;
 
 const registry: Record<string, StepExecutor> = {
+  '删除所有箱子': executeDeleteAllBoxes,
   '生成箱子': executeSpawnBox,
   '拍照': executeCapture,
   '移动到箱子上方': executeMoveAboveBox,

@@ -21,6 +21,7 @@ function createUnavailableAPI(): RobotPoseAPI {
   return {
     isAvailable: () => false,
     getFlangeMatrix: () => null,
+    getSuckerContactPose: () => null,
     capturePoseForJoints: () => null,
   };
 }

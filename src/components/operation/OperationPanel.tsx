@@ -97,6 +97,9 @@ export interface SceneCameraPanelData {
 export interface SequencePanelData {
   sequenceSteps: ActionStep[];
   setSequenceSteps: (steps: ActionStep[]) => void;
+  loadDefaultSequence: () => void;
+  clearSequence: () => void;
+  suppressAutoDefaultLoad: boolean;
   sequenceCurrentStep: number;
   sequenceStatus: SequenceStatus;
   sequenceLogs: SequenceLog[];
@@ -121,7 +124,6 @@ export interface GraspPanelData {
   hasDemoParts: boolean;
   turnSuckerOn: () => void;
   turnSuckerOff: () => void;
-  forceAttachBox: () => void;
   spawnBox: (position: [number, number, number], restingHeight?: number) => void;
   resetBox: () => void;
 }
@@ -213,6 +215,9 @@ function useOperationPanelData(props: OperationPanelProps): OperationPanelData {
   const sequenceData: SequencePanelData = {
     sequenceSteps: sequence.steps,
     setSequenceSteps: sequence.setStepsList,
+    loadDefaultSequence: sequence.loadDefaultSequence,
+    clearSequence: sequence.clearSequence,
+    suppressAutoDefaultLoad: sequence.suppressAutoDefaultLoad,
     sequenceCurrentStep: sequence.currentStepIndex,
     sequenceStatus: sequence.status,
     sequenceLogs: sequence.logs,
@@ -244,7 +249,6 @@ function useOperationPanelData(props: OperationPanelProps): OperationPanelData {
     hasDemoParts: demoParts.parts.length > 0,
     turnSuckerOn: sucker.turnSuckerOn,
     turnSuckerOff: sucker.turnSuckerOff,
-    forceAttachBox: sucker.forceAttachBox,
     spawnBox: sucker.spawnBox,
     resetBox: sucker.resetBox,
   };

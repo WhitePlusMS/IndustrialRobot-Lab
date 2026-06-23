@@ -8,6 +8,7 @@ import type { SceneRendererAPI } from '@/contexts/SceneRendererContext';
 import type { CameraState } from '@/types/camera';
 import type { Waypoint } from '@/hooks/useRobot';
 import type { SequenceRobotAPI } from '@/hooks/useActionSequence';
+import type { BoxState } from '@/hooks/useSuckerControl';
 
 /** 每个步骤执行器的最小化依赖集合 */
 export interface StepDeps {
@@ -31,10 +32,12 @@ export interface StepCallbacks {
   onStepStatusChange: (index: number, status: ActionStep['execStatus'], message?: string) => void;
   onSuckerOn: () => void;
   onSuckerOff: () => void;
-  onForceAttachBox: () => void;
   onSpawnBox: (pos: [number, number, number], restingHeight?: number) => void;
+  onDeleteAllBoxes: () => void;
   onResetBox: () => void;
   onCaptureSave: (result: { color?: string; segmentation?: string; depth?: string }) => void;
+  getBoxState: () => BoxState;
+  isBoxAttachedStable: () => boolean;
 }
 
 /** 完整步骤执行器接口 */

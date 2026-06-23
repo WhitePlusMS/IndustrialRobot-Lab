@@ -187,6 +187,46 @@ function collectJointMeshes(root: THREE.Group): THREE.Mesh[][] {
   });
 }
 
+function normalizeVector3(vec: THREE.Vector3, fallback: THREE.Vector3): THREE.Vector3 {
+  if (vec.lengthSq() < 1e-10) {
+    return fallback.clone().normalize();
+  }
+  return vec.clone().normalize();
+}
+
+function computeSuckerContactPose(root: THREE.Group): {
+  position: [number, number, number];
+  direction: [number, number, number];
+} | null {
+  const flange = findNode(root, '快拆机器人端口');
+  const sucker = findNode(root, '吸盘');
+  if (!flange || !sucker) return null;
+
+  flange.updateMatrixWorld(true);
+  sucker.updateMatrixWorld(true);
+
+  const bbox = new THREE.Box3().setFromObject(sucker);
+  if (bbox.isEmpty()) return null;
+
+  const contactWorld = new THREE.Vector3(
+    (bbox.min.x + bbox.max.x) / 2,
+    bbox.min.y,
+    (bbox.min.z + bbox.max.z) / 2,
+  );
+  const flangeWorld = new THREE.Vector3();
+  flange.getWorldPosition(flangeWorld);
+
+  const flangeToContact = normalizeVector3(
+    contactWorld.clone().sub(flangeWorld),
+    new THREE.Vector3(0, -1, 0),
+  );
+
+  return {
+    position: [contactWorld.x, contactWorld.y, contactWorld.z],
+    direction: [flangeToContact.x, flangeToContact.y, flangeToContact.z],
+  };
+}
+
 // ============================================================
 // 坐标系
 // ============================================================
@@ -519,6 +559,7 @@ export default function GLBRobotArm({
     const api: RobotPoseAPI = {
       isAvailable: () => true,
       getFlangeMatrix,
+      getSuckerContactPose: () => computeSuckerContactPose(currentArm),
       capturePoseForJoints,
     };
 

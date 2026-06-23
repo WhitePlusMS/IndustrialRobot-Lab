@@ -13,7 +13,7 @@ import { findNode } from '@/lib/dh-calibration';
 // ============================================================
 // 场景常量
 // ============================================================
-const BOX_SIZE = 0.3;           // 箱子边长 (m)
+const BOX_SIZE = 0.12;          // 箱子边长 (m) —— 与主抓取场景保持一致
 const BOX_HALF = BOX_SIZE / 2;  // 箱子半高
 const BOX_GROUND_Y = BOX_HALF;  // 箱子着地时中心 Y
 const CUP_MOVE_SPEED = 0.3;     // 吸盘连续移动速度 (m/s)
@@ -21,9 +21,6 @@ const CUP_NUDGE_STEP = 0.05;    // 吸盘单击微调步长 (m)
 const CONTACT_THRESHOLD = 0.02; // 接触判定阈值
 const GRAVITY = 5.0;            // 箱子掉落加速度 (m/s^2)
 const CUP_TRAVEL_HEIGHT = 0.24; // 抬升上限改为原来的 2 倍
-// 演示层直接矫正真实吸盘节点的视觉偏移。
-// 不改 GLB 原文件，只在本弹窗中把节点整体拉回箱子正上方。
-const CUP_VISUAL_ALIGNMENT_OFFSET: [number, number, number] = [-0.32, 0, -0.08];
 
 /** 吸盘行程范围（默认值，几何就绪后动态更新） */
 const CUP_LIMITS = {
@@ -112,9 +109,7 @@ function SuckerCupModel({ suctionOn, onBBoxReady }: {
       halfHeight,
       tipOffset,
       bboxSize: geometryInfo.size,
-      offsetX: -geometryInfo.contactCenterX,
-      offsetY: -geometryInfo.centerY,
-      offsetZ: -geometryInfo.contactCenterZ,
+      alignmentOffset: [-geometryInfo.centerX, -geometryInfo.centerY, -geometryInfo.centerZ] as [number, number, number],
     };
   }, [scene]);
 
@@ -132,29 +127,14 @@ function SuckerCupModel({ suctionOn, onBBoxReady }: {
 
   if (!suckerData) return null;
 
-  const { cloned, bboxSize, offsetX, offsetY, offsetZ } = suckerData;
-  const bboxEdges = useMemo(
-    () => new THREE.EdgesGeometry(new THREE.BoxGeometry(bboxSize[0], bboxSize[1], bboxSize[2])),
-    [bboxSize]
-  );
+  const { cloned, alignmentOffset } = suckerData;
 
   return (
     <group
-      position={CUP_VISUAL_ALIGNMENT_OFFSET}
+      position={alignmentOffset}
       scale={suctionOn ? [1.02, 1.02, 1.02] : [1, 1, 1]}
     >
-      <primitive object={cloned} position={[offsetX, offsetY, offsetZ]} />
-
-      {/* 可视化：真实吸盘节点整体包围盒线框 */}
-      <lineSegments geometry={bboxEdges}>
-        <lineBasicMaterial color="#2563EB" toneMapped={false} />
-      </lineSegments>
-
-      {/* 可视化：整体包围盒中心点 */}
-      <mesh>
-        <sphereGeometry args={[0.012, 16, 16]} />
-        <meshBasicMaterial color="#DC2626" toneMapped={false} />
-      </mesh>
+      <primitive object={cloned} />
     </group>
   );
 }
@@ -542,7 +522,7 @@ export default function SuckerDemoModal({ onClose }: SuckerDemoModalProps) {
                 } disabled:opacity-40 disabled:cursor-not-allowed`}
               >
                 <Power className="w-4 h-4" />
-                {suctionOn ? '吸气中' : '关闭吸气'}
+                {suctionOn ? '吸气中' : '开启吸气'}
               </button>
             </div>
 

@@ -15,13 +15,19 @@ import { useRobotPoseAPI } from './useRobotPoseAPI';
 import { useSceneRendererAPI } from './useSceneRendererAPI';
 import type { CameraState } from '@/types/camera';
 import type { Waypoint } from '@/hooks/useRobot';
+import type { BoxState } from '@/hooks/useSuckerControl';
+import {
+  createDefaultGraspSequence,
+  DEFAULT_SEQUENCE_PLACE_PRESET_NAME,
+} from '@/types/sequence';
 import { dispatchStep } from '@/lib/sequence-steps';
 
 export interface SequenceRobotAPI {
   config: RobotConfig;
   goToJoints: (joints: JointAngles) => void;
   /** GLB 场景坐标定位（m）：优先 GLB 数值 IK，降级 DH 位置 IK */
-  goToPosition: (x: number, y: number, z: number) => boolean;
+  goToPosition: (x: number, y: number, z: number, rx?: number, ry?: number, rz?: number) => boolean;
+  isMotionQueueIdle: () => boolean;
   stopAnimation: () => void;
   isAnimating: boolean;
   isAnimatingRef: MutableRefObject<boolean>;
@@ -36,7 +42,8 @@ export function buildSequenceRobotAPI(
     config: RobotConfig;
     joints: JointAngles;
     goToJoints: (joints: JointAngles) => void;
-    goToPosition: (x: number, y: number, z: number) => boolean;
+    goToPosition: (x: number, y: number, z: number, rx?: number, ry?: number, rz?: number) => boolean;
+    isMotionQueueIdle: () => boolean;
     stopAnimation: () => void;
     isAnimating: boolean;
     isAnimatingRef: MutableRefObject<boolean>;
@@ -46,6 +53,7 @@ export function buildSequenceRobotAPI(
     config: robot.config,
     goToJoints: robot.goToJoints,
     goToPosition: robot.goToPosition,
+    isMotionQueueIdle: robot.isMotionQueueIdle,
     stopAnimation: robot.stopAnimation,
     isAnimating: robot.isAnimating,
     isAnimatingRef: robot.isAnimatingRef,
@@ -68,10 +76,11 @@ export interface StepExecutorAPI {
   cameraState: CameraState;
   onSuckerOn: () => void;
   onSuckerOff: () => void;
-  /** 强制吸附（序列步骤"下降到箱面"成功后，吸盘开启时直接吸附） */
-  onForceAttachBox: () => void;
   onSpawnBox: (pos: [number, number, number], restingHeight?: number) => void;
+  onDeleteAllBoxes: () => void;
   onResetBox: () => void;
+  getBoxState: () => BoxState;
+  isBoxAttachedStable: () => boolean;
   abortRef: MutableRefObject<boolean>;
   waypoints: Waypoint[];
   onStepStatusChange: (index: number, status: ActionStep['execStatus'], message?: string) => void;
@@ -95,10 +104,12 @@ async function executeStep(step: ActionStep, api: StepExecutorAPI): Promise<bool
       onStepStatusChange: api.onStepStatusChange,
       onSuckerOn: api.onSuckerOn,
       onSuckerOff: api.onSuckerOff,
-      onForceAttachBox: api.onForceAttachBox,
       onSpawnBox: api.onSpawnBox,
+      onDeleteAllBoxes: api.onDeleteAllBoxes,
       onResetBox: api.onResetBox,
       onCaptureSave: api.onCaptureSave,
+      getBoxState: api.getBoxState,
+      isBoxAttachedStable: api.isBoxAttachedStable,
     },
   });
 }
@@ -108,9 +119,11 @@ export function useActionSequence(
   cameraState: CameraState,
   onSuckerOn: () => void,
   onSuckerOff: () => void,
-  onForceAttachBox: () => void,
   onSpawnBox: (pos: [number, number, number], restingHeight?: number) => void,
+  onDeleteAllBoxes: () => void,
   onResetBox: () => void,
+  getBoxState: () => BoxState,
+  isBoxAttachedStable: () => boolean,
   waypoints: Waypoint[]
 ) {
   const [steps, setSteps] = useState<ActionStep[]>([]);
@@ -119,6 +132,7 @@ export function useActionSequence(
   const [logs, setLogs] = useState<SequenceLog[]>([]);
   const [ctx, setCtx] = useState<SeqContext>(createDefaultContext());
   const [captureImages, setCaptureImages] = useState<{ color?: string; segmentation?: string; depth?: string }>({});
+  const [suppressAutoDefaultLoad, setSuppressAutoDefaultLoad] = useState(false);
 
   const robotPoseApi = useRobotPoseAPI();
   const sceneRendererApi = useSceneRendererAPI();
@@ -135,7 +149,7 @@ export function useActionSequence(
   const waitForAnimation = useCallback(async () => {
     return new Promise<void>((resolve) => {
       const check = () => {
-        if (!robotAPI.isAnimatingRef.current) {
+        if (!robotAPI.isAnimatingRef.current && robotAPI.isMotionQueueIdle()) {
           resolve();
         } else {
           requestAnimationFrame(check);
@@ -157,7 +171,15 @@ export function useActionSequence(
 
   const onStepStatusChange = useCallback((index: number, execStatus?: ActionStep['execStatus'], message?: string) => {
     setSteps((prev) =>
-      prev.map((s, i) => (i === index ? { ...s, execStatus, execMessage: message } : s))
+      prev.map((s, i) =>
+        i === index
+          ? {
+              ...s,
+              execStatus,
+              execMessage: execStatus === 'error' ? message : undefined,
+            }
+          : s
+      )
     );
   }, []);
 
@@ -168,6 +190,53 @@ export function useActionSequence(
   const resetStepStatuses = useCallback(() => {
     setSteps((prev) => prev.map((s) => ({ ...s, execStatus: 'pending' as const, execMessage: undefined })));
   }, []);
+
+  const clearRunningStepStatuses = useCallback(() => {
+    setSteps((prev) =>
+      prev.map((step) =>
+        step.execStatus === 'running'
+          ? { ...step, execStatus: 'pending', execMessage: undefined }
+          : step
+      )
+    );
+  }, []);
+
+  const buildDefaultSequenceWithWaypoints = useCallback((): ActionStep[] => {
+    const defaultSteps = createDefaultGraspSequence();
+    return defaultSteps.map((step) =>
+      step.type === '移动到目标位姿'
+        ? { ...step, params: { ...step.params, memoryPointName: DEFAULT_SEQUENCE_PLACE_PRESET_NAME } }
+        : step
+    );
+  }, []);
+
+  const loadDefaultSequence = useCallback(() => {
+    abortRef.current = true;
+    robotAPI.stopAnimation();
+    setStatus('idle');
+    setCurrentStepIndex(0);
+    setCtx(createDefaultContext());
+    ctxRef.current = createDefaultContext();
+    clearLogs();
+    setCaptureImages({});
+    setSuppressAutoDefaultLoad(false);
+    setSteps(buildDefaultSequenceWithWaypoints());
+  }, [buildDefaultSequenceWithWaypoints, clearLogs, robotAPI]);
+
+  const clearSequence = useCallback(() => {
+    abortRef.current = true;
+    robotAPI.stopAnimation();
+    setStatus('idle');
+    setCurrentStepIndex(0);
+    setCtx(createDefaultContext());
+    ctxRef.current = createDefaultContext();
+    clearLogs();
+    clearRunningStepStatuses();
+    setCaptureImages({});
+    setSuppressAutoDefaultLoad(true);
+    setSteps([]);
+    onResetBox();
+  }, [clearLogs, clearRunningStepStatuses, onResetBox, robotAPI]);
 
   // ========== 运行全部序列 ==========
   const runSequence = useCallback(async () => {
@@ -194,6 +263,7 @@ export function useActionSequence(
       if (abortRef.current || failed) break;
       setCurrentStepIndex(i);
       const step = steps[i];
+      onStepStatusChange(i, 'running');
       log('info', `[步骤 ${i + 1}/${steps.length}] ${step.type}`);
 
       const success = await executeStep(step, {
@@ -204,9 +274,11 @@ export function useActionSequence(
         cameraState,
         onSuckerOn,
         onSuckerOff,
-        onForceAttachBox,
         onSpawnBox,
+        onDeleteAllBoxes,
         onResetBox,
+        getBoxState,
+        isBoxAttachedStable,
         abortRef,
         waypoints,
         onStepStatusChange,
@@ -230,18 +302,20 @@ export function useActionSequence(
         );
         break;
       }
+
     }
 
     if (!failed && !abortRef.current) {
       log('success', '=== 序列完成 ===');
     }
     if (!failed && abortRef.current) {
+      clearRunningStepStatuses();
       log('warn', '=== 序列被中止 ===');
     }
     if (!failed) {
       setStatus('idle');
     }
-  }, [steps, status, robotAPI, cameraState, onSuckerOn, onSuckerOff, onForceAttachBox, onSpawnBox, onResetBox, waitForAnimation, log, ctxRef, waypoints, onStepStatusChange, onCaptureSave, resetStepStatuses, robotPoseApi, sceneRendererApi]);
+  }, [steps, status, robotAPI, cameraState, onSuckerOn, onSuckerOff, onSpawnBox, onDeleteAllBoxes, onResetBox, getBoxState, isBoxAttachedStable, waitForAnimation, log, ctxRef, waypoints, onStepStatusChange, onCaptureSave, resetStepStatuses, robotPoseApi, sceneRendererApi, clearRunningStepStatuses]);
 
   // ========== 单步执行 ==========
   const runSingleStep = useCallback(async () => {
@@ -258,9 +332,10 @@ export function useActionSequence(
       return;
     }
 
-    setStatus('paused');
+    setStatus('running');
     abortRef.current = false;
     const step = steps[idx];
+    onStepStatusChange(idx, 'running');
     log('info', `[单步 ${idx + 1}/${total}] ${step.type}`);
 
     const success = await executeStep(step, {
@@ -271,9 +346,11 @@ export function useActionSequence(
       cameraState,
       onSuckerOn,
       onSuckerOff,
-      onForceAttachBox,
       onSpawnBox,
+      onDeleteAllBoxes,
       onResetBox,
+      getBoxState,
+      isBoxAttachedStable,
       abortRef,
       waypoints,
       onStepStatusChange,
@@ -282,6 +359,13 @@ export function useActionSequence(
       robotPoseApi,
       sceneRendererApi,
     });
+
+    if (abortRef.current) {
+      clearRunningStepStatuses();
+      setStatus('idle');
+      setCurrentStepIndex(0);
+      return;
+    }
 
     if (!success) {
       setStatus('error');
@@ -297,19 +381,21 @@ export function useActionSequence(
     } else {
       setStatus('paused');
     }
-  }, [steps, status, robotAPI, cameraState, onSuckerOn, onSuckerOff, onForceAttachBox, onSpawnBox, onResetBox, waitForAnimation, log, ctxRef, waypoints, onStepStatusChange, onCaptureSave, resetStepStatuses, robotPoseApi, sceneRendererApi]);
+  }, [steps, status, robotAPI, cameraState, onSuckerOn, onSuckerOff, onSpawnBox, onDeleteAllBoxes, onResetBox, getBoxState, isBoxAttachedStable, waitForAnimation, log, ctxRef, waypoints, onStepStatusChange, onCaptureSave, resetStepStatuses, robotPoseApi, sceneRendererApi, clearRunningStepStatuses]);
 
   const stopSequence = useCallback(() => {
     abortRef.current = true;
     robotAPI.stopAnimation();
+    clearRunningStepStatuses();
     setStatus('idle');
     setCurrentStepIndex(0);
     log('warn', '序列停止');
-  }, [robotAPI, log]);
+  }, [robotAPI, log, clearRunningStepStatuses]);
 
   const resetSequence = useCallback(() => {
     abortRef.current = true;
     robotAPI.stopAnimation();
+    onResetBox();
     setStatus('idle');
     setCurrentStepIndex(0);
     setCtx(createDefaultContext());
@@ -317,14 +403,21 @@ export function useActionSequence(
     clearLogs();
     resetStepStatuses();
     setCaptureImages({});
-  }, [robotAPI, clearLogs, resetStepStatuses]);
+  }, [robotAPI, clearLogs, resetStepStatuses, onResetBox]);
 
   const addStep = useCallback((type: ActionStep['type']) => {
+    setSuppressAutoDefaultLoad(false);
     setSteps((prev) => [...prev, createDefaultStep(type)]);
   }, []);
 
   const removeStep = useCallback((index: number) => {
-    setSteps((prev) => prev.filter((_, i) => i !== index));
+    setSteps((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      if (next.length === 0) {
+        setSuppressAutoDefaultLoad(true);
+      }
+      return next;
+    });
   }, []);
 
   const moveStep = useCallback((index: number, direction: 'up' | 'down') => {
@@ -340,6 +433,7 @@ export function useActionSequence(
   }, []);
 
   const updateStep = useCallback((index: number, updates: Partial<ActionStep>) => {
+    setSuppressAutoDefaultLoad(false);
     setSteps((prev) =>
       prev.map((step, i) => (i === index ? { ...step, ...updates } : step))
     );
@@ -347,11 +441,15 @@ export function useActionSequence(
 
   const setStepsList = useCallback((newSteps: ActionStep[]) => {
     setSteps(newSteps);
+    setSuppressAutoDefaultLoad(newSteps.length === 0);
   }, []);
 
   return {
     steps,
     setStepsList,
+    loadDefaultSequence,
+    clearSequence,
+    suppressAutoDefaultLoad,
     currentStepIndex,
     status,
     logs,

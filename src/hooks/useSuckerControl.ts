@@ -5,13 +5,16 @@ import { Matrix4x4 } from '@/lib/matrix4x4';
 import { useRobotPoseAPI } from './useRobotPoseAPI';
 import type { RobotConfig, JointAngles } from '@/types/robot';
 
-export const SUCKER_LENGTH = 25;
+// 真实吸盘相对“快拆机器人端口”存在约 125mm 级下探偏移。
+// 主抓取链路统一用这个有效接触长度，避免继续按法兰贴箱面。
+export const SUCKER_LENGTH = 125;
 export const BOX_SIZE = 120;
 export const BOX_HALF_SIZE = BOX_SIZE / 2;
-export const ATTACH_THRESHOLD = 15;
+export const ATTACH_THRESHOLD = 55; // 吸盘尖端到箱面中心距离阈值（mm）—— 放宽后接近位可直接吸附
+export const ATTACH_SETTLE_THRESHOLD = 5; // 箱子中心与目标附着中心的最大允许偏差
 export const APPROACH_HEIGHT = 50;
-// 默认箱子位置：机械臂前方可达区域（X 正方向 400mm，高度 120mm，Z 方向 250mm）
-export const INITIAL_BOX_POSITION: [number, number, number] = [400, 120, 250];
+// 默认箱子位置：机械臂可达区域（负X方向，水平距离 ≥ 最小可达半径 812mm）
+export const INITIAL_BOX_POSITION: [number, number, number] = [-1000, 120, 0];
 
 /** 箱子状态 */
 export type BoxState = 'NONE' | 'FREE' | 'FALLING' | 'ATTACHED' | 'PLACED' | 'RESTING';
@@ -33,6 +36,14 @@ function norm(a: [number, number, number], b: [number, number, number]): number 
   return Math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2);
 }
 
+function roundMmVector(positionM: [number, number, number]): [number, number, number] {
+  return [
+    Math.round(positionM[0] * 1000),
+    Math.round(positionM[1] * 1000),
+    Math.round(positionM[2] * 1000),
+  ];
+}
+
 interface UseSuckerControlProps {
   joints: JointAngles;
   config: RobotConfig;
@@ -52,6 +63,8 @@ export function useSuckerControl({ joints, config, initialBoxPosition }: UseSuck
   const suckerOnRef = useRef(false);
   const jointsRef = useRef(joints);
   const restingYRef = useRef(BOX_HALF_SIZE);
+  const attachCycleRef = useRef(0);
+  const lastFollowCycleRef = useRef(-1);
 
   useEffect(() => { boxStateRef.current = boxState; }, [boxState]);
   useEffect(() => { boxPosRef.current = boxPosition; }, [boxPosition]);
@@ -66,58 +79,85 @@ export function useSuckerControl({ joints, config, initialBoxPosition }: UseSuck
     return { position: T.getPosition(), rotation: T.getRotation() };
   }, [config]);
 
-  // 吸附检测
+  // GLB 位姿采样能力（用于吸附检测和箱子跟随）
+  const poseApi = useRobotPoseAPI();
+
+  // 吸附检测：优先使用 GLB 法兰矩阵（与 3D 画面一致），降级 DH FK
   const checkAttachment = useCallback(
     (boxPosMM: [number, number, number]) => {
-      if (!suckerOnRef.current) return;
-      const pose = getEndEffectorPose();
-      const suckerTip = getSuckerTipPosition(pose.position, pose.rotation);
+      if (!suckerOnRef.current) {
+        return;
+      }
+
+      let suckerTip: [number, number, number];
+      let poseSource: 'glb' | 'dh-fallback' = 'dh-fallback';
+
+      // 优先使用真实吸盘下表面中心，保证接触点和 3D 画面一致。
+      const suckerContact = poseApi.getSuckerContactPose();
+      if (suckerContact?.position) {
+        poseSource = 'glb';
+        suckerTip = roundMmVector(suckerContact.position);
+      } else {
+        // 降级 DH FK
+        const pose = getEndEffectorPose();
+        suckerTip = getSuckerTipPosition(pose.position, pose.rotation);
+      }
+
       const boxTopCenter: [number, number, number] = [
         boxPosMM[0],
         boxPosMM[1] + BOX_HALF_SIZE,
         boxPosMM[2],
       ];
       const distance = norm(suckerTip, boxTopCenter);
-      if (distance < ATTACH_THRESHOLD && boxStateRef.current === 'FREE') {
+      const canAttach = boxStateRef.current === 'FREE' || boxStateRef.current === 'RESTING';
+
+      // console.log('[useSuckerControl] checkAttachment', {
+      //   poseSource,
+      //   suckerOn: suckerOnRef.current,
+      //   boxState: boxStateRef.current,
+      //   canAttach,
+      //   suckerTipMm: {
+      //     x: Math.round(suckerTip[0]),
+      //     y: Math.round(suckerTip[1]),
+      //     z: Math.round(suckerTip[2]),
+      //   },
+      //   boxTopCenterMm: {
+      //     x: boxTopCenter[0],
+      //     y: boxTopCenter[1],
+      //     z: boxTopCenter[2],
+      //   },
+      //   distanceMm: Math.round(distance * 100) / 100,
+      //   thresholdMm: ATTACH_THRESHOLD,
+      // });
+
+      if (distance < ATTACH_THRESHOLD && canAttach) {
+        console.log('[useSuckerControl] checkAttachment -> ATTACHED', {
+          distanceMm: Math.round(distance * 100) / 100,
+          thresholdMm: ATTACH_THRESHOLD,
+        });
         setBoxState('ATTACHED');
         boxStateRef.current = 'ATTACHED';
       }
     },
-    [getEndEffectorPose]
+    [getEndEffectorPose, poseApi]
   );
 
   // 箱子跟随（ATTACHED）— 使用 GLB 法兰矩阵获取真实视觉位置
-  const poseApi = useRobotPoseAPI();
-  const updateBoxFollow = useCallback(() => {
-    if (boxStateRef.current !== 'ATTACHED') return;
-
-    // 优先使用 GLB 法兰矩阵（场景米坐标，视觉精确）
-    const glb = poseApi.getFlangeMatrix();
-    if (glb?.position && glb?.rotation) {
-      const [fx, fy, fz] = glb.position;
-      // rotation 现在为真实旋转矩阵（行主序），工具 Z 轴为世界坐标系下的第三列
-      const tz: [number, number, number] = [
-        glb.rotation[0][2], glb.rotation[1][2], glb.rotation[2][2],
-      ];
-      // 吸盘尖端 = 法兰 - 工具Z * 吸盘长度（场景米）
-      const sx = fx - tz[0] * (SUCKER_LENGTH / 1000);
-      const sy = fy - tz[1] * (SUCKER_LENGTH / 1000);
-      const sz = fz - tz[2] * (SUCKER_LENGTH / 1000);
-      // 箱子中心 = 吸盘尖端 + 工具Z * 半箱高（场景米）
+  const getExpectedAttachedBoxPosition = useCallback((): [number, number, number] | null => {
+    // 优先使用真实吸盘下表面中心（场景米坐标，视觉精确）
+    const suckerContact = poseApi.getSuckerContactPose();
+    if (suckerContact?.position && suckerContact.direction) {
+      const [sx, sy, sz] = suckerContact.position;
+      const [dx, dy, dz] = suckerContact.direction;
+      // 箱子中心应位于“吸盘下表面中心沿吸附方向进入箱体”的半箱高位置。
       const boxScene: [number, number, number] = [
-        sx + tz[0] * (BOX_HALF_SIZE / 1000),
-        sy + tz[1] * (BOX_HALF_SIZE / 1000),
-        sz + tz[2] * (BOX_HALF_SIZE / 1000),
+        sx + dx * (BOX_HALF_SIZE / 1000),
+        sy + dy * (BOX_HALF_SIZE / 1000),
+        sz + dz * (BOX_HALF_SIZE / 1000),
       ];
       // ×1000 转为内部 mm 格式（场景渲染时除1000→场景米）
-      const boxMM: [number, number, number] = [
-        Math.round(boxScene[0] * 1000),
-        Math.round(boxScene[1] * 1000),
-        Math.round(boxScene[2] * 1000),
-      ];
-      setBoxPosition(boxMM);
-      boxPosRef.current = boxMM;
-      return;
+      const boxMM = roundMmVector(boxScene);
+      return boxMM;
     }
 
     // 降级 DH FK（GLB 未就绪时）
@@ -129,13 +169,43 @@ export function useSuckerControl({ joints, config, initialBoxPosition }: UseSuck
       pose.rotation[2][2],
     ];
     const boxCenterMM: [number, number, number] = [
-      suckerTip[0] + toolZ[0] * BOX_HALF_SIZE,
-      suckerTip[1] + toolZ[1] * BOX_HALF_SIZE,
-      suckerTip[2] + toolZ[2] * BOX_HALF_SIZE,
+      suckerTip[0] - toolZ[0] * BOX_HALF_SIZE,
+      suckerTip[1] - toolZ[1] * BOX_HALF_SIZE,
+      suckerTip[2] - toolZ[2] * BOX_HALF_SIZE,
     ];
-    setBoxPosition(boxCenterMM);
-    boxPosRef.current = boxCenterMM;
+    return boxCenterMM;
   }, [getEndEffectorPose, poseApi]);
+
+  const isBoxAttachedStable = useCallback(() => {
+    if (boxStateRef.current !== 'ATTACHED') {
+      return false;
+    }
+
+    if (lastFollowCycleRef.current !== attachCycleRef.current) {
+      return false;
+    }
+
+    const expectedBoxMM = getExpectedAttachedBoxPosition();
+    if (!expectedBoxMM) {
+      return false;
+    }
+
+    const currentBoxMM = boxPosRef.current;
+    return norm(currentBoxMM, expectedBoxMM) <= ATTACH_SETTLE_THRESHOLD;
+  }, [getExpectedAttachedBoxPosition]);
+
+  const updateBoxFollow = useCallback(() => {
+    if (boxStateRef.current !== 'ATTACHED') return;
+
+    const nextBoxCenterMM = getExpectedAttachedBoxPosition();
+    if (!nextBoxCenterMM) {
+      return;
+    }
+
+    setBoxPosition(nextBoxCenterMM);
+    boxPosRef.current = nextBoxCenterMM;
+    lastFollowCycleRef.current = attachCycleRef.current;
+  }, [getExpectedAttachedBoxPosition]);
 
   // 自由落体（FALLING 状态）
   const applyGravity = useCallback((deltaTime: number) => {
@@ -197,6 +267,7 @@ export function useSuckerControl({ joints, config, initialBoxPosition }: UseSuck
     velocityYRef.current = 0;
     setSuckerOn(false);
     suckerOnRef.current = false;
+    lastFollowCycleRef.current = -1;
     if (restingHeight !== undefined && restingHeight > 0) {
       setRestingY(restingHeight);
       restingYRef.current = restingHeight;
@@ -211,26 +282,33 @@ export function useSuckerControl({ joints, config, initialBoxPosition }: UseSuck
     boxPosRef.current = pos;
     setVelocityY(0);
     velocityYRef.current = 0;
+    lastFollowCycleRef.current = -1;
   }, []);
 
   // 开启吸盘
   const turnSuckerOn = useCallback(() => {
+    attachCycleRef.current += 1;
+    lastFollowCycleRef.current = -1;
+    console.log('[useSuckerControl] turnSuckerOn', {
+      attachCycle: attachCycleRef.current,
+      previousSuckerOn: suckerOnRef.current,
+      boxState: boxStateRef.current,
+      boxPositionMm: {
+        x: boxPosRef.current[0],
+        y: boxPosRef.current[1],
+        z: boxPosRef.current[2],
+      },
+    });
     setSuckerOn(true);
     suckerOnRef.current = true;
-  }, []);
-
-  // 强制吸附（序列用：前序步骤已确保吸盘接触箱面，直接进入 ATTACHED 状态）
-  const forceAttachBox = useCallback(() => {
-    if (boxStateRef.current === 'FREE') {
-      setBoxState('ATTACHED');
-      boxStateRef.current = 'ATTACHED';
-    }
-  }, []);
+    checkAttachment(boxPosRef.current);
+  }, [checkAttachment]);
 
   // 关闭吸盘
   const turnSuckerOff = useCallback(() => {
     setSuckerOn(false);
     suckerOnRef.current = false;
+    lastFollowCycleRef.current = -1;
     if (boxStateRef.current === 'ATTACHED') {
       setBoxState('PLACED');
       boxStateRef.current = 'PLACED';
@@ -252,7 +330,11 @@ export function useSuckerControl({ joints, config, initialBoxPosition }: UseSuck
     velocityYRef.current = 0;
     setSuckerOn(false);
     suckerOnRef.current = false;
+    lastFollowCycleRef.current = -1;
   }, [initialBoxPosition]);
+
+  const getBoxState = useCallback(() => boxStateRef.current, []);
+  const getSuckerOn = useCallback(() => suckerOnRef.current, []);
 
   return {
     suckerOn,
@@ -261,7 +343,6 @@ export function useSuckerControl({ joints, config, initialBoxPosition }: UseSuck
     restingY,
     turnSuckerOn,
     turnSuckerOff,
-    forceAttachBox,
     resetBox,
     spawnBox,
     setBoxPositionExternal,
@@ -269,5 +350,8 @@ export function useSuckerControl({ joints, config, initialBoxPosition }: UseSuck
     updateBoxFollow,
     applyGravity,
     getEndEffectorPose,
+    getBoxState,
+    getSuckerOn,
+    isBoxAttachedStable,
   };
 }

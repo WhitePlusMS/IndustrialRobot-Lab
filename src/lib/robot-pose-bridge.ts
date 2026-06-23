@@ -9,6 +9,11 @@ export interface RobotPoseAPI {
   isAvailable: () => boolean;
   /** 获取当前法兰在世界坐标系中的位姿（GLB 场景坐标，单位米） */
   getFlangeMatrix: () => { position: [number, number, number]; rotation: number[][] } | null;
+  /** 获取真实吸盘下表面中心与其从法兰指向接触面的方向（GLB 场景坐标，单位米） */
+  getSuckerContactPose: () => {
+    position: [number, number, number];
+    direction: [number, number, number];
+  } | null;
   /** 给定关节角，采样 GLB 模型对应的末端位姿 */
   capturePoseForJoints: (angles: number[]) => Pose | null;
 }

@@ -2,7 +2,7 @@
 // 简单序列步骤：等待、吸盘开关、归位
 import type { StepExecutorParams } from './types';
 
-export async function executeWait({ step, callbacks, ctx }: StepExecutorParams): Promise<boolean> {
+export async function executeWait({ step, stepIndex, callbacks, ctx }: StepExecutorParams): Promise<boolean> {
   const { log, onStepStatusChange } = callbacks;
   const { abortRef } = ctx;
   const duration = (step.params as { waitDuration?: number }).waitDuration ?? 1000;
@@ -12,27 +12,40 @@ export async function executeWait({ step, callbacks, ctx }: StepExecutorParams):
   if (abortRef.current) return false;
 
   log('success', '等待结束');
-  onStepStatusChange(step.__index ?? 0, 'success');
+  onStepStatusChange(stepIndex, 'success');
   return true;
 }
 
-export async function executeSuctionOn({ callbacks, ctx, step }: StepExecutorParams): Promise<boolean> {
-  const { log, onStepStatusChange, onSuckerOn, onForceAttachBox } = callbacks;
+export async function executeSuctionOn({ callbacks, ctx, stepIndex }: StepExecutorParams): Promise<boolean> {
+  const { log, onStepStatusChange, onSuckerOn, getBoxState, isBoxAttachedStable } = callbacks;
   const { ctxRef, setCtx } = ctx;
 
   log('info', '吸盘开启...');
   onSuckerOn();
-  onForceAttachBox();
   const newCtx = { ...ctxRef.current, suckerOn: true };
   setCtx(newCtx);
   ctxRef.current = newCtx;
 
-  log('success', '吸盘已开启，箱子已吸附');
-  onStepStatusChange(step.__index ?? 0, 'success');
-  return true;
+  const start = performance.now();
+  let lastBoxState = getBoxState();
+  let lastStable = isBoxAttachedStable();
+  while (performance.now() - start < 1200) {
+    lastBoxState = getBoxState();
+    lastStable = isBoxAttachedStable();
+    if (lastBoxState === 'ATTACHED' && lastStable) {
+      log('success', '吸盘已开启，箱子已吸附');
+      onStepStatusChange(stepIndex, 'success');
+      return true;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+
+  log('error', `吸盘开启失败：吸附未稳定（boxState=${lastBoxState}, stable=${lastStable ? 'true' : 'false'}）`);
+  onStepStatusChange(stepIndex, 'error', `吸附未稳定（boxState=${lastBoxState}, stable=${lastStable ? 'true' : 'false'}）`);
+  return false;
 }
 
-export async function executeSuctionOff({ callbacks, ctx, step }: StepExecutorParams): Promise<boolean> {
+export async function executeSuctionOff({ callbacks, ctx, stepIndex }: StepExecutorParams): Promise<boolean> {
   const { log, onStepStatusChange, onSuckerOff } = callbacks;
   const { ctxRef, setCtx } = ctx;
 
@@ -43,12 +56,12 @@ export async function executeSuctionOff({ callbacks, ctx, step }: StepExecutorPa
   ctxRef.current = newCtx;
 
   log('success', '吸盘已关闭，箱子释放');
-  onStepStatusChange(step.__index ?? 0, 'success');
+  onStepStatusChange(stepIndex, 'success');
   return true;
 }
 
-export async function executeGoHome({ callbacks, ctx, step, deps }: StepExecutorParams): Promise<boolean> {
-  const { log, onStepStatusChange, onResetBox } = callbacks;
+export async function executeGoHome({ callbacks, ctx, stepIndex, deps }: StepExecutorParams): Promise<boolean> {
+  const { log, onStepStatusChange } = callbacks;
   const { robot } = deps;
   const { abortRef } = ctx;
 
@@ -57,8 +70,7 @@ export async function executeGoHome({ callbacks, ctx, step, deps }: StepExecutor
   await robot.waitForAnimation();
   if (abortRef.current) return false;
 
-  onResetBox();
   log('success', '归位完成');
-  onStepStatusChange(step.__index ?? 0, 'success');
+  onStepStatusChange(stepIndex, 'success');
   return true;
 }

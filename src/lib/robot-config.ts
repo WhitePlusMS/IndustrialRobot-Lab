@@ -28,5 +28,5 @@ export const KUKA_LIKE: RobotConfig = {
   linkColors: ['#2563EB', '#2563EB', '#2563EB', '#9CA3AF', '#9CA3AF', '#9CA3AF'],
 };
 
-/** 初始姿态: 肩微垂、肘微屈，呈现有意义的工业机器人初始状态 */
-export const DEFAULT_JOINTS: JointAngles = [0, -30, 60, 0, 0, 0];
+/** 初始姿态: 全关节归零，机械臂呈竖直站立姿态 */
+export const DEFAULT_JOINTS: JointAngles = [0, 0, 0, 0, 0, 0];
