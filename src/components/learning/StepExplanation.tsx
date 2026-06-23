@@ -128,6 +128,7 @@ export default function StepExplanation({ step, theoryItems }: StepExplanationPr
           </div>
         </div>
       )}
+
     </div>
   );
 }
