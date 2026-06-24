@@ -1,8 +1,5 @@
 // src/components/operation/FreeOperationPanel.tsx
-// 自由练习模式右侧面板：方案 5 落地
-// 保留原 ControlPanel 的 Tab + 可折叠卡片结构，换用当前项目的新视觉风格
 import { useState } from 'react';
-import type { FreeOperationPanelProps } from './panel-types';
 import JointAngleCard from '@/components/JointAngleCard';
 import PoseControlCard from '@/components/PoseControlCard';
 import PositionTargetCard from '@/components/PositionTargetCard';
@@ -11,6 +8,10 @@ import CameraParamsCard from '@/components/camera/CameraParamsCard';
 import CapturePanel from '@/components/camera/CapturePanel';
 import SequenceEditor from '@/components/sequence/SequenceEditor';
 import { useSceneViewport } from '@/contexts/SceneViewportContext';
+import { useRobotContext } from '@/contexts/RobotContext';
+import { useVirtualCameraContext } from '@/contexts/VirtualCameraContext';
+import { useSequenceContext } from '@/contexts/SequenceContext';
+import { useSuckerContext } from '@/contexts/SuckerContext';
 import { Box, Power, PowerOff, Play, Grip, Eye, EyeOff, MoveUp } from 'lucide-react';
 import { buildGraspApproachPose } from '@/lib/grasp-planning';
 
@@ -31,12 +32,11 @@ const boxStateText: Record<string, string> = {
   RESTING: '静止',
 };
 
-export default function FreeOperationPanel(props: FreeOperationPanelProps) {
+export default function FreeOperationPanel() {
   const [activeTab, setActiveTab] = useState<FreeTab>('robot');
 
   return (
     <div className="flex flex-col h-full">
-      {/* Tab 切换条 */}
       <div className="flex border-b border-slate-200 bg-white shrink-0" role="tablist">
         {tabs.map(({ id, label }) => (
           <button
@@ -56,22 +56,23 @@ export default function FreeOperationPanel(props: FreeOperationPanelProps) {
         ))}
       </div>
 
-      {/* Tab 内容 */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {activeTab === 'robot' && <RobotTab {...props} />}
-        {activeTab === 'camera' && <CameraTab {...props} />}
-        {activeTab === 'sequence' && <SequenceTab {...props} />}
+        {activeTab === 'robot' && <RobotTab />}
+        {activeTab === 'camera' && <CameraTab />}
+        {activeTab === 'sequence' && <SequenceTab />}
       </div>
     </div>
   );
 }
 
-function RobotTab(props: FreeOperationPanelProps) {
+function RobotTab() {
+  const robot = useRobotContext();
+  const sucker = useSuckerContext();
   const viewport = useSceneViewport();
   return (
     <div className="space-y-4">
       <StatusBar>
-        坐标系：{props.coordinateSystem} · 吸盘：{props.suckerOn ? '开启' : '关闭'}
+        坐标系：{robot.coordinateSystem} · 吸盘：{sucker.suckerOn ? '开启' : '关闭'}
       </StatusBar>
 
       <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center justify-between">
@@ -94,107 +95,92 @@ function RobotTab(props: FreeOperationPanelProps) {
       </div>
 
       <JointAngleCard
-        joints={props.joints}
-        config={props.config}
-        jointStep={props.jointStep}
-        onJointStepChange={props.onJointStepChange}
-        onAdjustJoint={props.onAdjustJoint}
-        onSetJoint={props.onSetJoint}
-        sliderTargetRef={props.sliderTargetRef}
-        onReset={props.onReset}
-        onRandom={props.onRandom}
+        joints={robot.joints}
+        config={robot.config}
+        jointStep={robot.jointStep}
+        onJointStepChange={robot.setJointStep}
+        onAdjustJoint={robot.adjustJoint}
+        onSetJoint={robot.setJoint}
+        sliderTargetRef={robot.sliderTargetRef}
+        onReset={robot.resetJoints}
+        onRandom={robot.randomJoints}
       />
 
       <PoseControlCard
-        coordinateSystem={props.coordinateSystem}
-        onCoordinateChange={props.onCoordinateChange}
-        posStep={props.posStep}
-        onPosStepChange={props.onPosStepChange}
-        rotStep={props.rotStep}
-        onRotStepChange={props.onRotStepChange}
-        onMoveDirection={props.onMoveDirection}
+        coordinateSystem={robot.coordinateSystem}
+        onCoordinateChange={robot.setCoordinateSystem}
+        posStep={robot.posStep}
+        onPosStepChange={robot.setPosStep}
+        rotStep={robot.rotStep}
+        onRotStepChange={robot.setRotStep}
+        onMoveDirection={robot.moveDirection}
       />
 
       <PositionTargetCard
-        currentGLBPosition={props.currentGLBPosition}
-        onGoToPosition={props.onGoToPosition}
-        disabled={props.status === 'moving'}
+        currentGLBPosition={robot.glbPosition}
+        onGoToPosition={robot.goToPosition}
+        disabled={robot.status === 'moving'}
       />
 
-      <WaypointPanel currentJoints={props.joints} onGotoWaypoint={props.onGotoWaypoint} />
+      <WaypointPanel currentJoints={robot.joints} onGotoWaypoint={robot.goToJoints} />
     </div>
   );
 }
 
-function CameraTab(props: FreeOperationPanelProps) {
+function CameraTab() {
+  const camera = useVirtualCameraContext();
   return (
     <div className="space-y-4">
       <StatusBar>
-        相机：{props.cameraState.showModel ? '模型显示中' : '隐藏'} · FOV {props.cameraState.fov.toFixed(0)}°
+        相机：{camera.cameraState.showModel ? '模型显示中' : '隐藏'} · FOV {camera.cameraState.fov.toFixed(0)}°
       </StatusBar>
 
       <CameraParamsCard
-        cameraState={props.cameraState}
-        posStep={props.cameraPosStep}
-        onPosStepChange={props.onCameraPosStepChange}
-        rotStep={props.cameraRotStep}
-        onRotStepChange={props.onCameraRotStepChange}
-        fovStep={props.cameraFovStep}
-        onFovStepChange={props.onCameraFovStepChange}
-        setPositionAxis={props.setCameraPositionAxis}
-        setRotationAxis={props.setCameraRotationAxis}
-        setFov={props.setCameraFov}
-        setNear={props.setCameraNear}
-        setFar={props.setCameraFar}
-        toggleFrustum={props.toggleCameraFrustum}
-        toggleModel={props.toggleCameraModel}
-        resetCamera={props.resetCamera}
-        showCamera={props.showCamera}
-        setPositionAxisTarget={props.setCameraPositionAxisTarget}
-        setRotationAxisTarget={props.setCameraRotationAxisTarget}
-        setFovTarget={props.setCameraFovTarget}
-        setNearTarget={props.setCameraNearTarget}
-        setFarTarget={props.setCameraFarTarget}
+        cameraState={camera.cameraState}
+        posStep={camera.posStep}
+        onPosStepChange={camera.setPosStep}
+        rotStep={camera.rotStep}
+        onRotStepChange={camera.setRotStep}
+        fovStep={camera.fovStep}
+        onFovStepChange={camera.setFovStep}
+        applyCameraPatch={camera.applyCameraPatch}
+        toggleFrustum={camera.toggleFrustum}
+        toggleModel={camera.toggleModel}
+        resetCamera={camera.resetCamera}
+        showCamera={camera.cameraState.showCamera}
       />
 
       <CapturePanel
-        cameraState={props.cameraState}
-        captureResult={props.captureResult}
-        onCapture={props.onCapture}
-        onResolutionChange={props.setCameraResolution}
+        cameraState={camera.cameraState}
+        captureResult={camera.captureResult}
+        onCapture={camera.saveCapture}
+        onResolutionChange={camera.setResolution}
       />
     </div>
   );
 }
 
-function SequenceTab(props: FreeOperationPanelProps) {
-  const isSuckerVisible = props.selectedTool === '吸盘';
+function SequenceTab() {
+  const robot = useRobotContext();
+  const sucker = useSuckerContext();
+  const sequence = useSequenceContext();
+  const isSuckerVisible = robot.selectedTool === '吸盘';
   const handleToggleSucker = () => {
-    props.setSelectedTool(isSuckerVisible ? '无' : '吸盘');
+    robot.setSelectedTool(isSuckerVisible ? '无' : '吸盘');
   };
 
-  // 一键移动到箱子上方（与 GraspOperations 中逻辑一致）
   const handleApproachBox = () => {
-    if (props.boxState === 'NONE') return;
-    const approachPose = buildGraspApproachPose(props.boxPosition);
-    props.onGoToPosition(
-      approachPose.targetXM,
-      approachPose.targetYM,
-      approachPose.targetZM,
-      approachPose.rx,
-      approachPose.ry,
-      approachPose.rz,
-      approachPose.profile,
-    );
+    if (sucker.boxState === 'NONE') return;
+    const approachPose = buildGraspApproachPose(sucker.boxPosition);
+    robot.goToPoseMm(approachPose);
   };
 
   return (
     <div className="space-y-4">
       <StatusBar>
-        {props.suckerOn ? '吸盘已开启' : '吸盘未开启'} · {boxStateText[props.boxState] ?? props.boxState}
+        {sucker.suckerOn ? '吸盘已开启' : '吸盘未开启'} · {boxStateText[sucker.boxState] ?? sucker.boxState}
       </StatusBar>
 
-      {/* 抓取控制 */}
       <OperationCard title="抓取控制" defaultOpen>
         <div className="space-y-3">
           <button
@@ -211,7 +197,7 @@ function SequenceTab(props: FreeOperationPanelProps) {
           </button>
           <button
             type="button"
-            onClick={() => props.spawnBox([-1000, 200, 0], 50)}
+            onClick={() => sucker.spawnBox([-1000, 200, 0], 50)}
             className="w-full py-2.5 text-xs font-semibold rounded-lg text-slate-700 bg-white border border-slate-200 shadow-sm hover:bg-slate-50 active:bg-slate-100 flex items-center justify-center gap-2 transition-colors"
           >
             <Box className="w-3.5 h-3.5" />
@@ -220,7 +206,7 @@ function SequenceTab(props: FreeOperationPanelProps) {
           <button
             type="button"
             onClick={handleApproachBox}
-            disabled={props.boxState === 'NONE' || props.boxState === 'FALLING' || props.status === 'moving'}
+            disabled={sucker.boxState === 'NONE' || sucker.boxState === 'FALLING' || robot.status === 'moving'}
             className="w-full py-2.5 text-xs font-semibold rounded-lg text-white bg-gradient-to-r from-blue-500 to-blue-600 border border-blue-600 shadow-sm hover:from-blue-600 hover:to-blue-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
           >
             <MoveUp className="w-3.5 h-3.5" />
@@ -229,8 +215,8 @@ function SequenceTab(props: FreeOperationPanelProps) {
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
-              onClick={props.turnSuckerOn}
-              disabled={props.suckerOn}
+              onClick={sucker.turnSuckerOn}
+              disabled={sucker.suckerOn}
               className="py-2.5 text-xs font-semibold rounded-lg text-white bg-gradient-to-r from-blue-500 to-blue-600 border border-blue-600 shadow-sm hover:from-blue-600 hover:to-blue-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
             >
               <Power className="w-3.5 h-3.5" />
@@ -238,8 +224,8 @@ function SequenceTab(props: FreeOperationPanelProps) {
             </button>
             <button
               type="button"
-              onClick={props.turnSuckerOff}
-              disabled={!props.suckerOn}
+              onClick={sucker.turnSuckerOff}
+              disabled={!sucker.suckerOn}
               className="py-2.5 text-xs font-semibold rounded-lg text-slate-700 bg-white border border-slate-200 shadow-sm hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
             >
               <PowerOff className="w-3.5 h-3.5" />
@@ -249,8 +235,8 @@ function SequenceTab(props: FreeOperationPanelProps) {
           <button
             type="button"
             onClick={() => {
-              props.spawnBox([-1000, 200, 0], 50);
-              props.turnSuckerOn();
+              sucker.spawnBox([-1000, 200, 0], 50);
+              sucker.turnSuckerOn();
             }}
             className="w-full py-2.5 text-xs font-semibold rounded-lg text-white bg-gradient-to-r from-blue-500 to-blue-600 border border-blue-600 shadow-sm hover:from-blue-600 hover:to-blue-700 flex items-center justify-center gap-2 transition-colors"
           >
@@ -260,32 +246,30 @@ function SequenceTab(props: FreeOperationPanelProps) {
         </div>
       </OperationCard>
 
-      {/* 动作序列 */}
       <SequenceEditor
-        steps={props.sequenceSteps}
-        currentStepIndex={props.sequenceCurrentStep}
-        status={props.sequenceStatus}
-        logs={props.sequenceLogs}
-        loadDefaultSequence={props.loadDefaultSequence}
-        clearSequence={props.clearSequence}
-        addStep={props.onSequenceAddStep}
-        removeStep={props.onSequenceRemoveStep}
-        moveStep={props.onSequenceMoveStep}
-        updateStep={props.onSequenceUpdateStep}
-        runSequence={props.onSequenceRun}
-        runSingleStep={props.onSequenceStep}
-        stopSequence={props.onSequenceStop}
-        resetSequence={props.onSequenceReset}
-        waypoints={props.waypoints}
-        captureImages={props.captureImages}
-        suckerOn={props.suckerOn}
-        boxState={props.boxState}
+        steps={sequence.steps}
+        currentStepIndex={sequence.currentStepIndex}
+        status={sequence.status}
+        logs={sequence.logs}
+        loadDefaultSequence={sequence.loadDefaultSequence}
+        clearSequence={sequence.clearSequence}
+        addStep={sequence.addStep}
+        removeStep={sequence.removeStep}
+        moveStep={sequence.moveStep}
+        updateStep={sequence.updateStep}
+        runSequence={sequence.runSequence}
+        runSingleStep={sequence.runSingleStep}
+        stopSequence={sequence.stopSequence}
+        resetSequence={sequence.resetSequence}
+        waypoints={sequence.waypoints}
+        captureImages={sequence.captureImages}
+        suckerOn={sucker.suckerOn}
+        boxState={sucker.boxState}
       />
     </div>
   );
 }
 
-/** 可折叠卡片外壳：方案 5 的新视觉 */
 function OperationCard({
   title,
   defaultOpen = true,
@@ -326,7 +310,6 @@ function OperationCard({
   );
 }
 
-/** 状态条 */
 function StatusBar({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2 px-3 py-2 bg-slate-100 rounded-lg text-xs text-slate-600 border border-slate-200">

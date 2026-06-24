@@ -1,15 +1,18 @@
-// src/components/operation/RobotOperations.tsx
-import type { RobotOperationsProps } from './panel-types';
 import JointAngleCard from '@/components/JointAngleCard';
 import PoseControlCard from '@/components/PoseControlCard';
 import PositionTargetCard from '@/components/PositionTargetCard';
 import WaypointPanel from '@/components/WaypointPanel';
 import { useSceneViewport } from '@/contexts/SceneViewportContext';
+import { useLearning } from '@/contexts/LearningContext';
+import { useRobotContext } from '@/contexts/RobotContext';
 import { Eye, EyeOff, Grip } from 'lucide-react';
 
-export default function RobotOperations(props: RobotOperationsProps) {
-  const stepId = props.currentStep.id;
+export default function RobotOperations() {
+  const { currentStep } = useLearning();
+  const robot = useRobotContext();
   const viewport = useSceneViewport();
+  if (!currentStep) return null;
+  const stepId = currentStep.id;
 
   const isStructureStep = stepId === 'robot-structure';
   const isCoordinateStep = stepId === 'robot-coordinate';
@@ -18,26 +21,25 @@ export default function RobotOperations(props: RobotOperationsProps) {
   const isCartesianStep = stepId === 'robot-cartesian';
 
   const jointCards = [
-    { j: 'J1', name: '底座旋转', index: 0, nodeName: '转台' },
-    { j: 'J2', name: '肩部俯仰', index: 1, nodeName: '大臂' },
-    { j: 'J3', name: '肘部俯仰', index: 2, nodeName: '小臂' },
-    { j: 'J4', name: '腕部旋转', index: 3, nodeName: '回转机构' },
-    { j: 'J5', name: '腕部俯仰', index: 4, nodeName: '末端关节' },
-    { j: 'J6', name: '末端旋转', index: 5, nodeName: '快拆机器人端口' },
+    { j: 'J1', name: '底座旋转', index: 0 },
+    { j: 'J2', name: '肩部俯仰', index: 1 },
+    { j: 'J3', name: '肘部俯仰', index: 2 },
+    { j: 'J4', name: '腕部旋转', index: 3 },
+    { j: 'J5', name: '腕部俯仰', index: 4 },
+    { j: 'J6', name: '末端旋转', index: 5 },
   ];
 
   const handleJointCardClick = (index: number) => {
-    props.setHighlightedJoint(props.highlightedJoint === index ? null : index);
+    robot.setHighlightedJoint(robot.highlightedJoint === index ? null : index);
   };
 
-  const isSuckerVisible = props.selectedTool === '吸盘';
+  const isSuckerVisible = robot.selectedTool === '吸盘';
   const handleToggleSucker = () => {
-    props.setSelectedTool(isSuckerVisible ? '无' : '吸盘');
+    robot.setSelectedTool(isSuckerVisible ? '无' : '吸盘');
   };
 
   return (
     <div className="space-y-4">
-      {/* 坐标系显示与模式切换：机器臂模块通用 */}
       <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
         <div className="flex items-center justify-between">
           <p className="text-sm font-bold text-slate-800">坐标系可视化</p>
@@ -59,12 +61,11 @@ export default function RobotOperations(props: RobotOperationsProps) {
         </p>
       </div>
 
-      {/* 关节认识卡片 */}
       {isStructureStep && (
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2">
             {jointCards.map(({ j, name, index }) => {
-              const active = props.highlightedJoint === index;
+              const active = robot.highlightedJoint === index;
               return (
                 <button
                   key={j}
@@ -83,7 +84,6 @@ export default function RobotOperations(props: RobotOperationsProps) {
             })}
           </div>
 
-          {/* 末端执行器：显示/隐藏吸盘 */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
@@ -112,57 +112,53 @@ export default function RobotOperations(props: RobotOperationsProps) {
         </div>
       )}
 
-      {/* 单关节 / 多关节步骤：复用 JointAngleCard 不卡顿逻辑，按教学需要锁定部分关节 */}
       {(isSingleJointStep || isMultiJointStep) && (
         <JointAngleCard
-          joints={props.joints}
-          config={props.config}
-          jointStep={props.jointStep}
-          onJointStepChange={props.onJointStepChange}
-          onAdjustJoint={props.onAdjustJoint}
-          onSetJoint={props.onSetJoint}
-          sliderTargetRef={props.sliderTargetRef}
-          onReset={props.onReset}
-          onRandom={props.onRandom}
+          joints={robot.joints}
+          config={robot.config}
+          jointStep={robot.jointStep}
+          onJointStepChange={robot.setJointStep}
+          onAdjustJoint={robot.adjustJoint}
+          onSetJoint={robot.setJoint}
+          sliderTargetRef={robot.sliderTargetRef}
+          onReset={robot.resetJoints}
+          onRandom={robot.randomJoints}
           collapsible={false}
           enabledJoints={isSingleJointStep ? [0] : [1, 2]}
         />
       )}
 
-      {/* 坐标系步骤：通过位姿控制方向键体验 World/Tool 坐标系差异 */}
       {isCoordinateStep && (
         <PoseControlCard
-          coordinateSystem={props.coordinateSystem}
-          onCoordinateChange={props.onCoordinateChange}
-          posStep={props.posStep}
-          onPosStepChange={props.onPosStepChange}
-          rotStep={props.rotStep}
-          onRotStepChange={props.onRotStepChange}
-          onMoveDirection={props.onMoveDirection}
+          coordinateSystem={robot.coordinateSystem}
+          onCoordinateChange={robot.setCoordinateSystem}
+          posStep={robot.posStep}
+          onPosStepChange={robot.setPosStep}
+          rotStep={robot.rotStep}
+          onRotStepChange={robot.setRotStep}
+          onMoveDirection={robot.moveDirection}
         />
       )}
 
-      {/* 末端位置控制 + 位姿微调 + 记忆点管理 */}
       {isCartesianStep && (
         <>
           <PositionTargetCard
-            currentGLBPosition={props.currentGLBPosition}
-            onGoToPosition={props.onGoToPosition}
-            disabled={props.status === 'moving'}
+            currentGLBPosition={robot.glbPosition}
+            onGoToPosition={robot.goToPosition}
+            disabled={robot.status === 'moving'}
           />
           <PoseControlCard
-            coordinateSystem={props.coordinateSystem}
-            onCoordinateChange={props.onCoordinateChange}
-            posStep={props.posStep}
-            onPosStepChange={props.onPosStepChange}
-            rotStep={props.rotStep}
-            onRotStepChange={props.onRotStepChange}
-            onMoveDirection={props.onMoveDirection}
+            coordinateSystem={robot.coordinateSystem}
+            onCoordinateChange={robot.setCoordinateSystem}
+            posStep={robot.posStep}
+            onPosStepChange={robot.setPosStep}
+            rotStep={robot.rotStep}
+            onRotStepChange={robot.setRotStep}
+            onMoveDirection={robot.moveDirection}
           />
-          <WaypointPanel currentJoints={props.joints} onGotoWaypoint={props.onGotoWaypoint} />
+          <WaypointPanel currentJoints={robot.joints} onGotoWaypoint={robot.goToJoints} />
         </>
       )}
-
     </div>
   );
 }
