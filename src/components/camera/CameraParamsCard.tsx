@@ -1,4 +1,3 @@
-// src/components/camera/CameraParamsCard.tsx
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { CameraState } from '@/types/camera';
 import LongPressButton from '@/components/LongPressButton';
@@ -11,24 +10,15 @@ interface CameraParamsCardProps {
   onRotStepChange: (v: number) => void;
   fovStep: number;
   onFovStepChange: (v: number) => void;
-  setPositionAxis: (axis: 0 | 1 | 2, value: number) => void;
-  setRotationAxis: (axis: 0 | 1 | 2, value: number) => void;
-  setFov: (v: number) => void;
-  setNear: (v: number) => void;
-  setFar: (v: number) => void;
+  applyCameraPatch: (
+    patch: Partial<Pick<CameraState, 'position' | 'rotation' | 'fov' | 'near' | 'far'>>,
+    options?: { commit?: boolean }
+  ) => void;
   toggleFrustum: () => void;
   toggleModel: () => void;
   resetCamera: () => void;
-  /** 相机总闸（用于禁用内部 checkbox） */
   showCamera: boolean;
-  /** 是否显示镜头参数区（FOV/near/far），默认 true。Step 3 位姿调整传 false */
   showLensParams?: boolean;
-  /** slider 拖拽时直接写 ref，不触发 React state */
-  setPositionAxisTarget: (axis: 0 | 1 | 2, value: number) => void;
-  setRotationAxisTarget: (axis: 0 | 1 | 2, value: number) => void;
-  setFovTarget: (value: number) => void;
-  setNearTarget: (value: number) => void;
-  setFarTarget: (value: number) => void;
 }
 
 const axisLabels = ['X', 'Y', 'Z'];
@@ -47,11 +37,6 @@ interface SliderRowProps {
   labelWidthClass?: string;
 }
 
-/**
- * 通用滑动条参数行
- * 参考 JointAngleCard 的交互：+/- 按钮、可点击编辑数值、range 滑块、范围提示
- * commit=false 表示拖动中，只更新本地显示；commit=true 表示最终同步到 React state
- */
 function SliderRow({
   label,
   value,
@@ -66,38 +51,30 @@ function SliderRow({
 }: SliderRowProps) {
   const [editing, setEditing] = useState<{ value: string } | null>(null);
 
-  const clamp = useCallback((v: number) => Math.max(min, Math.min(max, v)), [min, max]);
+  const clamp = useCallback((v: number) => Math.max(min, Math.min(max, v)), [max, min]);
 
-  const applyValue = useCallback(
-    (raw: string) => {
-      const n = parseFloat(raw);
-      if (!Number.isNaN(n)) {
-        onChange(clamp(n), true);
-      }
-      setEditing(null);
-    },
-    [clamp, onChange]
-  );
+  const applyValue = useCallback((raw: string) => {
+    const n = parseFloat(raw);
+    if (!Number.isNaN(n)) {
+      onChange(clamp(n), true);
+    }
+    setEditing(null);
+  }, [clamp, onChange]);
 
-  const adjust = useCallback(
-    (delta: number) => {
-      // 按当前 step 规整后加减，避免浮点误差
-      const next = Math.round((value + delta * step) / step) * step;
-      onChange(clamp(next), true);
-    },
-    [clamp, onChange, step, value]
-  );
+  const adjust = useCallback((delta: number) => {
+    const next = Math.round((value + delta * step) / step) * step;
+    onChange(clamp(next), true);
+  }, [clamp, onChange, step, value]);
 
   const displayValue = value.toFixed(decimals);
 
   return (
     <div className="space-y-1.5">
-      {/* 按钮 + 数值 + 范围 */}
       <div className="flex items-center justify-between gap-2">
         <span className={`text-xs font-medium text-slate-500 ${labelWidthClass}`}>{label}</span>
         <LongPressButton
           aria-label={`减小 ${ariaLabelPrefix}`}
-          onClick={(isContinuous) => adjust(isContinuous ? -1 : -1)}
+          onClick={() => adjust(-1)}
           className="w-7 h-7 flex items-center justify-center bg-slate-100 border border-slate-200 rounded-sm text-slate-700 hover:bg-slate-200 active:bg-blue-600 active:text-white active:border-blue-600 transition-colors"
         >
           <span className="pointer-events-none">−</span>
@@ -135,7 +112,7 @@ function SliderRow({
         )}
         <LongPressButton
           aria-label={`增大 ${ariaLabelPrefix}`}
-          onClick={(isContinuous) => adjust(isContinuous ? 1 : 1)}
+          onClick={() => adjust(1)}
           className="w-7 h-7 flex items-center justify-center bg-slate-100 border border-slate-200 rounded-sm text-slate-700 hover:bg-slate-200 active:bg-blue-600 active:text-white active:border-blue-600 transition-colors"
         >
           <span className="pointer-events-none">+</span>
@@ -144,7 +121,6 @@ function SliderRow({
           {min}~{max}
         </span>
       </div>
-      {/* 滑块：拖动中只提交本地显示，不触发 React state */}
       <input
         type="range"
         min={min}
@@ -160,51 +136,37 @@ function SliderRow({
 }
 
 export default function CameraParamsCard(props: CameraParamsCardProps) {
-  const { cameraState, posStep, rotStep, fovStep, showCamera } = props;
-  const {
-    setPositionAxis,
-    setRotationAxis,
-    setFov,
-    setNear,
-    setFar,
-  } = props;
-
-  // 根据 FOV 与分辨率近似计算内参矩阵（假设正方形像素、主点在图像中心）
+  const { cameraState, posStep, rotStep, fovStep, showCamera, applyCameraPatch } = props;
   const [width, height] = cameraState.resolution;
   const fx = (width / 2) / Math.tan((cameraState.fov * Math.PI) / 360);
   const fy = fx;
   const cx = width / 2;
   const cy = height / 2;
 
-  /**
-   * 拖动中的本地覆盖值。
-   * key: 'pos0' | 'pos1' | 'pos2' | 'rot0' | 'rot1' | 'rot2' | 'fov' | 'near' | 'far'
-   */
   const [sliderValues, setSliderValues] = useState<Record<string, number>>({});
   const rafRef = useRef<number | null>(null);
   const pendingRef = useRef<{ key: string; value: number } | null>(null);
 
-  // 将 slider 最终值同步回 React state 的辅助函数
-  const flushSliderValue = useCallback(
-    (key: string, value: number) => {
-      if (key.startsWith('pos')) {
-        const axis = Number(key.slice(3)) as 0 | 1 | 2;
-        setPositionAxis(axis, value);
-      } else if (key.startsWith('rot')) {
-        const axis = Number(key.slice(3)) as 0 | 1 | 2;
-        setRotationAxis(axis, value);
-      } else if (key === 'fov') {
-        setFov(value);
-      } else if (key === 'near') {
-        setNear(value);
-      } else if (key === 'far') {
-        setFar(value);
-      }
-    },
-    [setPositionAxis, setRotationAxis, setFov, setNear, setFar]
-  );
+  const flushSliderValue = useCallback((key: string, value: number) => {
+    if (key.startsWith('pos')) {
+      const axis = Number(key.slice(3)) as 0 | 1 | 2;
+      const position = [...cameraState.position] as [number, number, number];
+      position[axis] = value;
+      applyCameraPatch({ position }, { commit: true });
+      return;
+    }
 
-  // 组件卸载时取消未执行的 rAF
+    if (key.startsWith('rot')) {
+      const axis = Number(key.slice(3)) as 0 | 1 | 2;
+      const rotation = [...cameraState.rotation] as [number, number, number];
+      rotation[axis] = value;
+      applyCameraPatch({ rotation }, { commit: true });
+      return;
+    }
+
+    applyCameraPatch({ [key]: value } as Partial<Pick<CameraState, 'fov' | 'near' | 'far'>>, { commit: true });
+  }, [applyCameraPatch, cameraState.position, cameraState.rotation]);
+
   useEffect(() => {
     return () => {
       if (rafRef.current !== null) {
@@ -213,12 +175,10 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
     };
   }, []);
 
-  // 拖动结束时把 ref 里的最终值同步回 React state，供 UI 和其他逻辑使用
   useEffect(() => {
     if (Object.keys(sliderValues).length === 0) return;
 
     const handlePointerUp = () => {
-      // flush 未执行的 rAF 回退路径
       if (pendingRef.current) {
         const pending = pendingRef.current;
         pendingRef.current = null;
@@ -229,7 +189,6 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
         flushSliderValue(pending.key, pending.value);
       }
 
-      // 把 slider 拖动的最终值同步回 React state
       Object.keys(sliderValues).forEach((key) => {
         flushSliderValue(key, sliderValues[key]);
       });
@@ -238,47 +197,38 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
 
     window.addEventListener('pointerup', handlePointerUp);
     return () => window.removeEventListener('pointerup', handlePointerUp);
-  }, [sliderValues, flushSliderValue]);
+  }, [flushSliderValue, sliderValues]);
 
-  /**
-   * 滑块拖动：只写 ref 和本地覆盖，不触发 React 渲染。
-   * 3D 层 useFrame 读 ref 做插值；CameraParamsCard 本地显示读 sliderValues。
-   */
-  const scheduleUpdate = useCallback(
-    (key: string, value: number) => {
-      setSliderValues((prev) => ({ ...prev, [key]: value }));
+  const scheduleUpdate = useCallback((key: string, value: number) => {
+    setSliderValues((prev) => ({ ...prev, [key]: value }));
 
-      // 写 slider target ref
-      if (key.startsWith('pos')) {
-        props.setPositionAxisTarget(Number(key.slice(3)) as 0 | 1 | 2, value);
-      } else if (key.startsWith('rot')) {
-        props.setRotationAxisTarget(Number(key.slice(3)) as 0 | 1 | 2, value);
-      } else if (key === 'fov') {
-        props.setFovTarget(value);
-      } else if (key === 'near') {
-        props.setNearTarget(value);
-      } else if (key === 'far') {
-        props.setFarTarget(value);
-      }
+    if (key.startsWith('pos')) {
+      const axis = Number(key.slice(3)) as 0 | 1 | 2;
+      const position = [...cameraState.position] as [number, number, number];
+      position[axis] = value;
+      applyCameraPatch({ position }, { commit: false });
+    } else if (key.startsWith('rot')) {
+      const axis = Number(key.slice(3)) as 0 | 1 | 2;
+      const rotation = [...cameraState.rotation] as [number, number, number];
+      rotation[axis] = value;
+      applyCameraPatch({ rotation }, { commit: false });
+    } else {
+      applyCameraPatch({ [key]: value } as Partial<Pick<CameraState, 'fov' | 'near' | 'far'>>, { commit: false });
+    }
 
-      // 无直连 target setter 时回退到 rAF 节流，避免事件风暴
-      pendingRef.current = { key, value };
-      if (rafRef.current === null) {
-        rafRef.current = requestAnimationFrame(() => {
-          const pending = pendingRef.current;
-          rafRef.current = null;
-          pendingRef.current = null;
-          if (!pending) return;
-          flushSliderValue(pending.key, pending.value);
-        });
-      }
-    },
-    [props, flushSliderValue]
-  );
+    pendingRef.current = { key, value };
+    if (rafRef.current === null) {
+      rafRef.current = requestAnimationFrame(() => {
+        const pending = pendingRef.current;
+        rafRef.current = null;
+        pendingRef.current = null;
+        if (!pending) return;
+        flushSliderValue(pending.key, pending.value);
+      });
+    }
+  }, [applyCameraPatch, cameraState.position, cameraState.rotation, flushSliderValue]);
 
-  // 获取显示值：拖动中优先用 sliderValues，否则用 cameraState
-  const getDisplayValue = (key: string, stateValue: number) =>
-    key in sliderValues ? sliderValues[key] : stateValue;
+  const getDisplayValue = (key: string, stateValue: number) => (key in sliderValues ? sliderValues[key] : stateValue);
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
@@ -294,7 +244,6 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
       </div>
 
       <div className="p-4 space-y-4">
-        {/* 内参矩阵只读展示 */}
         <div className="p-3 bg-slate-50 rounded-lg border border-slate-100">
           <div className="text-[11px] font-semibold text-slate-500 mb-1">内参矩阵 K</div>
           <p className="text-[10px] text-slate-400 mb-2 leading-relaxed">
@@ -316,7 +265,6 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
           </div>
         </div>
 
-        {/* 外参：位置与朝向 */}
         <div>
           <div className="text-[11px] font-semibold text-slate-700 mb-1">外参（相机在世界坐标系中的位姿）</div>
           <p className="text-[10px] text-slate-400 mb-2 leading-relaxed">
@@ -339,7 +287,9 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
                   decimals={2}
                   onChange={(v, commit) => {
                     if (commit) {
-                      props.setPositionAxis(i as 0 | 1 | 2, v);
+                      const position = [...cameraState.position] as [number, number, number];
+                      position[i] = v;
+                      applyCameraPatch({ position }, { commit: true });
                     } else {
                       scheduleUpdate(key, v);
                     }
@@ -351,7 +301,6 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
             })}
           </div>
 
-          {/* 位置步进 */}
           <div className="flex items-center gap-1 mt-2">
             <span className="text-[10px] text-slate-500">步进:</span>
             {[0.01, 0.05, 0.1, 0.5].map((v) => (
@@ -373,7 +322,6 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
           </div>
         </div>
 
-        {/* 朝向控制 */}
         <div>
           <div className="text-[11px] font-semibold text-slate-500 mb-2">朝向 (°)</div>
           <div className="space-y-3">
@@ -391,7 +339,9 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
                   decimals={1}
                   onChange={(v, commit) => {
                     if (commit) {
-                      props.setRotationAxis(i as 0 | 1 | 2, v);
+                      const rotation = [...cameraState.rotation] as [number, number, number];
+                      rotation[i] = v;
+                      applyCameraPatch({ rotation }, { commit: true });
                     } else {
                       scheduleUpdate(key, v);
                     }
@@ -424,78 +374,76 @@ export default function CameraParamsCard(props: CameraParamsCardProps) {
           </div>
         </div>
 
-        {/* 镜头参数（可选：Step 3 位姿调整时隐藏） */}
         {props.showLensParams !== false && (
-        <div>
-          <div className="text-[11px] font-semibold text-slate-500 mb-2">镜头参数</div>
-          <div className="space-y-3">
-            <SliderRow
-              label="FOV"
-              value={getDisplayValue('fov', cameraState.fov)}
-              min={10}
-              max={120}
-              step={fovStep}
-              unit="°"
-              decimals={1}
-              onChange={(v, commit) => {
-                if (commit) props.setFov(v);
-                else scheduleUpdate('fov', v);
-              }}
-              ariaLabelPrefix="FOV 视场角"
-            />
-            <SliderRow
-              label="近"
-              value={getDisplayValue('near', cameraState.near)}
-              min={0.01}
-              max={1}
-              step={0.01}
-              unit="m"
-              decimals={2}
-              onChange={(v, commit) => {
-                if (commit) props.setNear(v);
-                else scheduleUpdate('near', v);
-              }}
-              ariaLabelPrefix="近裁剪面"
-            />
-            <SliderRow
-              label="远"
-              value={getDisplayValue('far', cameraState.far)}
-              min={1}
-              max={100}
-              step={1}
-              unit="m"
-              decimals={1}
-              onChange={(v, commit) => {
-                if (commit) props.setFar(v);
-                else scheduleUpdate('far', v);
-              }}
-              ariaLabelPrefix="远裁剪面"
-            />
-          </div>
+          <div>
+            <div className="text-[11px] font-semibold text-slate-500 mb-2">镜头参数</div>
+            <div className="space-y-3">
+              <SliderRow
+                label="FOV"
+                value={getDisplayValue('fov', cameraState.fov)}
+                min={10}
+                max={120}
+                step={fovStep}
+                unit="°"
+                decimals={1}
+                onChange={(v, commit) => {
+                  if (commit) applyCameraPatch({ fov: v }, { commit: true });
+                  else scheduleUpdate('fov', v);
+                }}
+                ariaLabelPrefix="FOV 视场角"
+              />
+              <SliderRow
+                label="近"
+                value={getDisplayValue('near', cameraState.near)}
+                min={0.01}
+                max={1}
+                step={0.01}
+                unit="m"
+                decimals={2}
+                onChange={(v, commit) => {
+                  if (commit) applyCameraPatch({ near: v }, { commit: true });
+                  else scheduleUpdate('near', v);
+                }}
+                ariaLabelPrefix="近裁剪面"
+              />
+              <SliderRow
+                label="远"
+                value={getDisplayValue('far', cameraState.far)}
+                min={1}
+                max={100}
+                step={1}
+                unit="m"
+                decimals={1}
+                onChange={(v, commit) => {
+                  if (commit) applyCameraPatch({ far: v }, { commit: true });
+                  else scheduleUpdate('far', v);
+                }}
+                ariaLabelPrefix="远裁剪面"
+              />
+            </div>
 
-          <div className="flex items-center gap-1 mt-2">
-            <span className="text-[10px] text-slate-500">步进:</span>
-            {[1, 5, 10, 30].map((v) => (
-              <button
-                type="button"
-                key={v}
-                aria-pressed={fovStep === v}
-                onClick={() => props.onFovStepChange(v)}
-                className={`px-1.5 py-0.5 text-[10px] rounded-sm border focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none ${
-                  fovStep === v
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                {v}
-              </button>
-            ))}
-            <span className="text-[10px] text-slate-400">°</span>
+            <div className="flex items-center gap-1 mt-2">
+              <span className="text-[10px] text-slate-500">步进:</span>
+              {[1, 5, 10, 30].map((v) => (
+                <button
+                  type="button"
+                  key={v}
+                  aria-pressed={fovStep === v}
+                  onClick={() => props.onFovStepChange(v)}
+                  className={`px-1.5 py-0.5 text-[10px] rounded-sm border focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:outline-none ${
+                    fovStep === v
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {v}
+                </button>
+              ))}
+              <span className="text-[10px] text-slate-400">°</span>
+            </div>
           </div>
-        </div>
         )}
 
-        {/* 显示控制 */}
         <div className="flex items-center gap-4 pt-1">
           <label className={`flex items-center gap-1.5 ${!showCamera ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}>
             <input

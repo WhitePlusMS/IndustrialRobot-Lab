@@ -73,7 +73,7 @@ function AppContent() {
             selectedTool={robot.selectedTool}
             onToolList={robot.setToolList}
             cameraState={camera.cameraState}
-            cameraSliderTargetRef={camera.cameraSliderTargetRef}
+            cameraSliderTargetRef={camera.cameraTargetRef}
             coordinateSystem={robot.coordinateSystem}
             gizmoIKRef={robot.gizmoIKRef}
             showTransformGizmo={viewport.showTransformGizmo}
