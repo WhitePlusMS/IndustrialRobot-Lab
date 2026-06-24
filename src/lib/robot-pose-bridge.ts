@@ -2,20 +2,33 @@
 // GLB 位姿能力的应用级桥接：替代 window.__GLB_* 全局注入。
 // GLBRobotArm 在就绪后将 API 注册到这里，外部 Hook/模块通过此处获取。
 
-import type { Pose } from '@/types/robot';
+import type { EulerRad, Pose, ScenePointM } from '@/types/robot';
+
+export interface ScenePose {
+  position: ScenePointM;
+  euler: EulerRad;
+  rotation: number[][];
+}
+
+export interface SceneFlangePose {
+  position: ScenePointM;
+  rotation: number[][];
+}
+
+export interface SuckerContactPose {
+  position: ScenePointM;
+  direction: [number, number, number];
+}
 
 export interface RobotPoseAPI {
   /** 判断 GLB 位姿采样能力是否已就绪 */
   isAvailable: () => boolean;
   /** 获取当前法兰在世界坐标系中的位姿（GLB 场景坐标，单位米） */
-  getFlangeMatrix: () => { position: [number, number, number]; rotation: number[][] } | null;
+  getFlangeMatrix: () => SceneFlangePose | null;
   /** 获取真实吸盘下表面中心与其从法兰指向接触面的方向（GLB 场景坐标，单位米） */
-  getSuckerContactPose: () => {
-    position: [number, number, number];
-    direction: [number, number, number];
-  } | null;
+  getSuckerContactPose: () => SuckerContactPose | null;
   /** 给定关节角，采样 GLB 模型对应的末端位姿 */
-  capturePoseForJoints: (angles: number[]) => Pose | null;
+  capturePoseForJoints: (angles: number[]) => ScenePose | null;
 }
 
 // ===== 标定数据：PoE 运动学模型的构造参数 =====
