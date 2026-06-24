@@ -4,7 +4,6 @@ import type { SequenceRobotAPI, SequenceStepRuntime } from '@/lib/sequence-runti
 
 function createRobot(overrides: Partial<SequenceRobotAPI> = {}): SequenceRobotAPI {
   return {
-    config: {} as SequenceRobotAPI['config'],
     goToJoints: vi.fn(),
     goToPoseMm: vi.fn(() => true),
     goToPosition: vi.fn(() => true),
@@ -13,8 +12,7 @@ function createRobot(overrides: Partial<SequenceRobotAPI> = {}): SequenceRobotAP
     isAnimating: false,
     isAnimatingRef: { current: false },
     getCurrentJointsDeg: vi.fn(() => [0, 0, 0, 0, 0, 0] as [number, number, number, number, number, number]),
-    getCurrentJointsRad: vi.fn(() => [0, 0, 0, 0, 0, 0] as [number, number, number, number, number, number]),
-    getCurrentRotation: vi.fn(() => [[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
+    getCurrentPose: vi.fn(() => null),
     ...overrides,
   };
 }

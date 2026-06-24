@@ -25,6 +25,7 @@ type RobotStateValue = Pick<
   | 'isAnimating'
   | 'glbPosition'
   | 'config'
+  | 'model'
 > & {
   highlightedJoint: number | null;
 };
@@ -82,6 +83,7 @@ export function RobotProvider({ children }: { children: ReactNode }) {
     isAnimating: robot.isAnimating,
     glbPosition: robot.glbPosition,
     config: robot.config,
+    model: robot.model,
     highlightedJoint,
   }), [
     highlightedJoint,
@@ -92,6 +94,7 @@ export function RobotProvider({ children }: { children: ReactNode }) {
     robot.isAnimating,
     robot.jointStep,
     robot.joints,
+    robot.model,
     robot.originJoints,
     robot.posStep,
     robot.rotStep,

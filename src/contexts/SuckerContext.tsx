@@ -14,7 +14,7 @@ export function SuckerProvider({ children }: { children: ReactNode }) {
   const robot = useRobotStateContext();
   const sucker = useSuckerControl({
     joints: robot.joints,
-    config: robot.config,
+    model: robot.model,
     initialBoxPosition: INITIAL_BOX_POSITION,
   });
   return <SuckerContext.Provider value={sucker}>{children}</SuckerContext.Provider>;

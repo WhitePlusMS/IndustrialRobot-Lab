@@ -1,7 +1,6 @@
 // src/hooks/useActionSequence.ts
 import { useState, useCallback, useRef, useEffect, type MutableRefObject } from 'react';
-import { forwardKinematics } from '@/lib/kinematics';
-import type { RobotConfig, JointAngles, TaskPoseConstraintProfile, TaskTargetPoseMm } from '@/types/robot';
+import type { JointAngles, Pose, TaskPoseConstraintProfile, TaskTargetPoseMm } from '@/types/robot';
 import type {
   ActionStep,
   SeqContext,
@@ -11,6 +10,7 @@ import type {
 import { createDefaultContext, createDefaultStep } from '@/types/sequence';
 import type { RobotPoseAPI } from '@/lib/robot-pose-bridge';
 import type { SceneRendererAPI } from '@/contexts/SceneRendererContext';
+import type { RobotModel } from '@/lib/robot-model';
 import { useRobotPoseAPI } from './useRobotPoseAPI';
 import { useSceneRendererAPI } from './useSceneRendererAPI';
 import type { CameraState } from '@/types/camera';
@@ -25,8 +25,8 @@ import type { SequenceRobotAPI, SequenceStepRuntime } from '@/lib/sequence-runti
 
 export function buildSequenceRobotAPI(
   robot: {
-    config: RobotConfig;
     joints: JointAngles;
+    model: RobotModel;
     goToJoints: (joints: JointAngles) => void;
     goToPosition: (x: number, y: number, z: number, rx?: number, ry?: number, rz?: number, profile?: TaskPoseConstraintProfile) => boolean;
     goToPoseMm: (target: TaskTargetPoseMm) => boolean;
@@ -37,7 +37,6 @@ export function buildSequenceRobotAPI(
   },
 ): SequenceRobotAPI {
   return {
-    config: robot.config,
     goToJoints: robot.goToJoints,
     goToPosition: robot.goToPosition,
     goToPoseMm: robot.goToPoseMm,
@@ -46,12 +45,7 @@ export function buildSequenceRobotAPI(
     isAnimating: robot.isAnimating,
     isAnimatingRef: robot.isAnimatingRef,
     getCurrentJointsDeg: () => [...robot.joints] as JointAngles,
-    getCurrentJointsRad: () => robot.joints.map((j) => (j * Math.PI) / 180) as JointAngles,
-    getCurrentRotation: () => {
-      const jointsRad = robot.joints.map((j) => (j * Math.PI) / 180) as JointAngles;
-      const T = forwardKinematics(jointsRad, robot.config);
-      return T.getRotation();
-    },
+    getCurrentPose: (): Pose | null => robot.model.forwardKinematics(robot.joints),
   };
 }
 

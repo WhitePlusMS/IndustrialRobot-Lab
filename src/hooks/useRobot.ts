@@ -13,6 +13,7 @@ import { SceneKinematicModel } from '@/lib/scene-kinematic-model';
 import { GLBRobotModel } from '@/lib/glb-robot-model';
 import { robotPoseBridge } from '@/lib/robot-pose-bridge';
 import type { CalibrationData } from '@/lib/robot-pose-bridge';
+import type { RobotModel } from '@/lib/robot-model';
 import { radToDeg } from '@/lib/math/angle';
 import { useMotion } from './useMotion';
 import { useRobotCommandCenter } from './useRobotCommandCenter';
@@ -272,5 +273,6 @@ export function useRobot(externalTargetRef?: React.MutableRefObject<JointAngles>
     isAnimatingRef,
     gizmoIKRef,
     config,
+    model: model as RobotModel,
   };
 }

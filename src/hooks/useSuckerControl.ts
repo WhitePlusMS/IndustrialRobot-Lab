@@ -1,9 +1,9 @@
 // src/hooks/useSuckerControl.ts
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { forwardKinematics } from '@/lib/kinematics';
 import { Matrix4x4 } from '@/lib/matrix4x4';
 import { useRobotPoseAPI } from './useRobotPoseAPI';
-import type { RobotConfig, JointAngles } from '@/types/robot';
+import type { JointAngles, Pose } from '@/types/robot';
+import type { RobotModel } from '@/lib/robot-model';
 import { sceneToRobotMm } from '@/lib/spatial-coordinates';
 import {
   buildBoxTopCenter,
@@ -47,11 +47,11 @@ function norm(a: [number, number, number], b: [number, number, number]): number 
 
 interface UseSuckerControlProps {
   joints: JointAngles;
-  config: RobotConfig;
+  model: RobotModel;
   initialBoxPosition: [number, number, number];
 }
 
-export function useSuckerControl({ joints, config, initialBoxPosition }: UseSuckerControlProps) {
+export function useSuckerControl({ joints, model, initialBoxPosition }: UseSuckerControlProps) {
   const [suckerOn, setSuckerOn] = useState(false);
   const [boxState, setBoxState] = useState<BoxState>('NONE');
   const [boxPosition, setBoxPosition] = useState<[number, number, number]>(initialBoxPosition);
@@ -74,11 +74,9 @@ export function useSuckerControl({ joints, config, initialBoxPosition }: UseSuck
   useEffect(() => { jointsRef.current = joints; }, [joints]);
   useEffect(() => { restingYRef.current = restingY; }, [restingY]);
 
-  const getEndEffectorPose = useCallback(() => {
-    const jointsRad = jointsRef.current.map((j) => (j * Math.PI) / 180) as JointAngles;
-    const T = forwardKinematics(jointsRad, config);
-    return { position: T.getPosition(), rotation: T.getRotation() };
-  }, [config]);
+  const getEndEffectorPose = useCallback((): Pose | null => {
+    return model.forwardKinematics(jointsRef.current);
+  }, [model]);
 
   // GLB 位姿采样能力（用于吸附检测和箱子跟随）
   const poseApi = useRobotPoseAPI();
@@ -96,8 +94,10 @@ export function useSuckerControl({ joints, config, initialBoxPosition }: UseSuck
       if (suckerContact?.position) {
         suckerTip = sceneToRobotMm(suckerContact.position);
       } else {
-        // 降级 DH FK
         const pose = getEndEffectorPose();
+        if (!pose) {
+          return;
+        }
         suckerTip = getSuckerTipPosition(pose.position, pose.rotation);
       }
 
@@ -146,8 +146,11 @@ export function useSuckerControl({ joints, config, initialBoxPosition }: UseSuck
       return computeAttachedBoxPositionFromContact(suckerContact, BOX_HALF_SIZE);
     }
 
-    // 降级 DH FK（GLB 未就绪时）
+    // 降级到当前统一 RobotModel（GLB/PoE 由 useRobot 内部决定）
     const pose = getEndEffectorPose();
+    if (!pose) {
+      return null;
+    }
     const suckerTip = getSuckerTipPosition(pose.position, pose.rotation);
     const toolZ: [number, number, number] = [
       pose.rotation[0][2],

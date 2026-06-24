@@ -28,8 +28,8 @@ export function SequenceProvider({ children }: { children: ReactNode }) {
   );
 
   const robotAPI: SequenceRobotAPI = buildSequenceRobotAPI({
-    config: robotState.config,
     joints: robotState.joints,
+    model: robotState.model,
     goToJoints: robotActions.goToJoints,
     goToPosition: robotActions.goToPosition,
     goToPoseMm: robotActions.goToPoseMm,
