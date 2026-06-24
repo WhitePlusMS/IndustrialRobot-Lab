@@ -56,19 +56,17 @@ export default function LearningPanel({
   }
 
   return (
-    <aside className="w-[400px] shrink-0 bg-white border-r border-slate-200 flex flex-col shadow-[2px_0_12px_rgba(0,0,0,0.03)] z-10">
-      {/* 折叠按钮 */}
-      <div className="flex items-center justify-end px-2 py-1.5 border-b border-slate-100 bg-slate-50/50">
-        <button
-          type="button"
-          onClick={onCollapse}
-          className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-          aria-label="折叠学习面板"
-          title="折叠学习面板"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-      </div>
+    <aside className="relative w-[400px] shrink-0 bg-white border-r border-slate-200 flex flex-col shadow-[2px_0_12px_rgba(0,0,0,0.03)] z-10">
+      {/* 右侧边缘折叠把手 */}
+      <button
+        type="button"
+        onClick={onCollapse}
+        title="折叠学习面板"
+        aria-label="折叠学习面板"
+        className="absolute top-1/2 -right-3 -translate-y-1/2 z-20 flex items-center justify-center w-6 h-12 bg-white border border-slate-200 border-l-0 rounded-r-md shadow-md text-slate-500 hover:text-blue-600 hover:bg-slate-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+      >
+        <ChevronLeft className="w-4 h-4" />
+      </button>
 
       <ModuleTabs activeModule={currentModule} onModuleChange={onModuleChange} />
 
