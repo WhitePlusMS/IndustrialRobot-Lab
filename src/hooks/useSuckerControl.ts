@@ -8,13 +8,14 @@ import type { RobotConfig, JointAngles } from '@/types/robot';
 // 真实吸盘相对“快拆机器人端口”存在约 125mm 级下探偏移。
 // 主抓取链路统一用这个有效接触长度，避免继续按法兰贴箱面。
 export const SUCKER_LENGTH = 125;
-export const BOX_SIZE = 120;
+export const BOX_SIZE = 480;
 export const BOX_HALF_SIZE = BOX_SIZE / 2;
 export const ATTACH_THRESHOLD = 55; // 吸盘尖端到箱面中心距离阈值（mm）—— 放宽后接近位可直接吸附
 export const ATTACH_SETTLE_THRESHOLD = 5; // 箱子中心与目标附着中心的最大允许偏差
 export const APPROACH_HEIGHT = 50;
 // 默认箱子位置：机械臂可达区域（负X方向，水平距离 ≥ 最小可达半径 812mm）
-export const INITIAL_BOX_POSITION: [number, number, number] = [-1000, 120, 0];
+// Y 取 BOX_HALF_SIZE，确保箱子底部贴地
+export const INITIAL_BOX_POSITION: [number, number, number] = [-1000, 240, 0];
 
 /** 箱子状态 */
 export type BoxState = 'NONE' | 'FREE' | 'FALLING' | 'ATTACHED' | 'PLACED' | 'RESTING';

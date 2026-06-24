@@ -2,10 +2,10 @@
 // 可抓取箱子（场景米制坐标）
 import { useMemo } from 'react';
 import * as THREE from 'three';
-import type { BoxState } from '@/hooks/useSuckerControl';
+import { BOX_SIZE, type BoxState } from '@/hooks/useSuckerControl';
 
-// 箱子尺寸：120mm → 0.12m
-const BOX_M = 0.12;
+// 箱子尺寸跟随 useSuckerControl 中的 BOX_SIZE（单位：mm → m）
+const BOX_M = BOX_SIZE / 1000;
 const BOX_HALF_M = BOX_M / 2;
 
 interface GraspableBoxProps {

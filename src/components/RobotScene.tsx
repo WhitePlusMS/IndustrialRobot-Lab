@@ -382,7 +382,7 @@ function SceneContent({
           ]}
           rangeX={(spawnFence.randomRangeX ?? 150) / 1000}
           rangeZ={(spawnFence.randomRangeZ ?? 150) / 1000}
-          restingHeight={(spawnFence.restingHeight ?? 200) / 1000}
+          restingHeight={(spawnFence.restingHeight ?? 240) / 1000}
           minHeight={(spawnFence.minHeight ?? 400) / 1000}
           maxHeight={(spawnFence.maxHeight ?? 800) / 1000}
           visible={true}

@@ -283,7 +283,7 @@ export default function SequenceStepParams({
                 箱子在橙色围栏内随机生成，从 min~max 高度自由落体至停止高度悬停
               </div>
               <div className="text-[9px] text-[#94A3B8]">
-                箱体尺寸固定为 120 mm x 120 mm x 120 mm
+                箱体尺寸固定为 480 mm x 480 mm x 480 mm
               </div>
             </div>
           )}

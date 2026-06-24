@@ -13,14 +13,14 @@ import { findNode } from '@/lib/dh-calibration';
 // ============================================================
 // 场景常量
 // ============================================================
-const BOX_SIZE = 0.12;          // 箱子边长 (m) —— 与主抓取场景保持一致
+const BOX_SIZE = 0.48;          // 箱子边长 (m) —— 与主抓取场景保持一致
 const BOX_HALF = BOX_SIZE / 2;  // 箱子半高
 const BOX_GROUND_Y = BOX_HALF;  // 箱子着地时中心 Y
 const CUP_MOVE_SPEED = 0.3;     // 吸盘连续移动速度 (m/s)
 const CUP_NUDGE_STEP = 0.05;    // 吸盘单击微调步长 (m)
 const CONTACT_THRESHOLD = 0.02; // 接触判定阈值
 const GRAVITY = 5.0;            // 箱子掉落加速度 (m/s^2)
-const CUP_TRAVEL_HEIGHT = 0.24; // 抬升上限改为原来的 2 倍
+const CUP_TRAVEL_HEIGHT = 0.48; // 吸盘抬升行程（在 0.24 基础上再 *2）
 
 /** 吸盘行程范围（默认值，几何就绪后动态更新） */
 const CUP_LIMITS = {
@@ -173,6 +173,154 @@ function DemoBox({ position, attached }: {
 }
 
 // ============================================================
+// 气流箭头 —— 用动态小箭头可视化吸盘工作原理
+// ============================================================
+function ArrowMesh({ color, length, thickness }: { color: string; length: number; thickness: number }) {
+  return (
+    <group>
+      <mesh position={[0, length * 0.4, 0]}>
+        <cylinderGeometry args={[thickness * 0.4, thickness * 0.4, length * 0.8, 8]} />
+        <meshBasicMaterial color={color} transparent opacity={0.85} depthTest={false} />
+      </mesh>
+      <mesh position={[0, length * 0.85, 0]}>
+        <coneGeometry args={[thickness * 1.2, length * 0.3, 8]} />
+        <meshBasicMaterial color={color} transparent opacity={0.85} depthTest={false} />
+      </mesh>
+    </group>
+  );
+}
+
+/** 蓝色向上箭头：在吸盘下表面（海绵）均匀分布，表示向上的吸力 */
+function SuctionArrows({
+  cupY,
+  cupGeometry,
+  active,
+}: {
+  cupY: number;
+  cupGeometry: CupGeometryInfo;
+  active: boolean;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+  const [halfW, halfH, halfD] = useMemo(
+    () => [cupGeometry.size[0] / 2, cupGeometry.size[1] / 2, cupGeometry.size[2] / 2],
+    [cupGeometry.size]
+  );
+
+  // 在吸盘下表面做 4x4 均匀网格分布
+  const grid = 4;
+  const arrows = useMemo(() => {
+    const list: { x: number; z: number; phase: number }[] = [];
+    for (let ix = 0; ix < grid; ix++) {
+      for (let iz = 0; iz < grid; iz++) {
+        const x = -halfW + (halfW * 2 * (ix + 0.5)) / grid;
+        const z = -halfD + (halfD * 2 * (iz + 0.5)) / grid;
+        list.push({ x, z, phase: (ix * grid + iz) / (grid * grid) });
+      }
+    }
+    return list;
+  }, [halfW, halfD]);
+
+  // 箭头更细更小，终点指向吸盘底面
+  const arrowLen = Math.max(halfH * 0.6, 0.02);
+  const arrowThick = Math.max(Math.min(halfW, halfD) * 0.04, 0.0015);
+  const bottomY = cupY - halfH;
+
+  useFrame(({ clock }) => {
+    if (!groupRef.current || !active) return;
+    const t = clock.getElapsedTime();
+    groupRef.current.children.forEach((child, i) => {
+      const arrow = child as THREE.Group;
+      const { x, z, phase } = arrows[i];
+      const progress = (t * 1.0 + phase) % 1;
+      // 箭头从底面下方生成，尖端最终到达吸盘底面
+      const tipY = bottomY - (1 - progress) * arrowLen;
+      arrow.position.set(x, tipY - arrowLen * 0.5, z);
+      const alpha = Math.sin(progress * Math.PI);
+      arrow.scale.setScalar(0.4 + alpha * 0.9);
+      arrow.visible = alpha > 0.05;
+    });
+  });
+
+  if (!active || cupGeometry.size[0] <= 0 || cupGeometry.size[1] <= 0 || cupGeometry.size[2] <= 0) return null;
+
+  const initialY = bottomY - arrowLen * 0.5;
+
+  return (
+    <group ref={groupRef}>
+      {arrows.map((a, i) => (
+        <group key={i} position={[a.x, initialY, a.z]}>
+          <ArrowMesh color="#2563EB" length={arrowLen} thickness={arrowThick} />
+        </group>
+      ))}
+    </group>
+  );
+}
+
+/** 红色向外箭头：从吸盘一侧（+X）的底边位置向外吹出 */
+function BlowArrows({
+  cupY,
+  cupGeometry,
+  active,
+}: {
+  cupY: number;
+  active: boolean;
+  cupGeometry: CupGeometryInfo;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+  const [halfW, halfH, halfD] = useMemo(
+    () => [cupGeometry.size[0] / 2, cupGeometry.size[1] / 2, cupGeometry.size[2] / 2],
+    [cupGeometry.size]
+  );
+
+  // 只从 +X 侧面吹出；沿底边到中部、Z 方向均匀分布
+  const rows = 3;
+  const cols = 2;
+  const arrows = useMemo(() => {
+    const list: { y: number; z: number; phase: number }[] = [];
+    for (let iy = 0; iy < rows; iy++) {
+      for (let iz = 0; iz < cols; iz++) {
+        const y = -halfH + (halfH * (iy + 0.5)) / rows;
+        const z = -halfD + (halfD * 2 * (iz + 0.5)) / cols;
+        list.push({ y, z, phase: (iy * cols + iz) / (rows * cols) });
+      }
+    }
+    return list;
+  }, [halfH, halfD]);
+
+  // 箭头尺寸与吸盘宽度相匹配
+  const arrowLen = Math.max(halfW * 0.8, 0.04);
+  const arrowThick = Math.max(halfH * 0.1, 0.003);
+  const startX = halfW + arrowLen * 0.1;
+
+  useFrame(({ clock }) => {
+    if (!groupRef.current || !active) return;
+    const t = clock.getElapsedTime();
+    groupRef.current.children.forEach((child, i) => {
+      const arrow = child as THREE.Group;
+      const { y, z, phase } = arrows[i];
+      const progress = (t * 1.2 + phase) % 1;
+      // 从 +X 侧面向外水平流动
+      arrow.position.set(startX + progress * arrowLen * 1.2, cupY + y, z);
+      const alpha = Math.sin(progress * Math.PI);
+      arrow.scale.setScalar(0.4 + alpha * 0.9);
+      arrow.visible = alpha > 0.05;
+    });
+  });
+
+  if (!active || cupGeometry.size[0] <= 0 || cupGeometry.size[1] <= 0 || cupGeometry.size[2] <= 0) return null;
+
+  return (
+    <group ref={groupRef}>
+      {arrows.map((a, i) => (
+        <group key={i} position={[startX, cupY + a.y, a.z]} rotation={[0, 0, -Math.PI / 2]}>
+          <ArrowMesh color="#EF4444" length={arrowLen} thickness={arrowThick} />
+        </group>
+      ))}
+    </group>
+  );
+}
+
+// ============================================================
 // Mini 3D 场景 —— 可 Orbit 旋转观测
 // ============================================================
 interface MiniSceneProps {
@@ -180,10 +328,11 @@ interface MiniSceneProps {
   boxY: number;
   suctionOn: boolean;
   attached: boolean;
+  cupGeometry: CupGeometryInfo;
   onCupGeometryReady: (info: CupGeometryInfo) => void;
 }
 
-function MiniScene({ cupY, boxY, suctionOn, attached, onCupGeometryReady }: MiniSceneProps) {
+function MiniScene({ cupY, boxY, suctionOn, attached, cupGeometry, onCupGeometryReady }: MiniSceneProps) {
   return (
     <>
       <ambientLight intensity={0.6} />
@@ -215,12 +364,16 @@ function MiniScene({ cupY, boxY, suctionOn, attached, onCupGeometryReady }: Mini
 
       <DemoBox position={[0, boxY, 0]} attached={attached} />
 
+      {/* 工作原理可视化箭头：蓝色=吸力向上，红色=侧边吹风向外 */}
+      <SuctionArrows cupY={cupY} cupGeometry={cupGeometry} active={suctionOn} />
+      <BlowArrows cupY={cupY} cupGeometry={cupGeometry} active={suctionOn} />
+
       <OrbitControls
         makeDefault
         enablePan={false}
         enableZoom={true}
         minDistance={0.5}
-        maxDistance={2.0}
+        maxDistance={5.0}
         target={[0, 0.25, 0]}
       />
     </>
@@ -460,7 +613,7 @@ export default function SuckerDemoModal({ onClose }: SuckerDemoModalProps) {
 
       <div
         className="relative bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col"
-        style={{ width: 920, height: 620 }}
+        style={{ width: 1100, height: 720 }}
       >
         {/* 标题栏 */}
         <div className="flex items-center justify-between px-5 py-2.5 bg-slate-50/80 border-b border-slate-100 shrink-0">
@@ -490,25 +643,27 @@ export default function SuckerDemoModal({ onClose }: SuckerDemoModalProps) {
         <div className="flex flex-1 min-h-0">
           <div className="flex-1 bg-slate-100 relative">
             <Canvas
-              camera={{ position: [0.7, 0.45, 0.85], fov: 45, near: 0.05, far: 10 }}
-              shadows
+              camera={{ position: [1.2, 0.8, 1.5], fov: 45, near: 0.05, far: 10 }}
+              shadows={{ type: THREE.PCFShadowMap }}
             >
               <MiniScene
                 cupY={cupY}
                 boxY={boxY}
                 suctionOn={suctionOn}
                 attached={attached}
+                cupGeometry={cupGeometryRef.current}
                 onCupGeometryReady={handleCupGeometryReady}
               />
               <FrameLoop onFrame={handleFrame} />
             </Canvas>
+            <SceneStatusOverlay cupY={cupY} suctionOn={suctionOn} attached={attached} />
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[10px] text-slate-400 bg-white/80 backdrop-blur-sm px-2.5 py-1 rounded-full border border-slate-100">
               拖拽旋转视角 / 滚轮缩放
             </div>
           </div>
 
           {/* 右侧控制面板 */}
-          <div className="w-64 p-4 space-y-4 bg-white border-l border-slate-100 flex flex-col">
+          <div className="w-80 p-5 space-y-3 bg-white border-l border-slate-100 flex flex-col">
             <div className="space-y-1.5">
               <label className="text-[11px] font-semibold text-slate-500">吸气控制</label>
               <button
@@ -574,28 +729,29 @@ export default function SuckerDemoModal({ onClose }: SuckerDemoModalProps) {
               </div>
             </div>
 
-            <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 space-y-1.5">
-              <label className="text-[11px] font-semibold text-slate-500">当前状态</label>
+            <div className="p-2.5 bg-blue-50/50 rounded-xl border border-blue-100 space-y-1.5">
+              <label className="text-[11px] font-semibold text-slate-600">气流图例</label>
               <div className="space-y-1.5">
-                <StatusRow
-                  dotColor={cupY <= CUP_LIMITS.min + CONTACT_THRESHOLD ? 'bg-blue-500' : 'bg-slate-300'}
-                  label="吸盘"
-                  value={cupY <= CUP_LIMITS.min + CONTACT_THRESHOLD ? '已接触' : '悬空'}
-                  highlight={cupY <= CUP_LIMITS.min + CONTACT_THRESHOLD}
-                />
-                <StatusRow
-                  dotColor={suctionOn ? 'bg-green-500' : 'bg-slate-300'}
-                  label="吸气"
-                  value={suctionOn ? '开启' : '关闭'}
-                  highlight={suctionOn}
-                />
-                <StatusRow
-                  dotColor={attached ? 'bg-green-500' : 'bg-slate-300'}
-                  label="吸附"
-                  value={attached ? '已吸附' : '未吸附'}
-                  highlight={attached}
-                />
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded bg-blue-500" />
+                  <span className="text-[11px] text-slate-600">蓝色箭头 = 吸气</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded bg-red-500" />
+                  <span className="text-[11px] text-slate-600">红色箭头 = 排气</span>
+                </div>
               </div>
+            </div>
+
+            <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 space-y-1.5">
+              <label className="text-[11px] font-semibold text-slate-600">工作原理</label>
+              <p className="text-[10px] text-slate-500 leading-relaxed">
+                抽气泵工作时，把空气从海绵底部
+                <strong className="text-blue-600">吸入</strong>
+                （蓝色箭头），再从吸盘侧面
+                <strong className="text-red-500">吹出</strong>
+                （红色箭头）。海绵处形成负压，大气压把箱子压紧在吸盘上。
+              </p>
             </div>
 
             <div className="text-[10px] text-slate-400 leading-relaxed bg-slate-50 rounded-lg p-2.5 border border-slate-100">
@@ -626,11 +782,12 @@ export default function SuckerDemoModal({ onClose }: SuckerDemoModalProps) {
 // ============================================================
 // 状态行小组件
 // ============================================================
-function StatusRow({ dotColor, label, value, highlight }: {
+function StatusRow({ dotColor, label, value, highlight, activeColor = 'text-slate-800' }: {
   dotColor: string;
   label: string;
   value: string;
   highlight: boolean;
+  activeColor?: string;
 }) {
   return (
     <div className="flex items-center justify-between">
@@ -638,9 +795,51 @@ function StatusRow({ dotColor, label, value, highlight }: {
         <div className={`w-2 h-2 rounded-full ${dotColor}`} />
         <span className="text-[11px] text-slate-600">{label}</span>
       </div>
-      <span className={`text-[11px] font-semibold ${highlight ? 'text-slate-800' : 'text-slate-400'}`}>
+      <span className={`text-[11px] font-semibold ${highlight ? activeColor : 'text-slate-400'}`}>
         {value}
       </span>
+    </div>
+  );
+}
+
+// ============================================================
+// 3D 场景角落状态浮层
+// ============================================================
+function SceneStatusOverlay({
+  cupY,
+  suctionOn,
+  attached,
+}: {
+  cupY: number;
+  suctionOn: boolean;
+  attached: boolean;
+}) {
+  const isContact = cupY <= CUP_LIMITS.min + CONTACT_THRESHOLD;
+
+  return (
+    <div className="absolute top-3 right-3 z-10 p-2.5 bg-white/90 backdrop-blur-sm rounded-xl border border-slate-200 shadow-sm min-w-[110px]">
+      <p className="text-[10px] font-semibold text-slate-500 mb-1.5">当前状态</p>
+      <div className="space-y-1">
+        <StatusRow
+          dotColor={isContact ? 'bg-blue-500' : 'bg-slate-300'}
+          label="吸盘"
+          value={isContact ? '已接触' : '悬空'}
+          highlight={isContact}
+        />
+        <StatusRow
+          dotColor={suctionOn ? 'bg-blue-500' : 'bg-slate-300'}
+          label="吸气"
+          value={suctionOn ? '开启' : '关闭'}
+          highlight={suctionOn}
+          activeColor="text-blue-600"
+        />
+        <StatusRow
+          dotColor={attached ? 'bg-green-500' : 'bg-slate-300'}
+          label="吸附"
+          value={attached ? '已吸附' : '未吸附'}
+          highlight={attached}
+        />
+      </div>
     </div>
   );
 }

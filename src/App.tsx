@@ -88,7 +88,7 @@ function AppContent() {
             spawnFence={
               sequence.steps.find((s) => s.type === '生成箱子')?.params?.boxSpawn
               ?? (learning.currentStep?.id === 'grasp-spawn'
-                ? { mode: 'random' as const, randomCenter: [-975, 0] as [number, number], randomRangeX: 125, randomRangeZ: 100, restingHeight: 200, minHeight: 350, maxHeight: 450 }
+                ? { mode: 'random' as const, randomCenter: [-975, 0] as [number, number], randomRangeX: 125, randomRangeZ: 100, restingHeight: 240, minHeight: 350, maxHeight: 450 }
                 : null)
             }
             demoParts={demoParts.parts}
