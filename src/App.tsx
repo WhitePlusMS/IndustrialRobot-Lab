@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useLearning } from '@/contexts/LearningContext';
 import { useSceneViewport } from '@/contexts/SceneViewportContext';
-import { useRobotContext } from '@/contexts/RobotContext';
+import { useRobotActionsContext, useRobotStateContext } from '@/contexts/RobotContext';
 import { useVirtualCameraContext } from '@/contexts/VirtualCameraContext';
 import { useSuckerContext } from '@/contexts/SuckerContext';
 import { useDemoPartsContext } from '@/contexts/DemoPartsContext';
@@ -27,7 +27,8 @@ export default function App() {
 }
 
 function AppContent() {
-  const robot = useRobotContext();
+  const robotState = useRobotStateContext();
+  const robotActions = useRobotActionsContext();
   const camera = useVirtualCameraContext();
   const viewport = useSceneViewport();
   const learning = useLearning();
@@ -42,10 +43,10 @@ function AppContent() {
   useEffect(() => {
     const stepId = learning.currentStep?.id;
     if (stepId !== 'robot-structure') {
-      robot.setHighlightedJoint(null);
+      robotActions.setHighlightedJoint(null);
     }
 
-  }, [learning.currentStep?.id, robot]);
+  }, [learning.currentStep?.id, robotActions]);
 
   if (!learning.currentStep) {
     return <div className="h-screen w-screen flex items-center justify-center">课程加载失败</div>;
@@ -63,22 +64,22 @@ function AppContent() {
 
         <div className="flex-1 relative min-w-0 bg-gradient-to-b from-slate-50 to-slate-100">
           <RobotScene
-            joints={robot.joints}
-            sliderTargetRef={robot.sliderTargetRef}
-            trajectory={robot.trajectory}
+            joints={robotState.joints}
+            sliderTargetRef={robotActions.sliderTargetRef}
+            trajectory={robotState.trajectory}
             showGrid={viewport.showGrid}
             showTrajectory={viewport.showTrajectory}
             cameraPosition={viewport.cameraPosition}
-            onTrajectoryPoint={robot.addTrajectoryPoint}
-            selectedTool={robot.selectedTool}
-            onToolList={robot.setToolList}
+            onTrajectoryPoint={robotActions.addTrajectoryPoint}
+            selectedTool={robotState.selectedTool}
+            onToolList={robotActions.setToolList}
             cameraState={camera.cameraState}
             cameraSliderTargetRef={camera.cameraTargetRef}
-            coordinateSystem={robot.coordinateSystem}
-            gizmoIKRef={robot.gizmoIKRef}
+            coordinateSystem={robotState.coordinateSystem}
+            gizmoIKRef={robotActions.gizmoIKRef}
             showTransformGizmo={viewport.showTransformGizmo}
             gizmoMode={viewport.gizmoMode}
-            onStopAnimation={robot.stopAnimation}
+            onStopAnimation={robotActions.stopAnimation}
             // 箱子/吸盘
             boxPosition={sucker.boxPosition}
             boxState={sucker.boxState}
@@ -96,23 +97,23 @@ function AppContent() {
 
           {!viewport.suppressHUD && (
             <ViewportHUD
-              onSaveOrigin={robot.saveOrigin}
-              onGoToOrigin={robot.goToOrigin}
-              onGoToZero={robot.goToZero}
-              hasOrigin={robot.originJoints !== null}
+              onSaveOrigin={robotActions.saveOrigin}
+              onGoToOrigin={robotActions.goToOrigin}
+              onGoToZero={robotActions.goToZero}
+              hasOrigin={robotState.originJoints !== null}
             />
           )}
 
           {viewport.showDataOverlay && !viewport.suppressHUD && (
             <DataOverlay
-              coordinateSystem={robot.coordinateSystem}
-              position={robot.endEffectorPose.position}
-              euler={robot.endEffectorPose.euler}
-              joints={robot.joints}
+              coordinateSystem={robotState.coordinateSystem}
+              position={robotState.endEffectorPose.position}
+              euler={robotState.endEffectorPose.euler}
+              joints={robotState.joints}
             />
           )}
 
-          <DHParamOverlay config={robot.config} visible={viewport.showDH} />
+          <DHParamOverlay config={robotState.config} visible={viewport.showDH} />
         </div>
 
         <OperationPanel
@@ -122,11 +123,11 @@ function AppContent() {
       </div>
 
       <StatusBar
-        status={robot.status}
-        coordinateSystem={robot.coordinateSystem}
-        position={robot.endEffectorPose.position}
-        euler={robot.endEffectorPose.euler}
-        joints={robot.joints}
+        status={robotState.status}
+        coordinateSystem={robotState.coordinateSystem}
+        position={robotState.endEffectorPose.position}
+        euler={robotState.endEffectorPose.euler}
+        joints={robotState.joints}
       />
     </div>
   );

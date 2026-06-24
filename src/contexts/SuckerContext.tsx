@@ -4,14 +4,14 @@
 
 import { createContext, useContext, type ReactNode } from 'react';
 import { useSuckerControl, INITIAL_BOX_POSITION } from '@/hooks/useSuckerControl';
-import { useRobotContext } from './RobotContext';
+import { useRobotStateContext } from './RobotContext';
 
 type SuckerContextValue = ReturnType<typeof useSuckerControl>;
 
 const SuckerContext = createContext<SuckerContextValue | null>(null);
 
 export function SuckerProvider({ children }: { children: ReactNode }) {
-  const robot = useRobotContext();
+  const robot = useRobotStateContext();
   const sucker = useSuckerControl({
     joints: robot.joints,
     config: robot.config,

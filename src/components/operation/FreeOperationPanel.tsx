@@ -8,7 +8,7 @@ import CameraParamsCard from '@/components/camera/CameraParamsCard';
 import CapturePanel from '@/components/camera/CapturePanel';
 import SequenceEditor from '@/components/sequence/SequenceEditor';
 import { useSceneViewport } from '@/contexts/SceneViewportContext';
-import { useRobotContext } from '@/contexts/RobotContext';
+import { useRobotActionsContext, useRobotStateContext } from '@/contexts/RobotContext';
 import { useVirtualCameraContext } from '@/contexts/VirtualCameraContext';
 import { useSequenceContext } from '@/contexts/SequenceContext';
 import { useSuckerContext } from '@/contexts/SuckerContext';
@@ -66,13 +66,14 @@ export default function FreeOperationPanel() {
 }
 
 function RobotTab() {
-  const robot = useRobotContext();
+  const robotState = useRobotStateContext();
+  const robotActions = useRobotActionsContext();
   const sucker = useSuckerContext();
   const viewport = useSceneViewport();
   return (
     <div className="space-y-4">
       <StatusBar>
-        坐标系：{robot.coordinateSystem} · 吸盘：{sucker.suckerOn ? '开启' : '关闭'}
+        坐标系：{robotState.coordinateSystem} · 吸盘：{sucker.suckerOn ? '开启' : '关闭'}
       </StatusBar>
 
       <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center justify-between">
@@ -95,34 +96,34 @@ function RobotTab() {
       </div>
 
       <JointAngleCard
-        joints={robot.joints}
-        config={robot.config}
-        jointStep={robot.jointStep}
-        onJointStepChange={robot.setJointStep}
-        onAdjustJoint={robot.adjustJoint}
-        onSetJoint={robot.setJoint}
-        sliderTargetRef={robot.sliderTargetRef}
-        onReset={robot.resetJoints}
-        onRandom={robot.randomJoints}
+        joints={robotState.joints}
+        config={robotState.config}
+        jointStep={robotState.jointStep}
+        onJointStepChange={robotActions.setJointStep}
+        onAdjustJoint={robotActions.adjustJoint}
+        onSetJoint={robotActions.setJoint}
+        sliderTargetRef={robotActions.sliderTargetRef}
+        onReset={robotActions.resetJoints}
+        onRandom={robotActions.randomJoints}
       />
 
       <PoseControlCard
-        coordinateSystem={robot.coordinateSystem}
-        onCoordinateChange={robot.setCoordinateSystem}
-        posStep={robot.posStep}
-        onPosStepChange={robot.setPosStep}
-        rotStep={robot.rotStep}
-        onRotStepChange={robot.setRotStep}
-        onMoveDirection={robot.moveDirection}
+        coordinateSystem={robotState.coordinateSystem}
+        onCoordinateChange={robotActions.setCoordinateSystem}
+        posStep={robotState.posStep}
+        onPosStepChange={robotActions.setPosStep}
+        rotStep={robotState.rotStep}
+        onRotStepChange={robotActions.setRotStep}
+        onMoveDirection={robotActions.moveDirection}
       />
 
       <PositionTargetCard
-        currentGLBPosition={robot.glbPosition}
-        onGoToPosition={robot.goToPosition}
-        disabled={robot.status === 'moving'}
+        currentGLBPosition={robotState.glbPosition}
+        onGoToPosition={robotActions.goToPosition}
+        disabled={robotState.status === 'moving'}
       />
 
-      <WaypointPanel currentJoints={robot.joints} onGotoWaypoint={robot.goToJoints} />
+      <WaypointPanel currentJoints={robotState.joints} onGotoWaypoint={robotActions.goToJoints} />
     </div>
   );
 }
@@ -161,18 +162,19 @@ function CameraTab() {
 }
 
 function SequenceTab() {
-  const robot = useRobotContext();
+  const robotState = useRobotStateContext();
+  const robotActions = useRobotActionsContext();
   const sucker = useSuckerContext();
   const sequence = useSequenceContext();
-  const isSuckerVisible = robot.selectedTool === '吸盘';
+  const isSuckerVisible = robotState.selectedTool === '吸盘';
   const handleToggleSucker = () => {
-    robot.setSelectedTool(isSuckerVisible ? '无' : '吸盘');
+    robotActions.setSelectedTool(isSuckerVisible ? '无' : '吸盘');
   };
 
   const handleApproachBox = () => {
     if (sucker.boxState === 'NONE') return;
     const approachPose = buildGraspApproachPose(sucker.boxPosition);
-    robot.goToPoseMm(approachPose);
+    robotActions.goToPoseMm(approachPose);
   };
 
   return (
@@ -206,7 +208,7 @@ function SequenceTab() {
           <button
             type="button"
             onClick={handleApproachBox}
-            disabled={sucker.boxState === 'NONE' || sucker.boxState === 'FALLING' || robot.status === 'moving'}
+            disabled={sucker.boxState === 'NONE' || sucker.boxState === 'FALLING' || robotState.status === 'moving'}
             className="w-full py-2.5 text-xs font-semibold rounded-lg text-white bg-gradient-to-r from-blue-500 to-blue-600 border border-blue-600 shadow-sm hover:from-blue-600 hover:to-blue-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
           >
             <MoveUp className="w-3.5 h-3.5" />

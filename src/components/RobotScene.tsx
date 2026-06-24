@@ -7,9 +7,9 @@ import { OrbitControls, Grid } from '@react-three/drei';
 import * as THREE from 'three';
 import type { JointAngles } from '@/types/robot';
 import type { CameraState } from '@/types/camera';
-import { useRobotContext } from '@/contexts/RobotContext';
+import { useRobotStateContext } from '@/contexts/RobotContext';
 import { useSceneViewport } from '@/contexts/SceneViewportContext';
-import { createBaseAxes } from '@/components/GLBRobotArm';
+import { createBaseAxes } from '@/lib/robot-axes';
 import GLBRobotArm from './GLBRobotArm';
 import TransformGizmo from './TransformGizmo';
 import type { GizmoIKHandle } from '@/types/robot';
@@ -24,6 +24,7 @@ import type { BoxState } from '@/hooks/useSuckerControl';
 import type { BoxSpawnParams } from '@/types/sequence';
 import { SceneRendererProvider } from '@/contexts/SceneRendererContext';
 import { sceneRendererBridge } from '@/lib/scene-renderer-bridge';
+import { robotScalarToSceneM, robotToSceneM } from '@/lib/spatial-coordinates';
 
 // 与 useVirtualCamera.ts 中一致的默认相机状态，用于 3D 层初始化回退
 const DEFAULT_CAMERA_STATE: CameraState = {
@@ -37,11 +38,6 @@ const DEFAULT_CAMERA_STATE: CameraState = {
   showModel: true,
   resolution: [640, 480],
 };
-
-/** DH 坐标(mm) → Three.js GLB 场景坐标(m) 近似转换（DH与GLB坐标系不同，仅用于视觉近似） */
-function dhPosToScene(pos: [number, number, number]): [number, number, number] {
-  return [pos[0] / 1000, pos[1] / 1000, pos[2] / 1000];
-}
 
 interface RobotSceneProps {
   joints: JointAngles;
@@ -370,21 +366,21 @@ function SceneContent({
 
       {/* 可抓取箱子（NONE 状态表示无箱子，不渲染） */}
       {boxPosition && boxState && boxState !== 'NONE' && (
-        <GraspableBox position={dhPosToScene(boxPosition)} state={boxState} />
+        <GraspableBox position={robotToSceneM(boxPosition)} state={boxState} />
       )}
 
       {/* 箱子生成围栏（仅在随机模式显示，DH mm → 场景 m） */}
       {spawnFence && spawnFence.mode === 'random' && (
         <SpawnAreaFence
           center={[
-            (spawnFence.randomCenter?.[0] ?? 300) / 1000,
-            (spawnFence.randomCenter?.[1] ?? 200) / 1000,
+            robotScalarToSceneM(spawnFence.randomCenter?.[0] ?? 300),
+            robotScalarToSceneM(spawnFence.randomCenter?.[1] ?? 200),
           ]}
-          rangeX={(spawnFence.randomRangeX ?? 150) / 1000}
-          rangeZ={(spawnFence.randomRangeZ ?? 150) / 1000}
-          restingHeight={(spawnFence.restingHeight ?? 240) / 1000}
-          minHeight={(spawnFence.minHeight ?? 400) / 1000}
-          maxHeight={(spawnFence.maxHeight ?? 800) / 1000}
+          rangeX={robotScalarToSceneM(spawnFence.randomRangeX ?? 150)}
+          rangeZ={robotScalarToSceneM(spawnFence.randomRangeZ ?? 150)}
+          restingHeight={robotScalarToSceneM(spawnFence.restingHeight ?? 240)}
+          minHeight={robotScalarToSceneM(spawnFence.minHeight ?? 400)}
+          maxHeight={robotScalarToSceneM(spawnFence.maxHeight ?? 800)}
           visible={true}
         />
       )}
@@ -451,7 +447,7 @@ function SceneContent({
 }
 
 export default function RobotScene(props: RobotSceneProps) {
-  const { highlightedJoint } = useRobotContext();
+  const { highlightedJoint } = useRobotStateContext();
   const { showCoordinateSystems } = useSceneViewport();
   const showCamera = props.cameraState?.showCamera ?? DEFAULT_CAMERA_STATE.showCamera;
 

@@ -5,17 +5,19 @@
 import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
 import { useActionSequence, buildSequenceRobotAPI } from '@/hooks/useActionSequence';
 import { useWaypoints } from '@/hooks/useWaypoints';
-import { useRobotContext } from './RobotContext';
+import { useRobotActionsContext, useRobotStateContext } from './RobotContext';
 import { useSuckerContext } from './SuckerContext';
 import { useVirtualCameraContext } from './VirtualCameraContext';
 import type { Waypoint } from '@/hooks/useRobot';
+import type { SequenceRobotAPI } from '@/lib/sequence-runtime';
 
 type SequenceContextValue = ReturnType<typeof useActionSequence>;
 
 const SequenceContext = createContext<SequenceContextValue | null>(null);
 
 export function SequenceProvider({ children }: { children: ReactNode }) {
-  const robot = useRobotContext();
+  const robotState = useRobotStateContext();
+  const robotActions = useRobotActionsContext();
   const sucker = useSuckerContext();
   const camera = useVirtualCameraContext();
 
@@ -25,16 +27,16 @@ export function SequenceProvider({ children }: { children: ReactNode }) {
     [waypointRecords]
   );
 
-  const robotAPI = buildSequenceRobotAPI({
-    config: robot.config,
-    joints: robot.joints,
-    goToJoints: robot.goToJoints,
-    goToPosition: robot.goToPosition,
-    goToPoseMm: robot.goToPoseMm,
-    isMotionQueueIdle: robot.isMotionQueueIdle,
-    stopAnimation: robot.stopAnimation,
-    isAnimating: robot.isAnimating,
-    isAnimatingRef: robot.isAnimatingRef,
+  const robotAPI: SequenceRobotAPI = buildSequenceRobotAPI({
+    config: robotState.config,
+    joints: robotState.joints,
+    goToJoints: robotActions.goToJoints,
+    goToPosition: robotActions.goToPosition,
+    goToPoseMm: robotActions.goToPoseMm,
+    isMotionQueueIdle: robotActions.isMotionQueueIdle,
+    stopAnimation: robotActions.stopAnimation,
+    isAnimating: robotState.isAnimating,
+    isAnimatingRef: robotActions.isAnimatingRef,
   });
 
   const sequence = useActionSequence(

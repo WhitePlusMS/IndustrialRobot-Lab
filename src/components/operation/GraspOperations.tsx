@@ -14,7 +14,7 @@ import {
   DEFAULT_SEQUENCE_PLACE_PRESET_NAME,
 } from '@/types/sequence';
 import { useLearning } from '@/contexts/LearningContext';
-import { useRobotContext } from '@/contexts/RobotContext';
+import { useRobotActionsContext, useRobotStateContext } from '@/contexts/RobotContext';
 import { useSuckerContext } from '@/contexts/SuckerContext';
 import { useSequenceContext } from '@/contexts/SequenceContext';
 import { useDemoPartsContext } from '@/contexts/DemoPartsContext';
@@ -30,7 +30,8 @@ const boxStateText: Record<string, string> = {
 
 export default function GraspOperations() {
   const { currentStep } = useLearning();
-  const robot = useRobotContext();
+  const robotState = useRobotStateContext();
+  const robotActions = useRobotActionsContext();
   const sucker = useSuckerContext();
   const sequence = useSequenceContext();
   const demoParts = useDemoPartsContext();
@@ -39,9 +40,9 @@ export default function GraspOperations() {
   const { steps: sequenceSteps, setStepsList, waypoints } = sequence;
   const [showSuckerDemo, setShowSuckerDemo] = useState(false);
 
-  const isSuckerVisible = robot.selectedTool === '吸盘';
+  const isSuckerVisible = robotState.selectedTool === '吸盘';
   const handleToggleSucker = () => {
-    robot.setSelectedTool(isSuckerVisible ? '无' : '吸盘');
+    robotActions.setSelectedTool(isSuckerVisible ? '无' : '吸盘');
   };
 
   useEffect(() => {
@@ -88,10 +89,10 @@ export default function GraspOperations() {
       approachHeightMm: APPROACH_HEIGHT,
       suckerLengthMm: SUCKER_LENGTH,
       targetOrientationDeg: approachPose.orientationDeg,
-      currentGLBPositionM: robot.glbPosition,
-      status: robot.status,
+      currentGLBPositionM: robotState.glbPosition,
+      status: robotState.status,
     });
-    robot.goToPoseMm(approachPose);
+    robotActions.goToPoseMm(approachPose);
   };
 
   const handleMoveToPlacePose = () => {
@@ -99,7 +100,7 @@ export default function GraspOperations() {
       DEFAULT_SEQUENCE_PLACE_POSITION_M,
       DEFAULT_SEQUENCE_PLACE_ORIENTATION_DEG,
     );
-    robot.goToPoseMm(placePose);
+    robotActions.goToPoseMm(placePose);
   };
 
   return (
@@ -172,7 +173,7 @@ export default function GraspOperations() {
           <button
             type="button"
             onClick={handleApproachBox}
-            disabled={sucker.boxState === 'NONE' || sucker.boxState === 'FALLING' || robot.status === 'moving'}
+            disabled={sucker.boxState === 'NONE' || sucker.boxState === 'FALLING' || robotState.status === 'moving'}
             className="w-full py-3 text-[13px] font-semibold rounded-xl text-white bg-gradient-to-r from-blue-500 to-blue-600 border border-blue-600 shadow-sm hover:from-blue-600 hover:to-blue-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <MoveUp className="w-4 h-4" />
@@ -185,18 +186,18 @@ export default function GraspOperations() {
             </div>
           )}
           <PoseControlCard
-            coordinateSystem={robot.coordinateSystem}
-            onCoordinateChange={robot.setCoordinateSystem}
-            posStep={robot.posStep}
-            onPosStepChange={robot.setPosStep}
-            rotStep={robot.rotStep}
-            onRotStepChange={robot.setRotStep}
-            onMoveDirection={robot.moveDirection}
+            coordinateSystem={robotState.coordinateSystem}
+            onCoordinateChange={robotActions.setCoordinateSystem}
+            posStep={robotState.posStep}
+            onPosStepChange={robotActions.setPosStep}
+            rotStep={robotState.rotStep}
+            onRotStepChange={robotActions.setRotStep}
+            onMoveDirection={robotActions.moveDirection}
           />
           <PositionTargetCard
-            currentGLBPosition={robot.glbPosition}
-            onGoToPosition={robot.goToPosition}
-            disabled={robot.status === 'moving'}
+            currentGLBPosition={robotState.glbPosition}
+            onGoToPosition={robotActions.goToPosition}
+            disabled={robotState.status === 'moving'}
           />
         </div>
       )}
@@ -206,7 +207,7 @@ export default function GraspOperations() {
           <button
             type="button"
             onClick={handleMoveToPlacePose}
-            disabled={robot.status === 'moving'}
+            disabled={robotState.status === 'moving'}
             className="w-full py-3 text-[13px] font-semibold rounded-xl text-white bg-gradient-to-r from-blue-500 to-blue-600 border border-blue-600 shadow-sm hover:from-blue-600 hover:to-blue-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <MoveUp className="w-4 h-4" />

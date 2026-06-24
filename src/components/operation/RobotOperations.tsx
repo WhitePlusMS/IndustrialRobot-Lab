@@ -4,12 +4,13 @@ import PositionTargetCard from '@/components/PositionTargetCard';
 import WaypointPanel from '@/components/WaypointPanel';
 import { useSceneViewport } from '@/contexts/SceneViewportContext';
 import { useLearning } from '@/contexts/LearningContext';
-import { useRobotContext } from '@/contexts/RobotContext';
+import { useRobotActionsContext, useRobotStateContext } from '@/contexts/RobotContext';
 import { Eye, EyeOff, Grip } from 'lucide-react';
 
 export default function RobotOperations() {
   const { currentStep } = useLearning();
-  const robot = useRobotContext();
+  const robotState = useRobotStateContext();
+  const robotActions = useRobotActionsContext();
   const viewport = useSceneViewport();
   if (!currentStep) return null;
   const stepId = currentStep.id;
@@ -30,12 +31,12 @@ export default function RobotOperations() {
   ];
 
   const handleJointCardClick = (index: number) => {
-    robot.setHighlightedJoint(robot.highlightedJoint === index ? null : index);
+    robotActions.setHighlightedJoint(robotState.highlightedJoint === index ? null : index);
   };
 
-  const isSuckerVisible = robot.selectedTool === '吸盘';
+  const isSuckerVisible = robotState.selectedTool === '吸盘';
   const handleToggleSucker = () => {
-    robot.setSelectedTool(isSuckerVisible ? '无' : '吸盘');
+    robotActions.setSelectedTool(isSuckerVisible ? '无' : '吸盘');
   };
 
   return (
@@ -65,7 +66,7 @@ export default function RobotOperations() {
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2">
             {jointCards.map(({ j, name, index }) => {
-              const active = robot.highlightedJoint === index;
+              const active = robotState.highlightedJoint === index;
               return (
                 <button
                   key={j}
@@ -114,15 +115,15 @@ export default function RobotOperations() {
 
       {(isSingleJointStep || isMultiJointStep) && (
         <JointAngleCard
-          joints={robot.joints}
-          config={robot.config}
-          jointStep={robot.jointStep}
-          onJointStepChange={robot.setJointStep}
-          onAdjustJoint={robot.adjustJoint}
-          onSetJoint={robot.setJoint}
-          sliderTargetRef={robot.sliderTargetRef}
-          onReset={robot.resetJoints}
-          onRandom={robot.randomJoints}
+          joints={robotState.joints}
+          config={robotState.config}
+          jointStep={robotState.jointStep}
+          onJointStepChange={robotActions.setJointStep}
+          onAdjustJoint={robotActions.adjustJoint}
+          onSetJoint={robotActions.setJoint}
+          sliderTargetRef={robotActions.sliderTargetRef}
+          onReset={robotActions.resetJoints}
+          onRandom={robotActions.randomJoints}
           collapsible={false}
           enabledJoints={isSingleJointStep ? [0] : [1, 2]}
         />
@@ -130,33 +131,33 @@ export default function RobotOperations() {
 
       {isCoordinateStep && (
         <PoseControlCard
-          coordinateSystem={robot.coordinateSystem}
-          onCoordinateChange={robot.setCoordinateSystem}
-          posStep={robot.posStep}
-          onPosStepChange={robot.setPosStep}
-          rotStep={robot.rotStep}
-          onRotStepChange={robot.setRotStep}
-          onMoveDirection={robot.moveDirection}
+          coordinateSystem={robotState.coordinateSystem}
+          onCoordinateChange={robotActions.setCoordinateSystem}
+          posStep={robotState.posStep}
+          onPosStepChange={robotActions.setPosStep}
+          rotStep={robotState.rotStep}
+          onRotStepChange={robotActions.setRotStep}
+          onMoveDirection={robotActions.moveDirection}
         />
       )}
 
       {isCartesianStep && (
         <>
           <PositionTargetCard
-            currentGLBPosition={robot.glbPosition}
-            onGoToPosition={robot.goToPosition}
-            disabled={robot.status === 'moving'}
+            currentGLBPosition={robotState.glbPosition}
+            onGoToPosition={robotActions.goToPosition}
+            disabled={robotState.status === 'moving'}
           />
           <PoseControlCard
-            coordinateSystem={robot.coordinateSystem}
-            onCoordinateChange={robot.setCoordinateSystem}
-            posStep={robot.posStep}
-            onPosStepChange={robot.setPosStep}
-            rotStep={robot.rotStep}
-            onRotStepChange={robot.setRotStep}
-            onMoveDirection={robot.moveDirection}
+            coordinateSystem={robotState.coordinateSystem}
+            onCoordinateChange={robotActions.setCoordinateSystem}
+            posStep={robotState.posStep}
+            onPosStepChange={robotActions.setPosStep}
+            rotStep={robotState.rotStep}
+            onRotStepChange={robotActions.setRotStep}
+            onMoveDirection={robotActions.moveDirection}
           />
-          <WaypointPanel currentJoints={robot.joints} onGotoWaypoint={robot.goToJoints} />
+          <WaypointPanel currentJoints={robotState.joints} onGotoWaypoint={robotActions.goToJoints} />
         </>
       )}
     </div>
