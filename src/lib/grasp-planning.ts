@@ -1,5 +1,6 @@
 import { APPROACH_HEIGHT, BOX_HALF_SIZE, SUCKER_LENGTH } from '@/hooks/useSuckerControl';
-import type { TaskPoseConstraintProfile } from '@/types/robot';
+import type { TaskPoseConstraintProfile, TaskTargetPoseMm } from '@/types/robot';
+import { sceneToRobotMm } from './spatial-coordinates';
 
 export const GRASP_APPROACH_ORIENTATION_DEG = {
   rx: -89.4,
@@ -9,17 +10,6 @@ export const GRASP_APPROACH_ORIENTATION_DEG = {
   // 日志显示位置已到达，但姿态阶段持续失败，因此这里收敛到更自然的 0°。
   rz: 0.0,
 } as const;
-
-export interface GraspApproachPose {
-  targetXM: number;
-  targetYM: number;
-  targetZM: number;
-  targetYMm: number;
-  rx?: number;
-  ry?: number;
-  rz?: number;
-  profile: TaskPoseConstraintProfile;
-}
 
 export const POSITION_ONLY_TASK_PROFILE: TaskPoseConstraintProfile = {
   name: 'position-only',
@@ -72,22 +62,20 @@ export const PLACE_STRICT_TASK_PROFILE: TaskPoseConstraintProfile = {
 export function buildGraspApproachPose(
   boxPositionMm: [number, number, number],
   approachHeightMm = APPROACH_HEIGHT
-): GraspApproachPose {
+): TaskTargetPoseMm {
   const [bx, by, bz] = boxPositionMm;
-  const targetYMm = by + BOX_HALF_SIZE + SUCKER_LENGTH + approachHeightMm;
   return {
-    targetXM: bx / 1000,
-    targetYM: targetYMm / 1000,
-    targetZM: bz / 1000,
-    targetYMm,
-    rx: GRASP_APPROACH_ORIENTATION_DEG.rx,
-    ry: GRASP_APPROACH_ORIENTATION_DEG.ry,
-    rz: GRASP_APPROACH_ORIENTATION_DEG.rz,
+    positionMm: [bx, by + BOX_HALF_SIZE + SUCKER_LENGTH + approachHeightMm, bz],
+    orientationDeg: [
+      GRASP_APPROACH_ORIENTATION_DEG.rx,
+      GRASP_APPROACH_ORIENTATION_DEG.ry,
+      GRASP_APPROACH_ORIENTATION_DEG.rz,
+    ],
     profile: GRASP_APPROACH_TASK_PROFILE,
   };
 }
 
-export function buildGraspContactPose(boxPositionMm: [number, number, number]): GraspApproachPose {
+export function buildGraspContactPose(boxPositionMm: [number, number, number]): TaskTargetPoseMm {
   return {
     ...buildGraspApproachPose(boxPositionMm, 0),
     profile: GRASP_CONTACT_TASK_PROFILE,
@@ -97,12 +85,14 @@ export function buildGraspContactPose(boxPositionMm: [number, number, number]): 
 export function buildLiftPose(
   currentFlangePositionM: [number, number, number],
   liftHeightMm: number
-): GraspApproachPose {
+): TaskTargetPoseMm {
+  const currentFlangePositionMm = sceneToRobotMm(currentFlangePositionM);
   return {
-    targetXM: currentFlangePositionM[0],
-    targetYM: currentFlangePositionM[1] + liftHeightMm / 1000,
-    targetZM: currentFlangePositionM[2],
-    targetYMm: (currentFlangePositionM[1] + liftHeightMm / 1000) * 1000,
+    positionMm: [
+      currentFlangePositionMm[0],
+      currentFlangePositionMm[1] + liftHeightMm,
+      currentFlangePositionMm[2],
+    ],
     profile: HOLD_ORIENTATION_TASK_PROFILE,
   };
 }
@@ -110,15 +100,10 @@ export function buildLiftPose(
 export function buildPlacePose(
   positionM: [number, number, number],
   orientationDeg: [number, number, number]
-): GraspApproachPose {
+): TaskTargetPoseMm {
   return {
-    targetXM: positionM[0],
-    targetYM: positionM[1],
-    targetZM: positionM[2],
-    targetYMm: positionM[1] * 1000,
-    rx: orientationDeg[0],
-    ry: orientationDeg[1],
-    rz: orientationDeg[2],
+    positionMm: sceneToRobotMm(positionM),
+    orientationDeg,
     profile: PLACE_STRICT_TASK_PROFILE,
   };
 }

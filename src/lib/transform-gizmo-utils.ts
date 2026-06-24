@@ -10,6 +10,7 @@ import {
 } from './math/rotation3d';
 import { KUKA_LIKE } from './robot-config';
 import { GIZMO_IK_PRESET } from './ik-config';
+import { sceneToRobotMm } from './spatial-coordinates';
 
 /**
  * Gizmo 场景坐标(米) + 四元数 → IK 输入 Pose(mm + 旋转矩阵)
@@ -20,11 +21,7 @@ export function gizmoToTargetPose(
 ): Pose {
   const rotation = quaternionToRotationMatrix(quaternion);
   return {
-    position: [
-      position[0] * 1000,
-      position[1] * 1000,
-      position[2] * 1000,
-    ],
+    position: sceneToRobotMm(position),
     euler: rotationMatrixToEulerZYX(rotation),
     rotation,
   };

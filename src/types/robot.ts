@@ -39,6 +39,12 @@ export interface TaskPoseConstraintProfile {
   orientationMode: 'strict' | 'relaxed' | 'ignore';
 }
 
+export interface TaskTargetPoseMm {
+  positionMm: [number, number, number];
+  orientationDeg?: [number, number, number];
+  profile: TaskPoseConstraintProfile;
+}
+
 export interface GoalJointSolution {
   joints: JointAngles;
   poseErrorMm: number;

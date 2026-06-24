@@ -20,9 +20,9 @@ export const DEFAULT_SEQUENCE_BOX_RANDOM_RANGE_X = 125;
 export const DEFAULT_SEQUENCE_BOX_RANDOM_RANGE_Z = 100;
 export const DEFAULT_SEQUENCE_BOX_MIN_HEIGHT = 350;
 export const DEFAULT_SEQUENCE_BOX_MAX_HEIGHT = 450;
-export const DEFAULT_SEQUENCE_BOX_RESTING_HEIGHT = 200;
+export const DEFAULT_SEQUENCE_BOX_RESTING_HEIGHT = 240;
 export const DEFAULT_SEQUENCE_APPROACH_HEIGHT = 50;
-export const DEFAULT_SEQUENCE_LIFT_HEIGHT = 100;
+export const DEFAULT_SEQUENCE_LIFT_HEIGHT = 200;
 export const DEFAULT_SEQUENCE_PLACE_PRESET_NAME = '__DEFAULT_PLACE_POSE__';
 export const DEFAULT_SEQUENCE_PLACE_PRESET_LABEL = '预设放置位姿';
 export const DEFAULT_SEQUENCE_PLACE_POSITION_M: [number, number, number] = [0.1018, 1.1154, 1.1429];
@@ -138,7 +138,7 @@ export function createDefaultGraspSequence(): ActionStep[] {
     createDefaultStep('移动到箱子上方'),
     createDefaultStep('下降到箱面'),
     createDefaultStep('吸盘开启'),
-    { ...createDefaultStep('抬升'), params: { liftHeight: 100 } },
+    { ...createDefaultStep('抬升'), params: { liftHeight: 200 } },
     { ...createDefaultStep('移动到目标位姿'), params: { memoryPointName: DEFAULT_SEQUENCE_PLACE_PRESET_NAME } },
     createDefaultStep('吸盘关闭'),
     createDefaultStep('归位'),

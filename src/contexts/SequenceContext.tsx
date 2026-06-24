@@ -30,6 +30,7 @@ export function SequenceProvider({ children }: { children: ReactNode }) {
     joints: robot.joints,
     goToJoints: robot.goToJoints,
     goToPosition: robot.goToPosition,
+    goToPoseMm: robot.goToPoseMm,
     isMotionQueueIdle: robot.isMotionQueueIdle,
     stopAnimation: robot.stopAnimation,
     isAnimating: robot.isAnimating,

@@ -5,13 +5,9 @@ import type { RobotModel } from './robot-model';
 import type { RobotPoseAPI } from '@/lib/robot-pose-bridge';
 import type { JointAngles, Pose } from '@/types/robot';
 import { orientationError } from './math/rotation3d';
+import { sceneToRobotMm } from './spatial-coordinates';
 
 const DEFAULT_JACOBIAN_STEP_DEG = 0.2;
-
-/** GLB 场景坐标（米）→ 内部坐标（毫米） */
-function sceneToMm(position: [number, number, number]): [number, number, number] {
-  return [position[0] * 1000, position[1] * 1000, position[2] * 1000];
-}
 
 export class GLBRobotModel implements RobotModel {
   private api: RobotPoseAPI;
@@ -28,7 +24,7 @@ export class GLBRobotModel implements RobotModel {
     const captured = this.api.capturePoseForJoints([...jointsDeg]);
     if (!captured) return null;
     return {
-      position: sceneToMm(captured.position),
+      position: sceneToRobotMm(captured.position),
       euler: captured.euler,
       rotation: captured.rotation,
     };

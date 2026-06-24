@@ -1,7 +1,7 @@
 // src/hooks/useActionSequence.ts
 import { useState, useCallback, useRef, useEffect, type MutableRefObject } from 'react';
 import { forwardKinematics } from '@/lib/kinematics';
-import type { RobotConfig, JointAngles } from '@/types/robot';
+import type { RobotConfig, JointAngles, TaskPoseConstraintProfile, TaskTargetPoseMm } from '@/types/robot';
 import type {
   ActionStep,
   SeqContext,
@@ -16,7 +16,6 @@ import { useSceneRendererAPI } from './useSceneRendererAPI';
 import type { CameraState } from '@/types/camera';
 import type { Waypoint } from '@/hooks/useRobot';
 import type { BoxState } from '@/hooks/useSuckerControl';
-import type { TaskPoseConstraintProfile } from '@/types/robot';
 import {
   createDefaultGraspSequence,
   DEFAULT_SEQUENCE_PLACE_PRESET_NAME,
@@ -28,6 +27,7 @@ export interface SequenceRobotAPI {
   goToJoints: (joints: JointAngles) => void;
   /** GLB 场景坐标定位（m）：优先 GLB 数值 IK，降级 DH 位置 IK */
   goToPosition: (x: number, y: number, z: number, rx?: number, ry?: number, rz?: number, profile?: TaskPoseConstraintProfile) => boolean;
+  goToPoseMm: (target: TaskTargetPoseMm) => boolean;
   isMotionQueueIdle: () => boolean;
   stopAnimation: () => void;
   isAnimating: boolean;
@@ -44,6 +44,7 @@ export function buildSequenceRobotAPI(
     joints: JointAngles;
     goToJoints: (joints: JointAngles) => void;
     goToPosition: (x: number, y: number, z: number, rx?: number, ry?: number, rz?: number, profile?: TaskPoseConstraintProfile) => boolean;
+    goToPoseMm: (target: TaskTargetPoseMm) => boolean;
     isMotionQueueIdle: () => boolean;
     stopAnimation: () => void;
     isAnimating: boolean;
@@ -54,6 +55,7 @@ export function buildSequenceRobotAPI(
     config: robot.config,
     goToJoints: robot.goToJoints,
     goToPosition: robot.goToPosition,
+    goToPoseMm: robot.goToPoseMm,
     isMotionQueueIdle: robot.isMotionQueueIdle,
     stopAnimation: robot.stopAnimation,
     isAnimating: robot.isAnimating,
