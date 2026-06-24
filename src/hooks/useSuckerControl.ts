@@ -4,6 +4,14 @@ import { forwardKinematics } from '@/lib/kinematics';
 import { Matrix4x4 } from '@/lib/matrix4x4';
 import { useRobotPoseAPI } from './useRobotPoseAPI';
 import type { RobotConfig, JointAngles } from '@/types/robot';
+import { sceneToRobotMm } from '@/lib/spatial-coordinates';
+import {
+  buildBoxTopCenter,
+  canAttachBox,
+  computeAttachedBoxPositionFromContact,
+  simulateBoxVerticalMotion,
+  type SuckerBoxState,
+} from '@/lib/sucker-box-motion';
 
 // 真实吸盘相对“快拆机器人端口”存在约 125mm 级下探偏移。
 // 主抓取链路统一用这个有效接触长度，避免继续按法兰贴箱面。
@@ -18,7 +26,7 @@ export const APPROACH_HEIGHT = 50;
 export const INITIAL_BOX_POSITION: [number, number, number] = [-1000, 240, 0];
 
 /** 箱子状态 */
-export type BoxState = 'NONE' | 'FREE' | 'FALLING' | 'ATTACHED' | 'PLACED' | 'RESTING';
+export type BoxState = SuckerBoxState;
 
 export function getSuckerTipPosition(
   flangePos: [number, number, number],
@@ -35,14 +43,6 @@ export function getSuckerTipPosition(
 
 function norm(a: [number, number, number], b: [number, number, number]): number {
   return Math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2);
-}
-
-function roundMmVector(positionM: [number, number, number]): [number, number, number] {
-  return [
-    Math.round(positionM[0] * 1000),
-    Math.round(positionM[1] * 1000),
-    Math.round(positionM[2] * 1000),
-  ];
 }
 
 interface UseSuckerControlProps {
@@ -94,7 +94,7 @@ export function useSuckerControl({ joints, config, initialBoxPosition }: UseSuck
       // 优先使用真实吸盘下表面中心，保证接触点和 3D 画面一致。
       const suckerContact = poseApi.getSuckerContactPose();
       if (suckerContact?.position) {
-        suckerTip = roundMmVector(suckerContact.position);
+        suckerTip = sceneToRobotMm(suckerContact.position);
       } else {
         // 降级 DH FK
         const pose = getEndEffectorPose();
@@ -102,12 +102,10 @@ export function useSuckerControl({ joints, config, initialBoxPosition }: UseSuck
       }
 
       const boxTopCenter: [number, number, number] = [
-        boxPosMM[0],
-        boxPosMM[1] + BOX_HALF_SIZE,
-        boxPosMM[2],
+        ...buildBoxTopCenter(boxPosMM, BOX_HALF_SIZE),
       ];
       const distance = norm(suckerTip, boxTopCenter);
-      const canAttach = boxStateRef.current === 'FREE' || boxStateRef.current === 'RESTING';
+      const canAttach = canAttachBox(boxStateRef.current);
 
       // console.log('[useSuckerControl] checkAttachment', {
       //   poseSource,
@@ -145,17 +143,7 @@ export function useSuckerControl({ joints, config, initialBoxPosition }: UseSuck
     // 优先使用真实吸盘下表面中心（场景米坐标，视觉精确）
     const suckerContact = poseApi.getSuckerContactPose();
     if (suckerContact?.position && suckerContact.direction) {
-      const [sx, sy, sz] = suckerContact.position;
-      const [dx, dy, dz] = suckerContact.direction;
-      // 箱子中心应位于“吸盘下表面中心沿吸附方向进入箱体”的半箱高位置。
-      const boxScene: [number, number, number] = [
-        sx + dx * (BOX_HALF_SIZE / 1000),
-        sy + dy * (BOX_HALF_SIZE / 1000),
-        sz + dz * (BOX_HALF_SIZE / 1000),
-      ];
-      // ×1000 转为内部 mm 格式（场景渲染时除1000→场景米）
-      const boxMM = roundMmVector(boxScene);
-      return boxMM;
+      return computeAttachedBoxPositionFromContact(suckerContact, BOX_HALF_SIZE);
     }
 
     // 降级 DH FK（GLB 未就绪时）
@@ -207,51 +195,28 @@ export function useSuckerControl({ joints, config, initialBoxPosition }: UseSuck
 
   // 自由落体（FALLING 状态）
   const applyGravity = useCallback((deltaTime: number) => {
-    const dt = Math.min(deltaTime, 0.05);
-    const GRAVITY = -9.8 * 1000; // mm/s²
-    const GROUND_Y = restingYRef.current;
+    const nextMotion = simulateBoxVerticalMotion({
+      boxState: boxStateRef.current,
+      boxPosition: boxPosRef.current,
+      velocityY: velocityYRef.current,
+      deltaTime,
+      groundY: restingYRef.current,
+    });
 
-    // FALLING 状态：从空中掉落到 restingHeight
-    if (boxStateRef.current === 'FALLING') {
-      let vy = velocityYRef.current;
-      let y = boxPosRef.current[1];
-
-      vy += GRAVITY * dt;
-      y += vy * dt;
-
-      if (y <= GROUND_Y) {
-        y = GROUND_Y;
-        vy = 0;
-        setBoxState('FREE');
-        boxStateRef.current = 'FREE';
-      }
-
-      setVelocityY(vy);
-      velocityYRef.current = vy;
-      setBoxPosition((prev) => [prev[0], y, prev[2]]);
-      boxPosRef.current = [boxPosRef.current[0], y, boxPosRef.current[2]];
+    if (nextMotion.boxState === boxStateRef.current
+      && nextMotion.velocityY === velocityYRef.current
+      && nextMotion.boxPosition[1] === boxPosRef.current[1]) {
       return;
     }
 
-    // PLACED 状态：释放后掉落到 restingHeight
-    if (boxStateRef.current === 'PLACED') {
-      let vy = velocityYRef.current;
-      let y = boxPosRef.current[1];
+    setVelocityY(nextMotion.velocityY);
+    velocityYRef.current = nextMotion.velocityY;
+    setBoxPosition(nextMotion.boxPosition);
+    boxPosRef.current = nextMotion.boxPosition;
 
-      vy += GRAVITY * dt;
-      y += vy * dt;
-
-      if (y <= GROUND_Y) {
-        y = GROUND_Y;
-        vy = 0;
-        setBoxState('RESTING');
-        boxStateRef.current = 'RESTING';
-      }
-
-      setVelocityY(vy);
-      velocityYRef.current = vy;
-      setBoxPosition((prev) => [prev[0], y, prev[2]]);
-      boxPosRef.current = [boxPosRef.current[0], y, boxPosRef.current[2]];
+    if (nextMotion.boxState !== boxStateRef.current) {
+      setBoxState(nextMotion.boxState);
+      boxStateRef.current = nextMotion.boxState;
     }
   }, []);
 
