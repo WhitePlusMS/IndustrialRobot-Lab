@@ -2,6 +2,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { Crosshair } from 'lucide-react';
 import type { TaskPoseConstraintProfile } from '@/types/robot';
+import { robotScalarToSceneM, sceneScalarToRobotMm } from '@/lib/spatial-coordinates';
 
 interface PositionTargetCardProps {
   currentGLBPosition: [number, number, number] | null;
@@ -11,7 +12,7 @@ interface PositionTargetCardProps {
 
 /** 格式化为 mm 显示 */
 function fmtMm(v: number): string {
-  return (v * 1000).toFixed(0);
+  return sceneScalarToRobotMm(v).toFixed(0);
 }
 
 export default function PositionTargetCard({
@@ -50,7 +51,14 @@ export default function PositionTargetCard({
     const rz = inputRz ? parseFloat(inputRz) : undefined;
 
     // 输入为 mm，调用回调前转换为 m
-    const ok = onGoToPosition(x / 1000, y / 1000, z / 1000, rx, ry, rz);
+    const ok = onGoToPosition(
+      robotScalarToSceneM(x),
+      robotScalarToSceneM(y),
+      robotScalarToSceneM(z),
+      rx,
+      ry,
+      rz,
+    );
     setFeedback(ok ? 'success' : 'failed');
     setFeedbackText(ok ? '运动成功' : '目标不可达');
     if (feedbackTimeout.current) {

@@ -40,6 +40,12 @@ interface CupGeometryInfo {
   size: [number, number, number];
 }
 
+const DEFAULT_CUP_GEOMETRY: CupGeometryInfo = {
+  halfHeight: 0.025,
+  tipOffset: 0.025,
+  size: [0.05, 0.05, 0.05],
+};
+
 function analyzeCupGeometry(root: THREE.Object3D) {
   root.updateMatrixWorld(true);
   const bbox = new THREE.Box3().setFromObject(root);
@@ -440,6 +446,7 @@ export default function SuckerDemoModal({ onClose }: SuckerDemoModalProps) {
   const [boxY, setBoxY] = useState(BOX_GROUND_Y);
   const [attached, setAttached] = useState(false);
   const [geometryReady, setGeometryReady] = useState(false);
+  const [cupGeometry, setCupGeometry] = useState<CupGeometryInfo>(DEFAULT_CUP_GEOMETRY);
 
   const viewport = useSceneViewport();
 
@@ -449,7 +456,7 @@ export default function SuckerDemoModal({ onClose }: SuckerDemoModalProps) {
   }, [viewport.setSuppressHUD]);
 
   // 吸盘几何信息（由 GLB bbox 计算，唯一定义行程）
-  const cupGeometryRef = useRef({ halfHeight: 0.025, tipOffset: 0.025, size: [0.05, 0.05, 0.05] as [number, number, number] });
+  const cupGeometryRef = useRef<CupGeometryInfo>(DEFAULT_CUP_GEOMETRY);
 
   // 移动方向 ref：+1=上升, -1=下降, 0=停止
   const cupMoveDirRef = useRef(0);
@@ -472,6 +479,7 @@ export default function SuckerDemoModal({ onClose }: SuckerDemoModalProps) {
   const geomReadyRef = useRef(false);
   const handleCupGeometryReady = useCallback((info: CupGeometryInfo) => {
     cupGeometryRef.current = info;
+    setCupGeometry(info);
     // 按用户要求，下降接触基准使用整个吸盘整体包围盒的底面。
     const cupMin = BOX_SIZE + info.tipOffset;
     const cupMax = cupMin + CUP_TRAVEL_HEIGHT;
@@ -651,7 +659,7 @@ export default function SuckerDemoModal({ onClose }: SuckerDemoModalProps) {
                 boxY={boxY}
                 suctionOn={suctionOn}
                 attached={attached}
-                cupGeometry={cupGeometryRef.current}
+                cupGeometry={cupGeometry}
                 onCupGeometryReady={handleCupGeometryReady}
               />
               <FrameLoop onFrame={handleFrame} />

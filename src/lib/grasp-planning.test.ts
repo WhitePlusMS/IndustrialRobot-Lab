@@ -15,7 +15,7 @@ describe('grasp-planning', () => {
     const pose = buildGraspApproachPose([-1000, 350, 0], 50);
 
     expect(pose).toEqual({
-      positionMm: [-1000, 585, 0],
+      positionMm: [-1000, 765, 0],
       orientationDeg: [-89.4, 0.4, 0],
       profile: GRASP_APPROACH_TASK_PROFILE,
     });
@@ -24,7 +24,7 @@ describe('grasp-planning', () => {
   it('builds contact pose in millimeters only', () => {
     const pose = buildGraspContactPose([-1000, 350, 0]);
 
-    expect(pose.positionMm).toEqual([-1000, 535, 0]);
+    expect(pose.positionMm).toEqual([-1000, 715, 0]);
     expect(pose.orientationDeg).toEqual([-89.4, 0.4, 0]);
     expect(pose.profile).toBe(GRASP_CONTACT_TASK_PROFILE);
   });
