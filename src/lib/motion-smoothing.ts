@@ -2,8 +2,8 @@
 import type { MotionConfig  } from '@/types/robot';
 
 export const DEFAULT_MOTION_CONFIG: MotionConfig = {
-  jointSpeedLimit: 120,
-  ikAnimDuration: 400,
+  jointSpeedLimit: 60,
+  ikAnimDuration: 800,
   snapThreshold: 0.1,
   longPressThrottle: 50,
 };
