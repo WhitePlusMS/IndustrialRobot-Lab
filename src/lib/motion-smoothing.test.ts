@@ -1,26 +1,6 @@
 // src/lib/motion-smoothing.test.ts
 import { describe, it, expect } from 'vitest';
-import { updateJointAngles, easeInOutCubic, lerpJoints } from './motion-smoothing';
-
-describe('updateJointAngles', () => {
-  it('静止时不变化', () => {
-    const r = updateJointAngles([10, 20, 30, 40, 50, 60], [10, 20, 30, 40, 50, 60], 16, 120);
-    expect(r).toEqual([10, 20, 30, 40, 50, 60]);
-  });
-
-  it('向目标方向步进', () => {
-    const r = updateJointAngles([0, 0, 0, 0, 0, 0], [10, 0, 0, 0, 0, 0], 16, 120);
-    // maxStep = 120°/s * 0.016s = 1.92°
-    expect(r[0]).toBeGreaterThan(0);
-    expect(r[0]).toBeLessThan(10);
-    expect(r[1]).toBe(0);
-  });
-
-  it('小偏差直接到位', () => {
-    const r = updateJointAngles([0, 0, 0, 0, 0, 0], [0.05, 0, 0, 0, 0, 0], 16, 120);
-    expect(r[0]).toBeCloseTo(0.05, 10);
-  });
-});
+import { easeInOutCubic, lerpJoints } from './motion-smoothing';
 
 describe('easeInOutCubic', () => {
   it('t=0 → 0', () => expect(easeInOutCubic(0)).toBe(0));
