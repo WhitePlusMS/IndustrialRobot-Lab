@@ -6,11 +6,12 @@ import {
 } from '@/lib/grasp-planning';
 import type { TaskTargetPoseMm } from '@/types/robot';
 import type { RobotPoseAPI } from '@/lib/robot-pose-bridge';
-import type { SequenceRobotAPI } from '@/hooks/useActionSequence';
+import type { SequenceRobotAPI, SequenceStepRuntime } from '@/lib/sequence-runtime';
 import { robotToSceneM, sceneToRobotMm } from './spatial-coordinates';
 
 interface SequenceTaskRobotOptions {
   robot: SequenceRobotAPI;
+  runtime: SequenceStepRuntime;
   robotPoseApi: RobotPoseAPI;
   log: (message: string) => void;
 }
@@ -23,7 +24,7 @@ function distanceMm(a: [number, number, number], b: [number, number, number]): n
   );
 }
 
-export function createSequenceTaskRobot({ robot, robotPoseApi, log }: SequenceTaskRobotOptions) {
+export function createSequenceTaskRobot({ robot, runtime, robotPoseApi, log }: SequenceTaskRobotOptions) {
   return {
     approachBox: async (boxPoseMm: [number, number, number], approachHeightMm: number) => {
       const target = buildGraspApproachPose(boxPoseMm, approachHeightMm);
@@ -31,7 +32,7 @@ export function createSequenceTaskRobot({ robot, robotPoseApi, log }: SequenceTa
       if (!robot.goToPoseMm(target)) {
         return false;
       }
-      await robot.waitForAnimation();
+      await runtime.waitForAnimation();
       return true;
     },
 
@@ -41,7 +42,7 @@ export function createSequenceTaskRobot({ robot, robotPoseApi, log }: SequenceTa
       if (!robot.goToPoseMm(contactPose)) {
         return false;
       }
-      await robot.waitForAnimation();
+      await runtime.waitForAnimation();
 
       const boxTopCenterMm: [number, number, number] = [
         boxPoseMm[0],
@@ -85,7 +86,7 @@ export function createSequenceTaskRobot({ robot, robotPoseApi, log }: SequenceTa
         if (!robot.goToPoseMm(correctedTarget)) {
           return false;
         }
-        await robot.waitForAnimation();
+        await runtime.waitForAnimation();
       }
 
       const finalSuckerContact = robotPoseApi.getSuckerContactPose();
@@ -110,7 +111,7 @@ export function createSequenceTaskRobot({ robot, robotPoseApi, log }: SequenceTa
       if (!robot.goToPoseMm(target)) {
         return false;
       }
-      await robot.waitForAnimation();
+      await runtime.waitForAnimation();
       return true;
     },
 
@@ -119,7 +120,7 @@ export function createSequenceTaskRobot({ robot, robotPoseApi, log }: SequenceTa
       if (!robot.goToPoseMm(target)) {
         return false;
       }
-      await robot.waitForAnimation();
+      await runtime.waitForAnimation();
       return true;
     },
   };

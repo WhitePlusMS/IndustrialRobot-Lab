@@ -7,8 +7,8 @@ import type { RobotPoseAPI } from '@/lib/robot-pose-bridge';
 import type { SceneRendererAPI } from '@/contexts/SceneRendererContext';
 import type { CameraState } from '@/types/camera';
 import type { Waypoint } from '@/hooks/useRobot';
-import type { SequenceRobotAPI } from '@/hooks/useActionSequence';
 import type { BoxState } from '@/hooks/useSuckerControl';
+import type { SequenceRobotAPI, SequenceStepRuntime } from '@/lib/sequence-runtime';
 
 /** 每个步骤执行器的最小化依赖集合 */
 export interface StepDeps {
@@ -16,6 +16,11 @@ export interface StepDeps {
   cameraState: CameraState;
   robotPoseApi: RobotPoseAPI;
   sceneRendererApi: SceneRendererAPI | null;
+}
+
+/** 步骤运行时能力：由序列执行器提供，不属于机器人适配器本身 */
+export interface StepRuntime {
+  waitForAnimation: SequenceStepRuntime['waitForAnimation'];
 }
 
 /** 步骤执行器的可变上下文（通过 ref 传递以支持中止） */
@@ -45,6 +50,7 @@ export interface StepExecutorParams {
   step: ActionStep;
   stepIndex: number;
   deps: StepDeps;
+  runtime: StepRuntime;
   ctx: StepContext;
   callbacks: StepCallbacks;
 }

@@ -13,7 +13,7 @@ import {
   DEFAULT_SEQUENCE_PLACE_PRESET_NAME,
 } from '@/types/sequence';
 
-export async function executeMoveAboveBox({ step, stepIndex, deps, ctx, callbacks }: StepExecutorParams): Promise<boolean> {
+export async function executeMoveAboveBox({ step, stepIndex, deps, runtime, ctx, callbacks }: StepExecutorParams): Promise<boolean> {
   const { robot, robotPoseApi } = deps;
   const { ctxRef, abortRef } = ctx;
   const { log, onStepStatusChange } = callbacks;
@@ -26,6 +26,7 @@ export async function executeMoveAboveBox({ step, stepIndex, deps, ctx, callback
 
   const taskRobot = createSequenceTaskRobot({
     robot,
+    runtime,
     robotPoseApi,
     log: (message) => log('info', message),
   });
@@ -45,7 +46,7 @@ export async function executeMoveAboveBox({ step, stepIndex, deps, ctx, callback
   return true;
 }
 
-export async function executeDescendToBox({ stepIndex, deps, ctx, callbacks }: StepExecutorParams): Promise<boolean> {
+export async function executeDescendToBox({ stepIndex, deps, runtime, ctx, callbacks }: StepExecutorParams): Promise<boolean> {
   const { robot, robotPoseApi } = deps;
   const { ctxRef, abortRef } = ctx;
   const { log, onStepStatusChange } = callbacks;
@@ -58,6 +59,7 @@ export async function executeDescendToBox({ stepIndex, deps, ctx, callbacks }: S
 
   const taskRobot = createSequenceTaskRobot({
     robot,
+    runtime,
     robotPoseApi,
     log: (message) => log('info', message),
   });
@@ -76,13 +78,14 @@ export async function executeDescendToBox({ stepIndex, deps, ctx, callbacks }: S
   return true;
 }
 
-export async function executeLift({ step, stepIndex, deps, ctx, callbacks }: StepExecutorParams): Promise<boolean> {
+export async function executeLift({ step, stepIndex, deps, runtime, ctx, callbacks }: StepExecutorParams): Promise<boolean> {
   const { robot, robotPoseApi } = deps;
   const { abortRef } = ctx;
   const { log, onStepStatusChange } = callbacks;
 
   const taskRobot = createSequenceTaskRobot({
     robot,
+    runtime,
     robotPoseApi,
     log: (message) => log('info', message),
   });
@@ -102,7 +105,7 @@ export async function executeLift({ step, stepIndex, deps, ctx, callbacks }: Ste
   return true;
 }
 
-export async function executeMoveToWaypoint({ step, stepIndex, deps, ctx, callbacks }: StepExecutorParams): Promise<boolean> {
+export async function executeMoveToWaypoint({ step, stepIndex, deps, runtime, ctx, callbacks }: StepExecutorParams): Promise<boolean> {
   const { robot, robotPoseApi } = deps;
   const { abortRef, waypoints } = ctx;
   const { log, onStepStatusChange } = callbacks;
@@ -117,6 +120,7 @@ export async function executeMoveToWaypoint({ step, stepIndex, deps, ctx, callba
   if (name === DEFAULT_SEQUENCE_PLACE_PRESET_NAME) {
     const taskRobot = createSequenceTaskRobot({
       robot,
+      runtime,
       robotPoseApi,
       log: (message) => log('info', message),
     });
@@ -147,7 +151,7 @@ export async function executeMoveToWaypoint({ step, stepIndex, deps, ctx, callba
 
   log('info', `移动到目标位姿: ${name}`);
   robot.goToJoints([...wp.joints] as JointAngles);
-  await robot.waitForAnimation();
+  await runtime.waitForAnimation();
   if (abortRef.current) return false;
 
   log('success', `到达目标位姿: ${name}`);

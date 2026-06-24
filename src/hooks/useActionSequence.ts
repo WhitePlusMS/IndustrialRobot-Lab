@@ -21,22 +21,7 @@ import {
   DEFAULT_SEQUENCE_PLACE_PRESET_NAME,
 } from '@/types/sequence';
 import { dispatchStep } from '@/lib/sequence-steps';
-
-export interface SequenceRobotAPI {
-  config: RobotConfig;
-  goToJoints: (joints: JointAngles) => void;
-  /** GLB 场景坐标定位（m）：优先 GLB 数值 IK，降级 DH 位置 IK */
-  goToPosition: (x: number, y: number, z: number, rx?: number, ry?: number, rz?: number, profile?: TaskPoseConstraintProfile) => boolean;
-  goToPoseMm: (target: TaskTargetPoseMm) => boolean;
-  isMotionQueueIdle: () => boolean;
-  stopAnimation: () => void;
-  isAnimating: boolean;
-  isAnimatingRef: MutableRefObject<boolean>;
-  getCurrentJointsDeg: () => JointAngles;
-  getCurrentJointsRad: () => JointAngles;
-  getCurrentRotation: () => number[][];
-  waitForAnimation: () => Promise<void>;
-}
+import type { SequenceRobotAPI, SequenceStepRuntime } from '@/lib/sequence-runtime';
 
 export function buildSequenceRobotAPI(
   robot: {
@@ -67,13 +52,13 @@ export function buildSequenceRobotAPI(
       const T = forwardKinematics(jointsRad, robot.config);
       return T.getRotation();
     },
-    waitForAnimation: async () => {},
   };
 }
 
 export interface StepExecutorAPI {
   log: (level: SequenceLog['level'], message: string) => void;
   robot: SequenceRobotAPI;
+  waitForAnimation: () => Promise<void>;
   ctxRef: React.MutableRefObject<SeqContext>;
   setCtx: React.Dispatch<React.SetStateAction<SeqContext>>;
   cameraState: CameraState;
@@ -101,6 +86,7 @@ async function executeStep(step: ActionStep, api: StepExecutorAPI): Promise<bool
     step,
     stepIndex: api.stepIndex,
     deps: { robot, cameraState, robotPoseApi, sceneRendererApi },
+    runtime: { waitForAnimation: api.waitForAnimation },
     ctx: { ctxRef: api.ctxRef, setCtx: api.setCtx, abortRef: api.abortRef, waypoints: api.waypoints },
     callbacks: {
       log: api.log,
@@ -161,6 +147,14 @@ export function useActionSequence(
       check();
     });
   }, [robotAPI]);
+
+  const stepRuntime = useRef<SequenceStepRuntime>({
+    waitForAnimation,
+  });
+
+  useEffect(() => {
+    stepRuntime.current = { waitForAnimation };
+  }, [waitForAnimation]);
 
   const log = useCallback((level: SequenceLog['level'], message: string) => {
     setLogs((prev) => {
@@ -271,7 +265,8 @@ export function useActionSequence(
 
       const success = await executeStep(step, {
         log,
-        robot: { ...robotAPI, waitForAnimation },
+        robot: robotAPI,
+        waitForAnimation: stepRuntime.current.waitForAnimation,
         ctxRef,
         setCtx,
         cameraState,
@@ -343,7 +338,8 @@ export function useActionSequence(
 
     const success = await executeStep(step, {
       log,
-      robot: { ...robotAPI, waitForAnimation },
+      robot: robotAPI,
+      waitForAnimation: stepRuntime.current.waitForAnimation,
       ctxRef,
       setCtx,
       cameraState,

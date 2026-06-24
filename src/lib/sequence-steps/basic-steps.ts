@@ -60,14 +60,14 @@ export async function executeSuctionOff({ callbacks, ctx, stepIndex }: StepExecu
   return true;
 }
 
-export async function executeGoHome({ callbacks, ctx, stepIndex, deps }: StepExecutorParams): Promise<boolean> {
+export async function executeGoHome({ callbacks, ctx, stepIndex, deps, runtime }: StepExecutorParams): Promise<boolean> {
   const { log, onStepStatusChange } = callbacks;
   const { robot } = deps;
   const { abortRef } = ctx;
 
   log('info', '归位中...');
   robot.goToJoints([0, 0, 0, 0, 0, 0]);
-  await robot.waitForAnimation();
+  await runtime.waitForAnimation();
   if (abortRef.current) return false;
 
   log('success', '归位完成');

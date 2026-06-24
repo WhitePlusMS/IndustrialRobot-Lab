@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createSequenceTaskRobot } from './sequence-task-robot';
-import type { SequenceRobotAPI } from '@/hooks/useActionSequence';
+import type { SequenceRobotAPI, SequenceStepRuntime } from '@/lib/sequence-runtime';
 
 function createRobot(overrides: Partial<SequenceRobotAPI> = {}): SequenceRobotAPI {
   return {
@@ -15,6 +15,12 @@ function createRobot(overrides: Partial<SequenceRobotAPI> = {}): SequenceRobotAP
     getCurrentJointsDeg: vi.fn(() => [0, 0, 0, 0, 0, 0] as [number, number, number, number, number, number]),
     getCurrentJointsRad: vi.fn(() => [0, 0, 0, 0, 0, 0] as [number, number, number, number, number, number]),
     getCurrentRotation: vi.fn(() => [[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
+    ...overrides,
+  };
+}
+
+function createRuntime(overrides: Partial<SequenceStepRuntime> = {}): SequenceStepRuntime {
+  return {
     waitForAnimation: vi.fn(async () => {}),
     ...overrides,
   };
@@ -25,6 +31,7 @@ describe('sequence-task-robot', () => {
     const robot = createRobot();
     const taskRobot = createSequenceTaskRobot({
       robot,
+      runtime: createRuntime(),
       robotPoseApi: {} as never,
       log: vi.fn(),
     });
@@ -39,6 +46,7 @@ describe('sequence-task-robot', () => {
     const robot = createRobot();
     const taskRobot = createSequenceTaskRobot({
       robot,
+      runtime: createRuntime(),
       robotPoseApi: {
         getSuckerContactPose: vi.fn(() => null),
         getFlangeMatrix: vi.fn(() => null),
@@ -55,6 +63,7 @@ describe('sequence-task-robot', () => {
     const robot = createRobot();
     const taskRobot = createSequenceTaskRobot({
       robot,
+      runtime: createRuntime(),
       robotPoseApi: {
         getFlangeMatrix: vi.fn(() => null),
       } as never,
@@ -73,6 +82,7 @@ describe('sequence-task-robot', () => {
     });
     const taskRobot = createSequenceTaskRobot({
       robot,
+      runtime: createRuntime(),
       robotPoseApi: {} as never,
       log: vi.fn(),
     });
