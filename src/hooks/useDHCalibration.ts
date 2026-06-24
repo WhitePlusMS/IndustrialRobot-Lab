@@ -9,6 +9,7 @@ import { robotPoseBridge } from '@/lib/robot-pose-bridge';
 import type { JointCalibData, CalibrationData } from '@/lib/robot-pose-bridge';
 import type { Pose } from '@/types/robot';
 import { quaternionToRotationMatrix, rotationMatrixToEulerZYX } from '@/lib/math/rotation3d';
+import { sceneToRobotMm } from '@/lib/spatial-coordinates';
 
 interface UseDHCalibrationOptions {
   /** 机械臂 Group（buildArticulated 的返回值） */
@@ -124,8 +125,7 @@ function extractZeroFlangePose(arm: THREE.Group): Pose {
     const scale = new THREE.Vector3();
     matrix.decompose(pos, quat, scale);
 
-    // 米 → 毫米
-    positionMm = [pos.x * 1000, pos.y * 1000, pos.z * 1000];
+    positionMm = sceneToRobotMm([pos.x, pos.y, pos.z]);
     rotation = quaternionToRotationMatrix([quat.x, quat.y, quat.z, quat.w]);
     euler = rotationMatrixToEulerZYX(rotation);
   }
