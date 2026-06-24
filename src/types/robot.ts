@@ -24,10 +24,16 @@ export interface RobotConfig {
 }
 
 export type JointAngles = [number, number, number, number, number, number];
+export type ScenePointM = [number, number, number];
+export type RobotPointMm = [number, number, number];
+export type SceneScalarM = number;
+export type RobotScalarMm = number;
+export type EulerRad = [number, number, number];
+export type EulerDeg = [number, number, number];
 
 export interface Pose {
-  position: [number, number, number];
-  euler: [number, number, number];
+  position: RobotPointMm;
+  euler: EulerRad;
   rotation: number[][];
 }
 
@@ -40,8 +46,8 @@ export interface TaskPoseConstraintProfile {
 }
 
 export interface TaskTargetPoseMm {
-  positionMm: [number, number, number];
-  orientationDeg?: [number, number, number];
+  positionMm: RobotPointMm;
+  orientationDeg?: EulerDeg;
   profile: TaskPoseConstraintProfile;
 }
 
