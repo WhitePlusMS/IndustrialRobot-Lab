@@ -10,7 +10,7 @@ export default function Header({ mode, onModeChange }: HeaderProps) {
   return (
     <header className="h-[52px] shrink-0 bg-white border-b border-slate-200 flex items-center justify-between px-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] select-none z-20">
       <div className="flex items-center gap-3">
-        <h1 className="text-base font-bold text-slate-800 tracking-tight">IndustrialRobot-Lab · 机臂实验室</h1>
+        <h1 className="text-base font-bold text-slate-800 tracking-tight">IndustrialRobot-Lab · 工业机械臂实验室</h1>
       </div>
 
       <div className="flex items-center gap-5">

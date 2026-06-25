@@ -1,6 +1,6 @@
 [English](README.md) | [中文](README.zh.md)
 
-# IndustrialRobot-Lab · 机臂实验室
+# IndustrialRobot-Lab · 工业机械臂实验室
 
 > 工业机器人交互式学习工作台。将六轴机械臂的运动学、相机视觉、抓取仿真、码垛等功能拆解为可观察、可调参、可操作的逐步实验，让抽象的数学与算法直观可见。
 

@@ -1,6 +1,6 @@
 # Domain Glossary
 
-Domain language for the IndustrialRobot-Lab (机臂实验室) codebase. Terms here name good seams; architecture discussions should prefer these names over implementation-specific labels.
+Domain language for the IndustrialRobot-Lab (工业机械臂实验室) codebase. Terms here name good seams; architecture discussions should prefer these names over implementation-specific labels.
 
 ## Coordinate & Kinematics
 

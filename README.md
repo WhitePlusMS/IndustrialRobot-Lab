@@ -1,6 +1,6 @@
 [English](README.md) | [中文](README.zh.md)
 
-# IndustrialRobot-Lab · 机臂实验室
+# IndustrialRobot-Lab · 工业机械臂实验室
 
 > An interactive learning workbench for industrial robotics. It decomposes a six-axis robotic arm into observable, operable, step-by-step experiments — covering forward and inverse kinematics, camera vision, grasping simulation, palletizing, and more — making abstract kinematics math直观可见.
 
