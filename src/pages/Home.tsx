@@ -134,7 +134,7 @@ function PreviewSection() {
 
         <div data-screenshot="preview" className="rounded-2xl overflow-hidden border border-slate-200 shadow-2xl bg-slate-900">
           <img
-            src="/images/hero-preview.png"
+            src={`${import.meta.env.BASE_URL}images/hero-preview.png`}
             alt="实验室界面预览"
             className="w-full h-full object-cover"
           />
@@ -155,14 +155,14 @@ function FeaturesSection() {
 
         <FeatureRow
           icon="🦾"
-          imageSrc="/images/hero-robot.png"
+          imageSrc={`${import.meta.env.BASE_URL}images/hero-robot.png`}
           title="机械臂结构与运动控制"
           desc="在 3D 场景中认识 J1~J6 六个关节，理解每个关节的运动方向。通过拖动滑块实时控制机械臂姿态，建立关节角度与末端位置之间的直觉。"
           items={['六个关节独立调节', '实时数值反馈', 'Home / Zero 快速复位']}
         />
         <FeatureRow
           icon="📷"
-          imageSrc="/images/hero-camera.png"
+          imageSrc={`${import.meta.env.BASE_URL}images/hero-camera.png`}
           title="工业相机与视觉感知"
           desc="认识针孔相机模型、内参矩阵与外参矩阵，理解 3D 点如何投影到 2D 图像。调整相机位姿、FOV 和分辨率，观察成像变化。"
           items={['针孔相机模型', '内外参矩阵', '彩色 / 分割 / 深度拍摄']}
@@ -170,7 +170,7 @@ function FeaturesSection() {
         />
         <FeatureRow
           icon="🤏"
-          imageSrc="/images/hero-grasp.png"
+          imageSrc={`${import.meta.env.BASE_URL}images/hero-grasp.png`}
           title="真空吸盘与抓取流程"
           desc="理解真空吸附原理，观察末端执行器与物体的交互。将接近、吸取、搬运、释放组合成完整动作序列，完成简单抓取任务。"
           items={['真空吸附原理', '末端执行器可视化', '动作序列编排']}

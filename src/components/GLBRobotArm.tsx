@@ -174,7 +174,7 @@ export default function GLBRobotArm({
   showToolAxes = false,
   coordinateSystem = 'World',
 }: GLBRobotArmProps) {
-  const { scene } = useGLTF('/models/KUKA_V1.glb');
+  const { scene } = useGLTF(`${import.meta.env.BASE_URL}models/KUKA_V1.glb`);
   const { scene: r3fScene } = useThree();
 
   const arm = useMemo(() => {

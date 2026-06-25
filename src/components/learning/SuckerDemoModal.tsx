@@ -89,7 +89,7 @@ function SuckerCupModel({ suctionOn, onBBoxReady }: {
   suctionOn: boolean;
   onBBoxReady?: (info: CupGeometryInfo) => void;
 }) {
-  const { scene } = useGLTF('/models/KUKA_V1.glb');
+  const { scene } = useGLTF(`${import.meta.env.BASE_URL}models/KUKA_V1.glb`);
   const geomReportedRef = useRef(false);
   const suckerData = useMemo(() => {
     const suckerNode = findNode(scene, '吸盘');

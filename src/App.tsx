@@ -6,7 +6,7 @@ import Lab from '@/pages/Lab';
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/IndustrialRobot-Lab">
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/lab" element={<Lab />} />
