@@ -68,6 +68,9 @@ Kimi_Agent_机械臂失效排查/
 # ====== 原型 & 设计稿（不提交） ======
 prototype/
 
+# ====== 截图中间产物 ======
+screenshots/
+
 # ====== AI / 项目文档（仅本地） ======
 docs/
 CLAUDE.md
