@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工业机械臂虚拟实验室 - 创意方案</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: '#2563eb',
+                        secondary: '#64748b',
+                        accent: '#f59e0b',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .gradient-bg {
+            background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 50%, #3b82f6 100%);
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        .robot-arm {
+            position: relative;
+            width: 100%;
+            height: 280px;
+            overflow: hidden;
+        }
+        .robot-base {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 30px;
+            background: #475569;
+            border-radius: 8px;
+        }
+        .joint {
+            position: absolute;
+            background: #64748b;
+            border-radius: 6px;
+            transform-origin: bottom center;
+        }
+        .joint-1 {
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 60px;
+            background: linear-gradient(to top, #475569, #64748b);
+        }
+        .joint-2 {
+            bottom: 110px;
+            left: 50%;
+            transform: translateX(-50%) rotate(-30deg);
+            width: 16px;
+            height: 80px;
+            background: linear-gradient(to top, #64748b, #94a3b8);
+            animation: armSwing 4s ease-in-out infinite;
+        }
+        .joint-3 {
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%) rotate(60deg);
+            width: 14px;
+            height: 70px;
+            background: linear-gradient(to top, #94a3b8, #cbd5e1);
+            transform-origin: bottom center;
+        }
+        .end-effector {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 30px;
+            height: 20px;
+            background: #f59e0b;
+            border-radius: 4px;
+        }
+        .sucker {
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 18px;
+            height: 10px;
+            background: #ef4444;
+            border-radius: 50% 50% 20% 20%;
+        }
+        @keyframes armSwing {
+            0%, 100% { transform: translateX(-50%) rotate(-30deg); }
+            50% { transform: translateX(-50%) rotate(-50deg); }
+        }
+        .box-anim {
+            animation: boxFloat 3s ease-in-out infinite;
+        }
+        @keyframes boxFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .fade-in {
+            animation: fadeIn 0.8s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .progress-bar {
+            transition: width 1s ease-in-out;
+        }
+        .grid-bg {
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+    <!-- Hero Section -->
+    <section class="gradient-bg text-white py-16 px-6 grid-bg">
+        <div class="max-w-5xl mx-auto">
+            <div class="flex flex-col lg:flex-row items-center gap-10">
+                <div class="flex-1 fade-in">
+                    <div class="inline-block px-3 py-1 bg-white/20 rounded-full text-sm font-medium mb-4">
+                        🎯 学习工作赛道
+                    </div>
+                    <h1 class="text-4xl lg:text-5xl font-bold mb-4 leading-tight">
+                        工业机械臂虚拟实验室
+                    </h1>
+                    <p class="text-xl text-blue-100 mb-6">
+                        IndustrialRobot-Lab
+                    </p>
+                    <p class="text-lg text-blue-50 mb-8 leading-relaxed">
+                        零基础也能上手的机器人交互式学习平台。<br>
+                        打开浏览器，就能操作六轴机械臂，在 3D 交互中掌握运动学、相机视觉与抓取技术。
+                    </p>
+                    <div class="flex flex-wrap gap-3">
+                        <span class="px-4 py-2 bg-white/20 rounded-lg text-sm font-medium">3D 交互仿真</span>
+                        <span class="px-4 py-2 bg-white/20 rounded-lg text-sm font-medium">结构化教学</span>
+                        <span class="px-4 py-2 bg-white/20 rounded-lg text-sm font-medium">纯前端零部署</span>
+                        <span class="px-4 py-2 bg-white/20 rounded-lg text-sm font-medium">KUKA 真实模型</span>
+                    </div>
+                </div>
+                <div class="flex-1 w-full">
+                    <div class="robot-arm bg-slate-900/30 rounded-2xl backdrop-blur border border-white/10 p-6">
+                        <div class="text-center text-sm text-slate-300 mb-2">3D 仿真示意</div>
+                        <div class="robot-arm relative h-64">
+                            <div class="absolute bottom-6 left-1/2 -translate-x-1/2 w-40 h-4 bg-slate-700/50 rounded-full blur-sm"></div>
+                            <div class="robot-base"></div>
+                            <div class="joint joint-1">
+                                <div class="joint joint-2">
+                                    <div class="joint joint-3">
+                                        <div class="end-effector">
+                                            <div class="sucker"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="absolute bottom-8 right-20 w-12 h-12 bg-amber-500 rounded box-anim shadow-lg shadow-amber-500/30"></div>
+                            <div class="absolute bottom-8 right-4 w-10 h-10 bg-emerald-500 rounded box-anim shadow-lg shadow-emerald-500/30" style="animation-delay: 0.5s;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Problem Section -->
+    <section class="py-16 px-6">
+        <div class="max-w-5xl mx-auto">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-slate-800 mb-3">传统机器人学习的五大痛点</h2>
+                <p class="text-slate-500">为什么我们需要一个虚拟实验室？</p>
+            </div>
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="bg-white rounded-xl p-6 shadow-sm card-hover border border-slate-100">
+                    <div class="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-slate-800 mb-2">硬件成本高昂</h3>
+                    <p class="text-slate-500 text-sm leading-relaxed">一台工业机械臂动辄几万到几十万，学校设备有限，学生轮流操作，每人实操时间严重不足。</p>
+                </div>
+                <div class="bg-white rounded-xl p-6 shadow-sm card-hover border border-slate-100">
+                    <div class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-slate-800 mb-2">学习曲线陡峭</h3>
+                    <p class="text-slate-500 text-sm leading-relaxed">运动学、坐标系变换等概念抽象难懂，纯理论学习枯燥乏味，入门劝退率居高不下。</p>
+                </div>
+                <div class="bg-white rounded-xl p-6 shadow-sm card-hover border border-slate-100">
+                    <div class="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-slate-800 mb-2">安全风险较大</h3>
+                    <p class="text-slate-500 text-sm leading-relaxed">新手操作真机容易发生碰撞，轻则损坏设备，重则造成人身伤害，老师不敢放手让学生操作。</p>
+                </div>
+                <div class="bg-white rounded-xl p-6 shadow-sm card-hover border border-slate-100">
+                    <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-slate-800 mb-2">学习资源分散</h3>
+                    <p class="text-slate-500 text-sm leading-relaxed">网上教程东拼西凑，质量参差不齐，缺乏从入门到实操的系统化学习路径和反馈机制。</p>
+                </div>
+                <div class="bg-white rounded-xl p-6 shadow-sm card-hover border border-slate-100">
+                    <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
+                        <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-slate-800 mb-2">时空限制严重</h3>
+                    <p class="text-slate-500 text-sm leading-relaxed">必须在实验室、特定时间段才能使用设备，学习自由度低，无法满足随时随地学习的需求。</p>
+                </div>
+                <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100 flex items-center justify-center">
+                    <div class="text-center">
+                        <div class="text-4xl font-bold text-blue-600 mb-1">10×</div>
+                        <p class="text-blue-600 text-sm font-medium">学习效率提升</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Solution Section -->
+    <section class="py-16 px-6 bg-white">
+        <div class="max-w-5xl mx-auto">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-slate-800 mb-3">解决方案</h2>
+                <p class="text-slate-500">纯前端 3D 仿真 + 结构化教学，让机器人学习触手可及</p>
+            </div>
+            
+            <div class="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-8 text-white mb-10">
+                <div class="flex flex-col lg:flex-row items-center gap-8">
+                    <div class="flex-1">
+                        <h3 class="text-2xl font-bold mb-4">工业机械臂交互式学习工作台</h3>
+                        <p class="text-slate-300 mb-6 leading-relaxed">
+                            将六轴机械臂的运动学、相机视觉、抓取仿真、码垛等功能拆解为可观察、可调参、可操作的逐步实验，让抽象的数学与算法直观可见。
+                        </p>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-white/10 rounded-lg p-4">
+                                <div class="text-2xl font-bold text-amber-400">3</div>
+                                <div class="text-sm text-slate-300">核心学习模块</div>
+                            </div>
+                            <div class="bg-white/10 rounded-lg p-4">
+                                <div class="text-2xl font-bold text-emerald-400">15+</div>
+                                <div class="text-sm text-slate-300">引导步骤</div>
+                            </div>
+                            <div class="bg-white/10 rounded-lg p-4">
+                                <div class="text-2xl font-bold text-blue-400">180</div>
+                                <div class="text-sm text-slate-300">分钟课程内容</div>
+                            </div>
+                            <div class="bg-white/10 rounded-lg p-4">
+                                <div class="text-2xl font-bold text-purple-400">0</div>
+                                <div class="text-sm text-slate-300">后端依赖</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex-1 w-full">
+                        <div class="bg-slate-700/50 rounded-xl p-4 border border-slate-600">
+                            <div class="flex items-center gap-2 mb-3">
+                                <div class="w-3 h-3 bg-red-500 rounded-full"></div>
+                                <div class="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                                <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+                                <span class="text-xs text-slate-400 ml-2">IndustrialRobot-Lab</span>
+                            </div>
+                            <div class="space-y-2">
+                                <div class="flex gap-2">
+                                    <div class="w-1/3 bg-slate-600/50 rounded-lg p-3">
+                                        <div class="text-xs text-slate-400 mb-2">教学模块</div>
+                                        <div class="space-y-1">
+                                            <div class="bg-blue-500/30 rounded px-2 py-1 text-xs text-blue-200">机械臂基础</div>
+                                            <div class="bg-slate-600/50 rounded px-2 py-1 text-xs text-slate-400">相机系统</div>
+                                            <div class="bg-slate-600/50 rounded px-2 py-1 text-xs text-slate-400">抓取实训</div>
+                                        </div>
+                                    </div>
+                                    <div class="flex-1 bg-slate-600/30 rounded-lg p-3">
+                                        <div class="text-xs text-slate-400 mb-2">3D 视口</div>
+                                        <div class="h-24 flex items-center justify-center">
+                                            <div class="text-6xl">🦾</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="bg-slate-600/50 rounded-lg p-3">
+                                    <div class="flex items-center justify-between text-xs mb-2">
+                                        <span class="text-slate-400">学习进度</span>
+                                        <span class="text-blue-400">65%</span>
+                                    </div>
+                                    <div class="h-2 bg-slate-700 rounded-full overflow-hidden">
+                                        <div class="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full progress-bar" style="width: 65%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="py-16 px-6 bg-slate-50">
+        <div class="max-w-5xl mx-auto">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-slate-800 mb-3">三大核心模块</h2>
+                <p class="text-slate-500">从基础到进阶，系统掌握工业机器人核心技术</p>
+            </div>
+            
+            <div class="space-y-6">
+                <!-- Module 1 -->
+                <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-100">
+                    <div class="flex flex-col lg:flex-row gap-8 items-start">
+                        <div class="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center flex-shrink-0">
+                            <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-xl font-bold text-slate-800 mb-2">机械臂基础模块</h3>
+                            <p class="text-slate-500 mb-4">从认识结构到熟练控制，建立机械臂运动的直觉理解</p>
+                            <div class="grid sm:grid-cols-2 gap-3">
+                                <div class="flex items-start gap-2">
+                                    <span class="text-blue-500 mt-0.5">✓</span>
+                                    <span class="text-sm text-slate-600">认识 6 轴机械臂结构与关节</span>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    <span class="text-blue-500 mt-0.5">✓</span>
+                                    <span class="text-sm text-slate-600">基坐标系 vs 工具坐标系</span>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    <span class="text-blue-500 mt-0.5">✓</span>
+                                    <span class="text-sm text-slate-600">单关节与多关节联动控制</span>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    <span class="text-blue-500 mt-0.5">✓</span>
+                                    <span class="text-sm text-slate-600">正运动学 / 逆运动学可视化</span>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    <span class="text-blue-500 mt-0.5">✓</span>
+                                    <span class="text-sm text-slate-600">笛卡尔位姿控制</span>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    <span class="text-blue-500 mt-0.5">✓</span>
+                                    <span class="text-sm text-slate-600">记忆点保存与回放</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Module 2 -->
+                <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-100">
+                    <div class="flex flex-col lg:flex-row gap-8 items-start">
+                        <div class="w-16 h-16 bg-purple-100 rounded-2xl flex items-center justify-center flex-shrink-0">
+                            <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-xl font-bold text-slate-800 mb-2">相机系统模块</h3>
+                            <p class="text-slate-500 mb-4">理解工业相机成像原理，掌握视觉感知的基础</p>
+                            <div class="grid sm:grid-cols-2 gap-3">
+                                <div class="flex items-start gap-2">
+                                    <span class="text-purple-500 mt-0.5">✓</span>
+                                    <span class="text-sm text-slate-600">针孔相机模型与成像原理</span>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    <span class="text-purple-500 mt-0.5">✓</span>
+                                    <span class="text-sm text-slate-600">内参矩阵与外参矩阵</span>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    <span class="text-purple-500 mt-0.5">✓</span>
+                                    <span class="text-sm text-slate-600">相机位姿 6 自由度调节</span>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    <span class="text-purple-500 mt-0.5">✓</span>
+                                    <span class="text-sm text-slate-600">视场角 FOV 与分辨率</span>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    <span class="text-purple-500 mt-0.5">✓</span>
+                                    <span class="text-sm text-slate-600">彩色 / 分割 / 深度图拍摄</span>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    <span class="text-purple-500 mt-0.5">✓</span>
+                                    <span class="text-sm text-slate-600">相机标定与坐标转换</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Module 3 -->
+                <div class="bg-white rounded-2xl p-8 shadow-sm border border-slate-100">
+                    <div class="flex flex-col lg:flex-row gap-8 items-start">
+                        <div class="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center flex-shrink-0">
+                            <svg class="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"></path>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-xl font-bold text-slate-800 mb-2">抓取实训模块</h3>
+                            <p class="text-slate-500 mb-4">从单个动作到完整流程，掌握工业抓取的核心技能</p>
+                            <div class="grid sm:grid-cols-2 gap-3">
+                                <div class="flex items-start gap-2">
+                                    <span class="text-emerald-500 mt-0.5">✓</span>
+                                    <span class="text-sm text-slate-600">真空吸盘原理与吸附控制</span>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    <span class="text-emerald-500 mt-0.5">✓</span>
+                                    <span class="text-sm text-slate-600">物理仿真（吸附/落体/碰撞）</span>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    <span class="text-emerald-500 mt-0.5">✓</span>
+                                    <span class="text-sm text-slate-600">接近 → 吸取 → 搬运 → 释放</span>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    <span class="text-emerald-500 mt-0.5">✓</span>
+                                    <span class="text-sm text-slate-600">拖拽式动作序列编程</span>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    <span class="text-emerald-500 mt-0.5">✓</span>
+                                    <span class="text-sm text-slate-600">10 种步骤类型自由组合</span>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    <span class="text-emerald-500 mt-0.5">✓</span>
+                                    <span class="text-sm text-slate-600">全流程运行与单步调试</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Tech Highlights -->
+    <section class="py-16 px-6 bg-white">
+        <div class="max-w-5xl mx-auto">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-slate-800 mb-3">技术亮点</h2>
+                <p class="text-slate-500">六大技术创新，打造极致学习体验</p>
+            </div>
+            
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="bg-gradient-to-br from-blue-50 to-white rounded-xl p-6 border border-blue-100 card-hover">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center text-white font-bold">1</div>
+                        <h3 class="font-semibold text-slate-800">纯前端零后端</h3>
+                    </div>
+                    <p class="text-sm text-slate-500 leading-relaxed">所有运动学求解、逆运动学计算、物理仿真均在浏览器内运行，无需任何服务端依赖，打开网页即用。</p>
+                </div>
+                
+                <div class="bg-gradient-to-br from-purple-50 to-white rounded-xl p-6 border border-purple-100 card-hover">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center text-white font-bold">2</div>
+                        <h3 class="font-semibold text-slate-800">GLB 真实模型</h3>
+                    </div>
+                    <p class="text-sm text-slate-500 leading-relaxed">基于真实 KUKA 六轴 GLB 模型，Jacobian 矩阵通过 3D 场景逐关节微扰估计，计算与视觉完全一致。</p>
+                </div>
+                
+                <div class="bg-gradient-to-br from-emerald-50 to-white rounded-xl p-6 border border-emerald-100 card-hover">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center text-white font-bold">3</div>
+                        <h3 class="font-semibold text-slate-800">双策略逆运动学</h3>
+                    </div>
+                    <p class="text-sm text-slate-500 leading-relaxed">采用 LM-DLS 数值求解，6-DOF（位置+姿态）IK 失败时自动降级为 3-DOF（仅位置）IK，避免静默失败。</p>
+                </div>
+                
+                <div class="bg-gradient-to-br from-amber-50 to-white rounded-xl p-6 border border-amber-100 card-hover">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 bg-amber-500 rounded-lg flex items-center justify-center text-white font-bold">4</div>
+                        <h3 class="font-semibold text-slate-800">RAF 动画引擎</h3>
+                    </div>
+                    <p class="text-sm text-slate-500 leading-relaxed">基于类型的非重启优化：同类型重复调用仅更新目标引用，不重启 RAF 循环，消除帧间隙卡顿。</p>
+                </div>
+                
+                <div class="bg-gradient-to-br from-pink-50 to-white rounded-xl p-6 border border-pink-100 card-hover">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 bg-pink-500 rounded-lg flex items-center justify-center text-white font-bold">5</div>
+                        <h3 class="font-semibold text-slate-800">帧级插值优化</h3>
+                    </div>
+                    <p class="text-sm text-slate-500 leading-relaxed">关节滑块与相机控制使用 ref + useFrame 插值，绕过 React 重渲染，保证 60fps 丝滑交互体验。</p>
+                </div>
+                
+                <div class="bg-gradient-to-br from-cyan-50 to-white rounded-xl p-6 border border-cyan-100 card-hover">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 bg-cyan-500 rounded-lg flex items-center justify-center text-white font-bold">6</div>
+                        <h3 class="font-semibold text-slate-800">结构化教学体系</h3>
+                    </div>
+                    <p class="text-sm text-slate-500 leading-relaxed">每个引导步骤包含任务描述、操作步骤、自检项、观察点、关键术语及理论关联，学习路径清晰完整。</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Value Section -->
+    <section class="py-16 px-6 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+        <div class="max-w-5xl mx-auto">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold mb-3">价值与意义</h2>
+                <p class="text-slate-400">让机器人教育触手可及</p>
+            </div>
+            
+            <div class="grid md:grid-cols-2 gap-8 mb-12">
+                <div class="bg-white/5 backdrop-blur rounded-2xl p-8 border border-white/10">
+                    <div class="w-14 h-14 bg-blue-500/20 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-7 h-7 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">效率提升</h3>
+                    <ul class="space-y-3 text-slate-300">
+                        <li class="flex items-start gap-2">
+                            <span class="text-blue-400 mt-1">▸</span>
+                            <span>学习效率提升 3-5 倍：抽象公式变直观视觉反馈</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-blue-400 mt-1">▸</span>
+                            <span>实操时间从每周几十分钟 → 无限时随时练习</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-blue-400 mt-1">▸</span>
+                            <span>零试错成本：大胆尝试，犯错即学习</span>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="bg-white/5 backdrop-blur rounded-2xl p-8 border border-white/10">
+                    <div class="w-14 h-14 bg-emerald-500/20 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-7 h-7 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">社会价值</h3>
+                    <ul class="space-y-3 text-slate-300">
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 mt-1">▸</span>
+                            <span>教育公平：打破硬件壁垒，偏远地区也能学机器人</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 mt-1">▸</span>
+                            <span>产业人才：为智能制造输送更多技术人才</span>
+                        </li>
+                        <li class="flex items-start gap-2">
+                            <span class="text-emerald-400 mt-1">▸</span>
+                            <span>安全培养：仿真环境中学规范，减少真实事故</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="text-center">
+                <div class="inline-flex items-center gap-3 px-6 py-3 bg-white/10 rounded-full">
+                    <span class="text-2xl">🚀</span>
+                    <span class="font-medium">打开浏览器，即刻开始你的机器人学习之旅</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Target Users -->
+    <section class="py-16 px-6 bg-slate-50">
+        <div class="max-w-5xl mx-auto">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-slate-800 mb-3">目标用户</h2>
+                <p class="text-slate-500">谁将从这个平台中受益？</p>
+            </div>
+            
+            <div class="grid md:grid-cols-4 gap-4">
+                <div class="bg-white rounded-xl p-6 text-center card-hover border border-slate-100">
+                    <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="text-3xl">🎓</span>
+                    </div>
+                    <h4 class="font-semibold text-slate-800 mb-2">在校学生</h4>
+                    <p class="text-xs text-slate-500">机器人/自动化/机电专业学生，补充课堂实操</p>
+                </div>
+                <div class="bg-white rounded-xl p-6 text-center card-hover border border-slate-100">
+                    <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="text-3xl">📚</span>
+                    </div>
+                    <h4 class="font-semibold text-slate-800 mb-2">自学者</h4>
+                    <p class="text-xs text-slate-500">想转行的程序员、工程师，零基础入门机器人</p>
+                </div>
+                <div class="bg-white rounded-xl p-6 text-center card-hover border border-slate-100">
+                    <div class="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="text-3xl">🏭</span>
+                    </div>
+                    <h4 class="font-semibold text-slate-800 mb-2">企业新人</h4>
+                    <p class="text-xs text-slate-500">新入职调试/运维工程师，岗前安全培训</p>
+                </div>
+                <div class="bg-white rounded-xl p-6 text-center card-hover border border-slate-100">
+                    <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="text-3xl">🔬</span>
+                    </div>
+                    <h4 class="font-semibold text-slate-800 mb-2">科技爱好者</h4>
+                    <p class="text-xs text-slate-500">对机器人感兴趣的极客，探索前沿技术</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-10 px-6 bg-slate-900 text-center">
+        <div class="max-w-5xl mx-auto">
+            <div class="text-2xl font-bold text-white mb-2">工业机械臂虚拟实验室</div>
+            <p class="text-slate-400 text-sm mb-4">IndustrialRobot-Lab · 让机器人学习触手可及</p>
+            <div class="flex items-center justify-center gap-4 text-xs text-slate-500">
+                <span>React 19</span>
+                <span>·</span>
+                <span>TypeScript</span>
+                <span>·</span>
+                <span>Three.js</span>
+                <span>·</span>
+                <span>Tailwind CSS</span>
+                <span>·</span>
+                <span>Vite</span>
+            </div>
+            <div class="mt-6 pt-6 border-t border-slate-800 text-xs text-slate-600">
+                © 2026 IndustrialRobot-Lab · TRAE AI 创造力大赛参赛作品
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
