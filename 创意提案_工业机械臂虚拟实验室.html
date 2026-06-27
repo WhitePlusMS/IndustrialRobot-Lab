@@ -26,8 +26,16 @@
     </script>
     <style>
         * { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        body { margin: 0; }
+
         .gradient-bg {
             background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 50%, #3b82f6 100%);
+        }
+        .grid-bg {
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
         }
         .card-hover {
             transition: all 0.3s ease;
@@ -35,85 +43,6 @@
         .card-hover:hover {
             transform: translateY(-4px);
             box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-        }
-        .robot-arm {
-            position: relative;
-            width: 100%;
-            height: 280px;
-            overflow: hidden;
-        }
-        .robot-base {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 80px;
-            height: 30px;
-            background: #475569;
-            border-radius: 8px;
-        }
-        .joint {
-            position: absolute;
-            background: #64748b;
-            border-radius: 6px;
-            transform-origin: bottom center;
-        }
-        .joint-1 {
-            bottom: 50px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 20px;
-            height: 60px;
-            background: linear-gradient(to top, #475569, #64748b);
-        }
-        .joint-2 {
-            bottom: 110px;
-            left: 50%;
-            transform: translateX(-50%) rotate(-30deg);
-            width: 16px;
-            height: 80px;
-            background: linear-gradient(to top, #64748b, #94a3b8);
-            animation: armSwing 4s ease-in-out infinite;
-        }
-        .joint-3 {
-            top: -10px;
-            left: 50%;
-            transform: translateX(-50%) rotate(60deg);
-            width: 14px;
-            height: 70px;
-            background: linear-gradient(to top, #94a3b8, #cbd5e1);
-            transform-origin: bottom center;
-        }
-        .end-effector {
-            position: absolute;
-            top: -15px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 30px;
-            height: 20px;
-            background: #f59e0b;
-            border-radius: 4px;
-        }
-        .sucker {
-            position: absolute;
-            top: -8px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 18px;
-            height: 10px;
-            background: #ef4444;
-            border-radius: 50% 50% 20% 20%;
-        }
-        @keyframes armSwing {
-            0%, 100% { transform: translateX(-50%) rotate(-30deg); }
-            50% { transform: translateX(-50%) rotate(-50deg); }
-        }
-        .box-anim {
-            animation: boxFloat 3s ease-in-out infinite;
-        }
-        @keyframes boxFloat {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
         }
         .fade-in {
             animation: fadeIn 0.8s ease-out;
@@ -125,11 +54,113 @@
         .progress-bar {
             transition: width 1s ease-in-out;
         }
-        .grid-bg {
-            background-image: 
-                linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
-            background-size: 40px 40px;
+
+        /* ===== 机械臂示意动画 ===== */
+        .robot-demo {
+            position: relative;
+            width: 100%;
+            height: 280px;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+        }
+        .robot-shadow {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 160px;
+            height: 16px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 50%;
+            filter: blur(6px);
+        }
+        .robot-base {
+            position: relative;
+            z-index: 2;
+            width: 90px;
+            height: 28px;
+            background: linear-gradient(to bottom, #64748b, #334155);
+            border-radius: 8px 8px 4px 4px;
+        }
+        /* J1: 底座旋转关节 */
+        .arm-j1 {
+            position: absolute;
+            bottom: 28px;
+            left: 50%;
+            margin-left: -10px;
+            width: 20px;
+            height: 50px;
+            background: linear-gradient(to top, #475569, #64748b);
+            border-radius: 6px 6px 0 0;
+            z-index: 3;
+        }
+        /* J2: 大臂，会摆动 */
+        .arm-j2 {
+            position: absolute;
+            bottom: 78px;
+            left: 50%;
+            margin-left: -8px;
+            width: 16px;
+            height: 90px;
+            background: linear-gradient(to top, #64748b, #94a3b8);
+            border-radius: 8px;
+            transform-origin: 50% 100%;
+            transform: rotate(-20deg);
+            animation: armSwing 4s ease-in-out infinite;
+            z-index: 4;
+        }
+        /* J3: 小臂，固定相对角度 */
+        .arm-j3 {
+            position: absolute;
+            top: -70px;
+            left: 50%;
+            margin-left: -7px;
+            width: 14px;
+            height: 80px;
+            background: linear-gradient(to top, #94a3b8, #cbd5e1);
+            border-radius: 7px;
+            transform-origin: 50% 100%;
+            transform: rotate(40deg);
+            z-index: 5;
+        }
+        /* 末端执行器 */
+        .arm-end {
+            position: absolute;
+            top: -18px;
+            left: 50%;
+            margin-left: -14px;
+            width: 28px;
+            height: 18px;
+            background: linear-gradient(to bottom, #fbbf24, #f59e0b);
+            border-radius: 4px;
+            z-index: 6;
+        }
+        /* 吸盘 */
+        .arm-sucker {
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            margin-left: -9px;
+            width: 18px;
+            height: 12px;
+            background: linear-gradient(to bottom, #f87171, #ef4444);
+            border-radius: 50% 50% 30% 30%;
+            z-index: 7;
+        }
+        @keyframes armSwing {
+            0%, 100% { transform: rotate(-20deg); }
+            50% { transform: rotate(-45deg); }
+        }
+
+        /* 箱子浮动动画 */
+        .box-anim {
+            animation: boxFloat 3s ease-in-out infinite;
+        }
+        @keyframes boxFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
         }
     </style>
 </head>
@@ -160,22 +191,21 @@
                     </div>
                 </div>
                 <div class="flex-1 w-full">
-                    <div class="robot-arm bg-slate-900/30 rounded-2xl backdrop-blur border border-white/10 p-6">
+                    <div class="bg-slate-900/30 rounded-2xl backdrop-blur border border-white/10 p-6">
                         <div class="text-center text-sm text-slate-300 mb-2">3D 仿真示意</div>
-                        <div class="robot-arm relative h-64">
-                            <div class="absolute bottom-6 left-1/2 -translate-x-1/2 w-40 h-4 bg-slate-700/50 rounded-full blur-sm"></div>
+                        <div class="robot-demo">
+                            <div class="robot-shadow"></div>
                             <div class="robot-base"></div>
-                            <div class="joint joint-1">
-                                <div class="joint joint-2">
-                                    <div class="joint joint-3">
-                                        <div class="end-effector">
-                                            <div class="sucker"></div>
-                                        </div>
+                            <div class="arm-j1"></div>
+                            <div class="arm-j2">
+                                <div class="arm-j3">
+                                    <div class="arm-end">
+                                        <div class="arm-sucker"></div>
                                     </div>
                                 </div>
                             </div>
-                            <div class="absolute bottom-8 right-20 w-12 h-12 bg-amber-500 rounded box-anim shadow-lg shadow-amber-500/30"></div>
-                            <div class="absolute bottom-8 right-4 w-10 h-10 bg-emerald-500 rounded box-anim shadow-lg shadow-emerald-500/30" style="animation-delay: 0.5s;"></div>
+                            <div class="absolute bottom-8 right-16 w-12 h-12 bg-amber-500 rounded shadow-lg" style="box-shadow: 0 4px 12px rgba(245,158,11,0.4);"></div>
+                            <div class="absolute bottom-8 right-2 w-10 h-10 bg-emerald-500 rounded shadow-lg" style="box-shadow: 0 4px 12px rgba(16,185,129,0.4); animation-delay: 0.5s;" ></div>
                         </div>
                     </div>
                 </div>
@@ -257,7 +287,7 @@
             
             <div class="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-8 text-white mb-10">
                 <div class="flex flex-col lg:flex-row items-center gap-8">
-                    <div class="flex-1">
+                    <div class="flex-1 w-full">
                         <h3 class="text-2xl font-bold mb-4">工业机械臂交互式学习工作台</h3>
                         <p class="text-slate-300 mb-6 leading-relaxed">
                             将六轴机械臂的运动学、相机视觉、抓取仿真、码垛等功能拆解为可观察、可调参、可操作的逐步实验，让抽象的数学与算法直观可见。
@@ -593,7 +623,7 @@
                 <p class="text-slate-500">谁将从这个平台中受益？</p>
             </div>
             
-            <div class="grid md:grid-cols-4 gap-4">
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div class="bg-white rounded-xl p-6 text-center card-hover border border-slate-100">
                     <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                         <span class="text-3xl">🎓</span>
@@ -631,7 +661,7 @@
         <div class="max-w-5xl mx-auto">
             <div class="text-2xl font-bold text-white mb-2">工业机械臂虚拟实验室</div>
             <p class="text-slate-400 text-sm mb-4">IndustrialRobot-Lab · 让机器人学习触手可及</p>
-            <div class="flex items-center justify-center gap-4 text-xs text-slate-500">
+            <div class="flex flex-wrap items-center justify-center gap-4 text-xs text-slate-500">
                 <span>React 19</span>
                 <span>·</span>
                 <span>TypeScript</span>
