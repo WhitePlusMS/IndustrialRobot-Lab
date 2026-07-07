@@ -58,6 +58,12 @@ function HeroSection({ onStart }: { onStart: () => void }) {
       <div className="hero-grid" aria-hidden="true" />
       <div className="hero-glow" aria-hidden="true" />
       <div className="hero-fade" aria-hidden="true" />
+      <img
+        src={`${import.meta.env.BASE_URL}images/hero-outline.png`}
+        alt=""
+        aria-hidden="true"
+        className="pointer-events-none absolute right-[4vw] bottom-[15vh] z-[1] hidden h-[60vh] max-h-[620px] max-w-[56vw] w-auto select-none opacity-90 drop-shadow-[0_0_20px_rgba(255,255,255,0.16)] lg:block xl:right-[7vw]"
+      />
 
       {/* TopBar */}
       <div className="relative z-10 border-b border-white/10">
@@ -88,7 +94,7 @@ function HeroSection({ onStart }: { onStart: () => void }) {
       </div>
 
       {/* Hero Content */}
-      <div className="relative z-10 flex-1 flex flex-col justify-center max-w-6xl pl-52 pr-6 py-16">
+      <div className="relative z-10 flex-1 flex w-full max-w-6xl mx-auto flex-col justify-center px-6 py-16">
         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.05] tracking-tight max-w-3xl">
           在 3D 场景中
           <br />
